@@ -77,7 +77,7 @@ class Livreur(models.Model):
     cree_le = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = "_livreurs"
+        db_table = "livreurs"
 
 
 class Utilisateur(models.Model):
