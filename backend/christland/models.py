@@ -1,427 +1,494 @@
 from django.db import models
 
-# =========================
-# Comptes / Référentiels
-# =========================
 
-class Utilisateur(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="utilisateur_id")
-    email = models.EmailField(max_length=255, unique=True, db_column="email_ut")
-    phone = models.CharField(max_length=30, blank=True, db_column="telephone_ut")
-    password_hash = models.CharField(max_length=255, db_column="mot_de_passe_hash")
-    first_name = models.CharField(max_length=150, blank=True, db_column="nom_ut")
-    last_name = models.CharField(max_length=150, blank=True, db_column="prenom_ut")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_ut")
+# ===== Référentiels ===========================================================
+
+from django.db import models
+
+class Categories(models.Model):
+    nom = models.CharField(max_length=255, blank=True)
+    slug = models.CharField(max_length=255, blank=True)
+    description = models.CharField(max_length=255, blank=True)
+    image_url = models.CharField(max_length=255, blank=True)
+    est_actif = models.BooleanField(default=False)
+    position = models.IntegerField(null=True, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+
+    # ✅ Auto-référence (catégorie parente)
+    parent = models.ForeignKey(
+        'self',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='enfants'
+    )
 
     class Meta:
-        db_table = "utilisateurs"
+        db_table = 'categories'
+        indexes = [models.Index(fields=['parent'])]  # optionnel mais recommandé
+
+
+
+class Marques(models.Model):
+    nom = models.CharField(max_length=255, blank=True)
+    slug = models.CharField(max_length=255, blank=True)
+    logo_url = models.CharField(max_length=255, blank=True)
+    site_web_url = models.CharField(max_length=255, blank=True)
+    description = models.CharField(max_length=255, blank=True)
+    pays_origine = models.CharField(max_length=255, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    est_active = models.BooleanField(null=True, blank=True, default=None)
+    modifie_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'marques'
 
     def __str__(self):
-        return self.email
+        return self.nom or f'Marque#{self.id}'
 
 
-# =========================
-# Catalogue
-# =========================
-
-class Marque(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="marque_id")
-    name = models.CharField(max_length=200, db_column="nom_mar")
-    slug = models.SlugField(max_length=220, unique=True, db_column="slug_mar")
-    logo_url = models.URLField(blank=True, db_column="logo_url_mar")
-    website = models.URLField(blank=True, db_column="site_web_url_mar")
-    country = models.CharField(max_length=120, blank=True, db_column="pays_origine_mar")
+class Couleurs(models.Model):
+    nom = models.CharField(max_length=255, blank=True)
+    code_hex = models.CharField(max_length=255, blank=True)
+    slug = models.CharField(max_length=255, blank=True)
+    est_active = models.BooleanField(default=False)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    modifie_le = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = "marques"
+        db_table = 'couleurs'
 
     def __str__(self):
-        return self.name
+        return self.nom or f'Couleur#{self.id}'
 
 
-class Categorie(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="categorie_id")
-    name = models.CharField(max_length=200, db_column="nom_ca")
-    slug = models.SlugField(max_length=220, unique=True, db_column="slug_ca")
-    description = models.TextField(blank=True, db_column="description_ca")
-    image_url = models.URLField(blank=True, db_column="image_url_ca")
-    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL,
-                               related_name="children", db_column="parent_id")
+# ===== Utilisateurs / Favoris =================================================
+
+class Utilisateurs(models.Model):
+    email = models.CharField(max_length=255, blank=True)
+    telephone = models.CharField(max_length=255, blank=True)
+    mot_de_passe_hash = models.CharField(max_length=255, blank=True)
+    prenom = models.CharField(max_length=255, blank=True)
+    nom = models.CharField(max_length=255, blank=True)
+    actif = models.BooleanField(default=False)
+    role = models.CharField(max_length=100, blank=True)  # <= ajouté comme demandé
+    cree_le = models.DateTimeField(null=True, blank=True)
+    modifie_le = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = "categories"
+        db_table = 'utilisateurs'
 
     def __str__(self):
-        return self.name
-
-
-class Produit(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="produit_id")
-    name = models.CharField(max_length=250, db_column="nom_pr")
-    slug = models.SlugField(max_length=260, unique=True, db_column="slug_pr")
-    short_desc = models.CharField(max_length=500, blank=True, db_column="description_courte_pr")
-    description = models.TextField(blank=True, db_column="description_pr")
-    marque = models.ForeignKey(Marque, null=True, blank=True, on_delete=models.SET_NULL, related_name="products")
-    categorie = models.ForeignKey(Categorie, null=True, blank=True, on_delete=models.SET_NULL, related_name="products")
-    is_active = models.BooleanField(default=True, db_column="actif_pr")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_pr")
-
-    class Meta:
-        db_table = "produits"
-
-    def __str__(self):
-        return self.name
-
-
-class Couleur(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="couleur_id")
-    name = models.CharField(max_length=100, db_column="nom_cou")
-    hex_code = models.CharField(max_length=7, db_column="code_hex_cou")  # #RRGGBB
-    slug = models.SlugField(max_length=120, unique=True, db_column="slug_cou")
-    is_active = models.BooleanField(default=True, db_column="est_active_cou")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_cou")
-
-    class Meta:
-        db_table = "couleurs"
-
-    def __str__(self):
-        return self.name
-
-
-class VarianteProduit(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="variante_id")
-    produit = models.ForeignKey(Produit, on_delete=models.CASCADE, related_name="variants")
-    sku = models.CharField(max_length=80, unique=True, db_column="sku_va")
-    barcode = models.CharField(max_length=64, blank=True, db_column="code_barres_va")
-    name = models.CharField(max_length=200, blank=True, db_column="nom_va")
-    couleur = models.ForeignKey(Couleur, null=True, blank=True, on_delete=models.SET_NULL, related_name="variants")
-    price = models.DecimalField(max_digits=12, decimal_places=2, db_column="prix_ttc_va")
-    weight_g = models.PositiveIntegerField(default=0, db_column="poids_grammes_va")
-    is_active = models.BooleanField(default=True, db_column="actif_va")
-
-    class Meta:
-        db_table = "variantes_produits"
-
-    def __str__(self):
-        return f"{self.produit.name} - {self.sku}"
-
-
-class ImageProduit(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="image_id")
-    produit = models.ForeignKey(Produit, on_delete=models.CASCADE, related_name="images")
-    variante = models.ForeignKey(VarianteProduit, null=True, blank=True, on_delete=models.CASCADE, related_name="images")
-    url = models.URLField(db_column="url_im_im")
-    alt = models.CharField(max_length=255, blank=True, db_column="alt_text_im")
-    position = models.IntegerField(default=0, db_column="position_im")
-
-    class Meta:
-        db_table = "images_produits"
-        ordering = ["position"]
-
-
-class AvisProduit(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="avis_id")
-    produit = models.ForeignKey(Produit, on_delete=models.CASCADE, related_name="reviews")
-    utilisateur = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name="reviews")
-    rating = models.DecimalField(max_digits=3, decimal_places=1, db_column="note_re")
-    comment = models.TextField(blank=True, db_column="commentaire_re")
-    status = models.CharField(max_length=30, default="PENDING", db_column="status_re")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_re")
-
-    class Meta:
-        db_table = "avis_produits"
-        unique_together = [("produit", "utilisateur")]
-
-
-# =========================
-# Panier & Commande
-# =========================
-
-class Panier(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="panier_id")
-    utilisateur = models.ForeignKey(Utilisateur, null=True, blank=True, on_delete=models.SET_NULL, related_name="carts")
-    total = models.DecimalField(max_digits=12, decimal_places=2, default=0, db_column="montant_p")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_p")
-    session_id = models.CharField(max_length=100, blank=True, db_column="session_id_p")
-
-    class Meta:
-        db_table = "paniers"
-
-
-class LignePanier(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="ligne_panier_id")
-    panier = models.ForeignKey(Panier, on_delete=models.CASCADE, related_name="items")
-    variante = models.ForeignKey(VarianteProduit, on_delete=models.PROTECT, related_name="cart_items", db_column="variante_id_pa")
-    qty = models.PositiveIntegerField(db_column="quantite_pa")
-    unit_price = models.DecimalField(max_digits=12, decimal_places=2, db_column="prix_unitaire_pa")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_pa")
-
-    class Meta:
-        db_table = "lignes_panier"
-
-
-class Adresse(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="adresse_id")
-    utilisateur = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name="addresses")
-    label = models.CharField(max_length=200, db_column="libelle_ad", blank=True, null=True)
-    full_name = models.CharField(max_length=200, db_column="nom_complet_ad", blank=True, null=True)
-    line1 = models.CharField(max_length=200, db_column="ligne1_ad", blank=True, null=True)
-    line2 = models.CharField(max_length=200, db_column="ligne2_ad", blank=True, null=True)
-    city = models.CharField(max_length=120, db_column="ville_ad", blank=True, null=True)          # <= rendre nullable
-    region = models.CharField(max_length=120, db_column="region_ad", blank=True, null=True)
-    postal_code = models.CharField(max_length=20, db_column="code_postal_ad", blank=True, null=True)
-    country = models.CharField(max_length=120, db_column="pays_ad", blank=True, null=True)        # <= rendre nullable
-    phone = models.CharField(max_length=30, db_column="telephone_ad", blank=True, null=True)
-    class Meta:
-        db_table = "adresses"
-
-
-
-class Commande(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="commande_id")
-    utilisateur = models.ForeignKey(Utilisateur, null=True, blank=True, on_delete=models.SET_NULL, related_name="orders")
-    number = models.CharField(max_length=30, unique=True, db_column="numero_com")
-    status = models.CharField(max_length=30, default="EN_COURS", db_column="statut_com")
-    payment_status = models.CharField(max_length=30, default="EN_ATTENTE", db_column="statut_paiement_com")
-    total = models.DecimalField(max_digits=12, decimal_places=2, db_column="total_ttc")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_com")
-
-    class Meta:
-        db_table = "commandes"
-
-
-class LigneCommande(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="ligne_commande_id")
-    commande = models.ForeignKey(Commande, on_delete=models.CASCADE, related_name="items")
-    produit = models.ForeignKey(Produit, on_delete=models.PROTECT, related_name="order_items")
-    variante = models.ForeignKey(VarianteProduit, on_delete=models.PROTECT, related_name="order_items")
-    name_snapshot = models.CharField(max_length=250, db_column="nom_snapshot_lc")
-    unit_price = models.DecimalField(max_digits=12, decimal_places=2, db_column="prix_unitaire_lic")
-    qty = models.PositiveIntegerField(db_column="quantite_lic")
-
-    class Meta:
-        db_table = "lignes_commande"
-
-
-class Paiement(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="paiement_id_pai")
-    commande = models.ForeignKey(Commande, on_delete=models.CASCADE, related_name="payments")
-    provider = models.CharField(max_length=60, db_column="fournisseur_pai")
-    external_id = models.CharField(max_length=120, db_column="transaction_externe_id_pai")
-    amount = models.DecimalField(max_digits=12, decimal_places=2, db_column="montant_pai")
-    status = models.CharField(max_length=30, default="EN_ATTENTE", db_column="statut_pai")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_pai")
-
-    class Meta:
-        db_table = "paiements"
-
-
-class AdresseCommande(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="adresse_id")
-    commande = models.ForeignKey(Commande, on_delete=models.CASCADE, related_name="addresses")
-    type = models.CharField(max_length=20, db_column="type_ac")  # FACTURATION / LIVRAISON
-    full_name = models.CharField(max_length=200, db_column="nom_complet_ac")
-    phone = models.CharField(max_length=30, db_column="telephone_ac")
-    data = models.JSONField(db_column="adresse_json_ac")
-
-    class Meta:
-        db_table = "adresses_commande"
-
-
-class Remboursement(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="remboursement_id")
-    paiement = models.ForeignKey(Paiement, on_delete=models.CASCADE, related_name="refunds")
-    amount = models.DecimalField(max_digits=12, decimal_places=2, db_column="montant_rem")
-    reason = models.TextField(blank=True, db_column="motif_rem")
-    status = models.CharField(max_length=30, default="EN_ATTENTE", db_column="statut_rem")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_rem")
-
-    class Meta:
-        db_table = "remboursements"
-
-
-# =========================
-# Stocks / Entrepôts / Expéditions
-# =========================
-
-class Entrepot(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="entrepot_id")
-    name = models.CharField(max_length=200, db_column="nom_en")
-    address = models.JSONField(db_column="adresse_json_en")
-    lat = models.DecimalField(max_digits=10, decimal_places=7, db_column="gps_lat")
-    lon = models.DecimalField(max_digits=10, decimal_places=7, db_column="gps_lon")
-
-    class Meta:
-        db_table = "entrepots"
-
-    def __str__(self):
-        return self.name
-
-
-class Stock(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="stock_id")
-    entrepot = models.ForeignKey(Entrepot, on_delete=models.CASCADE, related_name="stocks")
-    variante = models.ForeignKey(VarianteProduit, on_delete=models.CASCADE, related_name="stocks")
-    qty_available = models.IntegerField(default=0, db_column="quantite_disponible_st")
-    qty_reserved = models.IntegerField(default=0, db_column="quantite_reservee_st")
-
-    class Meta:
-        db_table = "stocks"
-        unique_together = [("entrepot", "variante")]
-
-
-class MouvementStock(models.Model):
-    TYPES = (("ENTREE", "ENTREE"), ("DEBIT", "DEBIT"))
-    id = models.BigAutoField(primary_key=True, db_column="mouvement_id")
-    stock = models.ForeignKey(Stock, on_delete=models.CASCADE, related_name="moves")
-    kind = models.CharField(max_length=10, choices=TYPES, db_column="type_mou")
-    qty = models.IntegerField(db_column="quantite_mou")
-    reason = models.CharField(max_length=200, blank=True, db_column="raison_mou")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_mou")
-
-    class Meta:
-        db_table = "mouvements_stock"
-
-
-class Expedition(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="expedition_id")
-    commande = models.ForeignKey(Commande, on_delete=models.CASCADE, related_name="shipments")
-    mode = models.CharField(max_length=50, db_column="mode_ex")
-    tracking = models.CharField(max_length=120, blank=True, db_column="tracking_ex")
-    signature_url = models.URLField(blank=True, db_column="signature_url_ex")
-    proof_photo_url = models.URLField(blank=True, db_column="preuve_photo_url_ex")
-
-    class Meta:
-        db_table = "expeditions"
-
-
-# =========================
-# Promotions / Marketing
-# =========================
-
-class Coupon(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="coupon_id")
-    code = models.CharField(max_length=40, unique=True, db_column="code_cou")
-    kind = models.CharField(max_length=20, db_column="type_cou")  # POURCENTAGE / MONTANT
-    value = models.DecimalField(max_digits=10, decimal_places=2, db_column="valeur_cou")
-    first_order_only = models.BooleanField(default=False, db_column="premier_achat_uniquement_cou")
-    is_active = models.BooleanField(default=True, db_column="actif_cou")
-
-    class Meta:
-        db_table = "coupons"
-
-
-class CouponUtilisation(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="utilisation_id")
-    coupon = models.ForeignKey(Coupon, on_delete=models.PROTECT, related_name="usages")
-    commande = models.ForeignKey(Commande, on_delete=models.CASCADE, related_name="coupon_usages")
-    utilisateur = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name="coupon_usages")
-    used_at = models.DateTimeField(auto_now_add=True, db_column="utilise_le_cu")
-    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, db_column="montant_remise_cu")
-    state = models.CharField(max_length=20, default="APPLIQUE", db_column="etat")
-    first_order = models.BooleanField(default=False, db_column="premier_achat")
-    commission_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, db_column="commission_montant")
-
-    class Meta:
-        db_table = "coupons_utilisations"
-        unique_together = [("coupon", "commande")]
-
-
-class BandeauMarketing(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="bandeau_id")
-    title = models.CharField(max_length=200, db_column="titre_ban")
-    image_url = models.URLField(db_column="image_url_ban")
-    link_url = models.URLField(blank=True, db_column="lien_url_ban")
-    position = models.CharField(max_length=50, db_column="position_ban")  # HOME_TOP, etc.
-    is_active = models.BooleanField(default=True, db_column="est_actif_ban")
-
-    class Meta:
-        db_table = "bandeaux_marketing"
-
-
-# =========================
-# Favoris
-# =========================
-
-class Favoris(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="favoris_id")
-    utilisateur = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name="wishlists")
-    name = models.CharField(max_length=200, db_column="nom_fa")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_fa")
-
-    class Meta:
-        db_table = "favoris"
-
-    def __str__(self):
-        return f"{self.name} ({self.utilisateur.email})"
+        base = f'{self.prenom} {self.nom}'.strip()
+        return base or self.email or f'User#{self.id}'
 
 
 class FavorisClasseur(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="element_id")
-    favoris = models.ForeignKey(Favoris, on_delete=models.CASCADE, related_name="items")
-    produit = models.ForeignKey(Produit, on_delete=models.CASCADE, related_name="favorited_by", null=True, blank=True)
-    variante = models.ForeignKey(VarianteProduit, on_delete=models.CASCADE, related_name="favorited_by", null=True, blank=True)
-    added_at = models.DateTimeField(auto_now_add=True, db_column="ajoute_le_fc")
+    nom = models.CharField(max_length=255, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    class Meta:
+        db_table = 'favoris_classeur'
+
+    def __str__(self):
+        return self.nom or f'Classeur#{self.id}'
+
+
+class Favoris(models.Model):
+    utilisateur = models.ForeignKey(Utilisateurs, on_delete=models.CASCADE, related_name='favoris', null=True, blank=True)
+    element = models.ForeignKey(FavorisClasseur, on_delete=models.CASCADE, related_name='favoris', null=True, blank=True)
+    nom = models.CharField(max_length=255, blank=True)
+    class Meta:
+        db_table = 'favoris'
+
+
+# ===== Catalogue ==============================================================
+
+class Produits(models.Model):
+    nom = models.CharField(max_length=255, blank=True)
+    slug = models.CharField(max_length=255, blank=True)
+    description_courte = models.CharField(max_length=255, blank=True)
+    description_long = models.CharField(max_length=255, blank=True)
+    garantie_mois = models.IntegerField(null=True, blank=True)
+    poids_grammes = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    est_actif = models.BooleanField(default=False)
+    visible = models.IntegerField(null=True, blank=True)
+    prix_reference_avant = models.IntegerField(null=True, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    dimensions = models.CharField(max_length=255, blank=True)
+
+    # clés de rattachement usuelles (si présentes dans ton schéma relationnel)
+    categorie = models.ForeignKey(Categories, on_delete=models.SET_NULL, null=True, blank=True, related_name='produits')
+    marque = models.ForeignKey(Marques, on_delete=models.SET_NULL, null=True, blank=True, related_name='produits')
 
     class Meta:
-        db_table = "favoris_classeur"
-        indexes = [
-            models.Index(fields=["favoris", "produit"]),
-            models.Index(fields=["favoris", "variante"]),
-        ]
+        db_table = 'produits'
+
+    def __str__(self):
+        return self.nom or f'Produit#{self.id}'
 
 
-# =========================
-# CMS / Contact / Divers
-# =========================
+class VariantesProduits(models.Model):
+    produit = models.ForeignKey(Produits, on_delete=models.CASCADE, related_name='variantes', null=True, blank=True)
+    sku = models.CharField(max_length=255, blank=True)
+    code_barres = models.CharField(max_length=255, blank=True)
+    nom = models.CharField(max_length=255, blank=True)
+    prix = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    prix_promo = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    stock = models.IntegerField(null=True, blank=True)
+    couleur = models.ForeignKey(Couleurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='variantes')
+    poids_grammes = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    prix_achat = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    est_actif = models.BooleanField(default=False)
+    class Meta:
+        db_table = 'variantes_produits'
 
-class MessageContact(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="message_id")
-    name = models.CharField(max_length=200, db_column="nom_me")
-    email = models.EmailField(max_length=255, db_column="email_me")
-    phone = models.CharField(max_length=30, blank=True, db_column="telephone_me")
-    subject = models.CharField(max_length=255, blank=True, db_column="sujet_me")
-    content = models.TextField(db_column="contenu_me")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_me")
+    def __str__(self):
+        base = self.nom or self.sku
+        return base or f'Variante#{self.id}'
+
+
+class ImagesProduits(models.Model):
+    produit = models.ForeignKey(Produits, on_delete=models.CASCADE, related_name='images', null=True, blank=True)
+    url = models.CharField(max_length=255, blank=True)
+    alt_text = models.CharField(max_length=255, blank=True)
+    position = models.IntegerField(null=True, blank=True)
+    principale = models.BooleanField(default=False)
+    class Meta:
+        db_table = 'images_produits'
+        ordering = ['position']
+
+
+class AvisProduits(models.Model):
+    utilisateur = models.ForeignKey(Utilisateurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='avis')
+    produit = models.ForeignKey(Produits, on_delete=models.CASCADE, null=True, blank=True, related_name='avis')
+    note = models.IntegerField(null=True, blank=True)
+    commentaire = models.CharField(max_length=255, blank=True)
+    statut  = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = "messages_contact"
+        db_table = 'avis_produits'
 
 
-class ArticleBlog(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="article_id")
-    title = models.CharField(max_length=250, db_column="titre_ar")
-    slug = models.SlugField(max_length=260, unique=True, db_column="slug_ar")
-    excerpt = models.CharField(max_length=400, blank=True, db_column="extrait_ar")
-    content = models.TextField(db_column="contenu_ar")
-    cover_url = models.URLField(blank=True, db_column="image_couverture_ar")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_ar")
+# ===== Panier / Commande ======================================================
 
-    class Meta:
-        db_table = "articles_blog"
-
-
-class CommentaireBlog(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="commentaire_id")
-    article = models.ForeignKey(ArticleBlog, on_delete=models.CASCADE, related_name="comments")
-    utilisateur = models.ForeignKey(Utilisateur, null=True, blank=True, on_delete=models.SET_NULL, related_name="blog_comments")
-    content = models.TextField(db_column="contenu_com")
-    status = models.CharField(max_length=20, default="PENDING", db_column="statut_com")
-    created_at = models.DateTimeField(auto_now_add=True, db_column="cree_le_com")
-    approved_at = models.DateTimeField(null=True, blank=True, db_column="approuve_le_com")
-    is_valid = models.BooleanField(default=False, db_column="est_valide_com")
+class Paniers(models.Model):
+    montant = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    session_id = models.CharField(max_length=255, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    utilisateur = models.ForeignKey(Utilisateurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='paniers')
 
     class Meta:
-        db_table = "commentaires_blog"
+        db_table = 'paniers'
 
 
-class EvenementAnalytics(models.Model):
-    id = models.BigAutoField(primary_key=True, db_column="evenement_id")
-    event_type = models.CharField(max_length=60, db_column="type_evenement")
-    occurred_at = models.DateTimeField(auto_now_add=True, db_column="date_evenement")
-    page_url = models.URLField(db_column="page_url")
-    utm_source = models.CharField(max_length=120, blank=True, db_column="utm_source")
-    utm_campaign = models.CharField(max_length=120, blank=True, db_column="utm_campaign")
+class LignesPanier(models.Model):
+    panier = models.ForeignKey(Paniers, on_delete=models.CASCADE, related_name='lignes', null=True, blank=True)
+    variante = models.ForeignKey(VariantesProduits, on_delete=models.PROTECT, related_name='lignes_panier', null=True, blank=True)
+    quantite = models.IntegerField(null=True, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    prix_unitaire = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    class Meta:
+        db_table = 'lignes_panier'
+
+
+class Commandes(models.Model):
+    numero = models.CharField(max_length=255, blank=True)
+    utilisateur = models.ForeignKey(Utilisateurs, on_delete=models.PROTECT, null=True, blank=True, related_name='commandes')
+    statut = models.CharField(max_length=255, blank=True)
+    statut_paiement = models.CharField(max_length=255, blank=True)
+    statut_livraison = models.CharField(max_length=255, blank=True)
+    sous_total  =  models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    total_remise  =  models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    total_livraison   =  models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    total_taxes   =  models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    total_general    =  models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    montant = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    modifie_le = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = "evenements_analytics"
+        db_table = 'commandes'
+
+    def __str__(self):
+        return self.numero or f'CMD#{self.id}'
+
+
+class LignesCommande(models.Model):
+    commande = models.ForeignKey(Commandes, on_delete=models.CASCADE, related_name='lignes', null=True, blank=True)
+    variante = models.ForeignKey(VariantesProduits, on_delete=models.PROTECT, related_name='lignes_commande', null=True, blank=True)
+    quantite = models.IntegerField(null=True, blank=True)
+    prix_unitaire_lic = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    total_ligne = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    nom_snapshot_lic = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = 'lignes_commande'
+
+
+class Adresses(models.Model):
+    libelle = models.CharField(max_length=255, blank=True)
+    nom_complet = models.CharField(max_length=255, blank=True)
+    ligne1 = models.CharField(max_length=255, blank=True)
+    ligne2 = models.CharField(max_length=255, blank=True)
+    ville = models.CharField(max_length=255, blank=True)
+    region = models.CharField(max_length=255, blank=True)
+    code_postal = models.CharField(max_length=255, blank=True)
+    pays = models.CharField(max_length=255, blank=True)
+    telephone = models.CharField(max_length=255, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    utilisateur = models.ForeignKey(Utilisateurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='adresses')
+
+    class Meta:
+        db_table = 'adresses'
+
+
+class AdressesCommande(models.Model):
+    commande = models.ForeignKey(Commandes, on_delete=models.CASCADE, related_name='adresses', null=True, blank=True)
+    type = models.CharField(max_length=255, blank=True)  # SHIPPING / BILLING
+    nom_complet = models.CharField(max_length=255, blank=True)
+    telephone = models.CharField(max_length=255, blank=True)
+    email = models.CharField(max_length=255, blank=True)
+    ligne1 = models.CharField(max_length=255, blank=True)
+    ligne2 = models.CharField(max_length=255, blank=True)
+    ville = models.CharField(max_length=255, blank=True)
+    region = models.CharField(max_length=255, blank=True)
+    code_postal = models.CharField(max_length=255, blank=True)
+    pays = models.CharField(max_length=255, blank=True)
+    notes = models.CharField(max_length=255, blank=True)
+    class Meta:
+        db_table = 'adresses_commande'
+
+
+class Paiements(models.Model):
+    commande = models.ForeignKey(Commandes, on_delete=models.CASCADE, related_name='paiements', null=True, blank=True)
+    fournisseur = models.CharField(max_length=255, blank=True)
+    transaction_externe_id = models.CharField(max_length=255, blank=True)
+    montant = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    statut = models.CharField(max_length=255, blank=True)
+    pays = models.CharField(max_length=255, blank=True) 
+    class Meta:
+        db_table = 'paiements'
+
+
+class Remboursements(models.Model):
+    paiement = models.ForeignKey(Paiements, on_delete=models.SET_NULL, null=True, blank=True, related_name='remboursements')
+    montant = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    motif = models.CharField(max_length=255, blank=True)
+    statut = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = 'remboursements'
+
+
+# ===== Livraison / Stock ======================================================
+
+class Livreurs(models.Model):
+    nom = models.CharField(max_length=255, blank=True)
+    email = models.CharField(max_length=255, blank=True)
+    telephone = models.CharField(max_length=255, blank=True)
+    type = models.CharField(max_length=255, blank=True)
+    vehicule = models.CharField(max_length=255, blank=True)
+    zone = models.CharField(max_length=255, blank=True)
+    disponibilite = models.CharField(max_length=255, blank=True)
+    immatriculation = models.CharField(max_length=255, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    modifie_le = models.DateTimeField(null=True, blank=True)
+    actif = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'livreurs'
+
+
+class Expeditions(models.Model):
+    commande = models.ForeignKey(Commandes, on_delete=models.CASCADE, related_name='expeditions', null=True, blank=True)
+    mode = models.CharField(max_length=255, blank=True)
+    numero_suivi = models.CharField(max_length=255, blank=True)
+    preuve_signature_url = models.CharField(max_length=255, blank=True)
+    preuve_photo_url = models.CharField(max_length=255, blank=True)
+    livreur = models.ForeignKey(Livreurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='expeditions')
+    statut = models.CharField(max_length=255, blank=True)
+    Expedier_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'expeditions'
+
+
+class Entrepots(models.Model):
+    nom = models.CharField(max_length=255, blank=True)
+    adresse_json = models.CharField(max_length=255, blank=True)
+    gps_lat_gps_lon = models.CharField(max_length=255, blank=True)
+    est_actif = models.BooleanField(default=False)
+    cree_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'entrepots'
+
+
+class MouvementsStock(models.Model):
+    variante = models.ForeignKey(VariantesProduits, on_delete=models.PROTECT, related_name='mouvements', null=True, blank=True)
+    entrepot = models.ForeignKey(Entrepots, on_delete=models.PROTECT, related_name='mouvements', null=True, blank=True)
+    type = models.CharField(max_length=255, blank=True)  # DEBIT / CREDIT
+    quantite = models.IntegerField(null=True, blank=True)
+    raison = models.DateTimeField(null=True, blank=True)
+    gps_lat_gps_lon = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = 'mouvements_stock'
+
+
+class Stocks(models.Model):
+    # Associations du diagramme (FK)
+    variante = models.ForeignKey('VariantesProduits', on_delete=models.PROTECT, related_name='stocks')
+    entrepot = models.ForeignKey('Entrepots', on_delete=models.PROTECT, related_name='stocks')
+
+    # Attributs du diagramme
+    quantite_disponible = models.IntegerField()
+    quantite_reservee = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = 'stocks'
+        unique_together = [('variante', 'entrepot')]
+
+
+# ===== Coupons / Marketing ====================================================
+
+class Coupons(models.Model):
+    code = models.CharField(max_length=255, blank=True)
+    type = models.CharField(max_length=255, blank=True)
+    premier_achat_uniquement = models.BooleanField(default=False)
+    canal = models.CharField(max_length=255, blank=True)
+    valeur = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    montant_minimal = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    actif = models.BooleanField(default=False)
+    debut = models.DateTimeField(null=True, blank=True)
+    fin = models.DateTimeField(null=True, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    cumulable  = models.BooleanField(default=False)
+    modifie_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'coupons'
+
+
+
+
+class Representants(models.Model):
+    nom = models.CharField(max_length=255, blank=True)
+    email = models.CharField(max_length=255, blank=True)
+    telephone = models.CharField(max_length=255, blank=True)
+    actif = models.BooleanField(default=False)
+    cree_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'representants'
+
+
+class CouponsUtilisations(models.Model):
+    coupon = models.ForeignKey(Coupons, on_delete=models.CASCADE, related_name='utilisations', null=True, blank=True)
+    commande = models.ForeignKey(Commandes, on_delete=models.SET_NULL, null=True, blank=True, related_name='coupons_utilises')
+    utilisateur = models.ForeignKey(Utilisateurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='coupons_utilises')
+    representant = models.ForeignKey(Representants, on_delete=models.SET_NULL, null=True, blank=True, related_name='coupons_utilises')
+    utilise_le = models.DateTimeField(null=True, blank=True)
+    commission_montant  = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    montant_remise = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    commission_statut  = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        db_table = 'coupons_utilisations'
+
+
+class BandeauxMarketing(models.Model):
+    titre = models.CharField(max_length=255, blank=True)               # <- simplifié (ex: titre_ban → titre)
+    image_url = models.CharField(max_length=255, blank=True)           # <- image_url_ban → image_url
+    lien_url = models.CharField(max_length=255, blank=True)            # <- lien_url_ban → lien_url
+    position = models.IntegerField(null=True, blank=True)
+    produit = models.ForeignKey(Produits, on_delete=models.SET_NULL, null=True, blank=True, related_name='bandeaux')
+    categorie = models.ForeignKey(Categories, on_delete=models.SET_NULL, null=True, blank=True, related_name='bandeaux')
+    coupon = models.ForeignKey(Coupons, on_delete=models.SET_NULL, null=True, blank=True, related_name='bandeaux')
+    actif = models.BooleanField(default=False)
+    debut = models.DateTimeField(null=True, blank=True)
+    fin = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'bandeaux_marketing'
+        ordering = ['position']
+
+
+# ===== Blog / Contenu =========================================================
+
+class ArticlesBlog(models.Model):
+    titre = models.CharField(max_length=255, blank=True)
+    slug = models.CharField(max_length=255, blank=True)
+    extrait = models.CharField(max_length=255, blank=True)
+    contenu = models.CharField(max_length=255, blank=True)
+    image_couverture =  models.CharField(max_length=255, blank=True)
+    publie_le = models.DateTimeField(null=True, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    modifie_le = models.DateTimeField(null=True, blank=True)
+    categorie = models.ForeignKey(Categories, on_delete=models.SET_NULL, null=True, blank=True, related_name='articles')
+    auteur = models.ForeignKey(Utilisateurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='articles')
+
+    class Meta:
+        db_table = 'articles_blog'
+
+    def __str__(self):
+        return self.titre or f'Article#{self.id}'
+
+
+class CommentairesBlog(models.Model):
+    article = models.ForeignKey(ArticlesBlog, on_delete=models.CASCADE, related_name='commentaires', null=True, blank=True)
+    contenu = models.CharField(max_length=255, blank=True)
+    statut = models.CharField(max_length=255, blank=True)
+    valide = models.BooleanField(default=False)
+    cree_le = models.DateTimeField(null=True, blank=True)
+    approuve_le = models.DateTimeField(null=True, blank=True)
+    utilisateur = models.ForeignKey(Utilisateurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='commentaires_blog')
+
+    class Meta:
+        db_table = 'commentaires_blog'
+
+
+# ===== Messages / Notifications / Analytics ==================================
+
+class MessagesContact(models.Model):
+    nom = models.CharField(max_length=255, blank=True)
+    email = models.CharField(max_length=255, blank=True)
+    telephone = models.CharField(max_length=255, blank=True)
+    canal_prefere = models.CharField(max_length=255, blank=True)
+    statut = models.CharField(max_length=255, blank=True)
+    sujet = models.CharField(max_length=255, blank=True)
+    message = models.CharField(max_length=255, blank=True)
+    utilisateur = models.ForeignKey(Utilisateurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='messages_contact')
+    cree_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'messages_contact'
+
+
+class Notifications(models.Model):
+    canal = models.CharField(max_length=255, blank=True)
+    modele = models.CharField(max_length=255, blank=True)
+    payload_json = models.CharField(max_length=255, blank=True)
+    statut = models.CharField(max_length=255, blank=True)
+    utilisateur = models.ForeignKey(Utilisateurs, on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
+    cree_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'notifications'
+
+
+class EvenementsAnalytics(models.Model):
+    type_evenement = models.CharField(max_length=255, blank=True)
+    date_evenement = models.DateTimeField(null=True, blank=True)
+    page_url = models.CharField(max_length=255, blank=True)
+    utm_source = models.CharField(max_length=255, blank=True)
+    appareil = models.CharField(max_length=255, blank=True)
+    utm_campaign = models.CharField(max_length=255, blank=True)
+    pays = models.CharField(max_length=255, blank=True)
+    ip_client = models.CharField(max_length=255, blank=True)
+    ville = models.CharField(max_length=255, blank=True)
+    utilisateur = models.ForeignKey(Utilisateurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='evenements_analytics')
+
+    class Meta:
+        db_table = 'evenements_analytics'
