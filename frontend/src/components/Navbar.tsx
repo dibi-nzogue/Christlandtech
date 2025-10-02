@@ -34,7 +34,7 @@ const Navbar = () => {
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-50 bg-black text-white shadow-md">
-        <div className="mx-auto w-full max-w-screen-2xl px-3 sm:px-5 lg:px-6">
+        <div className="container mx-auto px-5">
           {/* Ligne principale */}
           <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-3 lg:gap-4 h-16 md:h-20">
             {/* Logo + nom (nom TOUJOURS visible) */}
@@ -49,7 +49,7 @@ const Navbar = () => {
               </div>
               <div className="leading-5 whitespace-nowrap">
                 <span className="font-semibold tracking-wide text-[13px] sm:text-sm md:text-base">CHRISTLAND</span>{" "}
-                <span className="font-extrabold text-cyan-400 text-[13px] sm:text-sm md:text-base">TECH</span>
+                <span className="font-extrabold text-[#00A8E8] text-[13px] sm:text-sm md:text-base">TECH</span>
               </div>
             </Link>
 
@@ -69,7 +69,7 @@ const Navbar = () => {
             <div className="hidden md:flex items-center justify-end gap-3 sm:gap-4">
               <NavLink to="/contact" className="relative text-sm md:text-[15px]">
                 <span>Contact</span>
-                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-cyan-400 rounded-full" />
+                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-[#00A8E8] rounded-full" />
               </NavLink>
 
               {/* Langue dropdown */}
@@ -87,13 +87,13 @@ const Navbar = () => {
                 {langOpen && (
                   <div className="absolute right-0 mt-2 w-36 rounded-md bg-white text-gray-900 py-1 shadow-lg ring-1 ring-black/5">
                     <button
-                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${lang === "fr" ? "font-semibold text-cyan-600" : ""}`}
+                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${lang === "fr" ? "font-semibold text-[#00A8E8]" : ""}`}
                       onClick={() => { setLang("fr"); setLangOpen(false); }}
                     >
                       Français
                     </button>
                     <button
-                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${lang === "en" ? "font-semibold text-cyan-600" : ""}`}
+                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${lang === "en" ? "font-semibold text-[#00A8E8]" : ""}`}
                       onClick={() => { setLang("en"); setLangOpen(false); }}
                     >
                       English
@@ -149,7 +149,7 @@ const Navbar = () => {
                   {l.label}
                   <span
                     className={`absolute left-0 -bottom-1 h-[2px] w-full rounded-full transition-all ${
-                      isActive(l.to) ? "bg-cyan-400 opacity-100" : "opacity-0"
+                      isActive(l.to) ? "bg-[#00A8E8] opacity-100" : "opacity-0"
                     }`}
                   />
                 </span>
@@ -184,7 +184,7 @@ const Navbar = () => {
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                 />
               </div>
-                <span className="font-semibold text-sm">CHRISTLAND <span className="text-cyan-400">TECH</span></span>
+                <span className="font-semibold text-sm">CHRISTLAND <span className="text-[#00A8E8]">TECH</span></span>
               </div>
               <button
                 className="inline-flex items-center justify-center rounded-md p-2 text-gray-200"
@@ -231,7 +231,7 @@ const Navbar = () => {
             <div className="px-4 py-3 border-t border-white/10 mt-1 flex items-center justify-between">
               <Link to="/contact" onClick={() => setOpen(false)} className="relative text-[15px]">
                 <span>Contact</span>
-                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-cyan-400 rounded-full" />
+                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-[#00A8E8] rounded-full" />
               </Link>
 
               <div className="flex items-center gap-2">
