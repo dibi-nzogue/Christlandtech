@@ -2,6 +2,7 @@
 import React from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import iphone from "../assets/images/iphone.jfif";
+import { useTranslation } from "react-i18next";
 
 type Option = { label: string; value: string };
 type Filter = { title: string; options: Option[] };
@@ -324,6 +325,8 @@ const Presentation: React.FC = () => {
   const visibleProducts = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const goto = (n: number) => setPage(Math.min(Math.max(1, n), totalPages));
 
+  const { t } = useTranslation();
+
   return (
     <>
       {/* ===== ENTÊTE ===== */}
@@ -332,7 +335,7 @@ const Presentation: React.FC = () => {
           <div className="flex items-center justify-between h-24 md:h-28 lg:h-32">
             <div className="min-w-0">
               <div className="text-xs sm:text-sm text-gray-500">
-                Accueil <span className="text-gray-400">›</span> Produits
+                {t('Accueil')} <span className="text-gray-400">›</span> {t('Produits')}
               </div>
               <h1 className="mt-1 font-extrabold leading-tight tracking-tight text-xl sm:text-xl md:text-2xl lg:text-4xl">
                 Explore Tous Les Produits

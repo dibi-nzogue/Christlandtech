@@ -1,0 +1,98 @@
+import React from "react";
+import {
+  FaFacebookF,
+  FaInstagram,
+  FaLinkedinIn,
+  FaYoutube,
+  FaXTwitter,
+  FaPhone,
+  FaEnvelope,
+} from "react-icons/fa6";
+import logo from "../assets/images/logo.jpg";
+import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+
+const Footer: React.FC = () => {
+
+    const { t } = useTranslation();
+
+  return (
+    <footer className="bg-[#f5f5f5] text-gray-500 pt-10 pb-5 px-6 md:px-16">
+      {/* --- Haut du footer --- */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
+        <Link to="/" className="flex items-center gap-4 min-w-0">
+              <div className="h-10 w-10 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
+                <img
+                  src={logo}
+                  alt="CHRISTLAND TECH"
+                  className="h-full w-full object-cover"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
+              <div className="leading-5 whitespace-nowrap">
+                <span className="font-semibold tracking-wide text-[13px] sm:text-sm md:text-lg text-black">CHRISTLAND</span>{" "}
+                <span className="font-extrabold text-[#00A8E8] text-[13px] sm:text-sm md:text-lg">TECH</span>
+              </div>
+        </Link>
+
+        {/* Réseaux sociaux */}
+        <div className="flex items-center gap-5 mt-5 md:mt-0 text-black text-lg">
+          <FaXTwitter className="hover:text-[#00A9DC] transition-colors cursor-pointer" />
+          <FaLinkedinIn className="hover:text-[#00A9DC] transition-colors cursor-pointer" />
+          <FaFacebookF className="hover:text-[#00A9DC] transition-colors cursor-pointer" />
+          <FaInstagram className="hover:text-[#00A9DC] transition-colors cursor-pointer" />
+          <FaYoutube className="hover:text-[#00A9DC] transition-colors cursor-pointer" />
+        </div>
+      </div>
+
+      {/* --- Contenu principal --- */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 mb-10 mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
+        {/* Colonne 1 : Adresse */}
+        <div>
+          <h2 className="font-semibold text-gray-600 text-lg mb-2">
+            {t('siege')}
+          </h2>
+          <p className="text-sm">Cameroun, Yaoundé</p>
+          <p className="text-sm">Monté Jouvence</p>
+        </div>
+
+        {/* Colonne 2 : Liens */}
+        <div className="space-y-2">
+          {["Accueil", "A propos", "Produits", "Services", "Assistance"].map(
+            (item, index) => (
+              <p
+                key={index}
+                className="text-sm hover:text-[#00A9DC] cursor-pointer transition-colors"
+              >
+                {t(item)}
+              </p>
+            )
+          )}
+        </div>
+
+        {/* Colonne 3 : Contact */}
+        <div className="space-y-3 text-sm">
+          <div className="flex items-center gap-2">
+            <FaEnvelope className="text-gray-400" />
+            <span>info@christland.tech</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <FaPhone className="text-gray-400" />
+            <span>691 554 641</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <FaPhone className="text-gray-400" />
+            <span>676 089 671</span>
+          </div>
+        </div>
+      </div>
+
+      {/* --- Bas du footer --- */}
+      <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-200 pt-3 mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
+        <p>© 2025, Christland Tech</p>
+      </div>
+    </footer>
+  );
+};
+
+export default Footer;
