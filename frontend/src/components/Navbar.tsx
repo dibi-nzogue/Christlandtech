@@ -5,6 +5,7 @@ import { FiMenu } from "react-icons/fi";
 import { MdClose } from "react-icons/md";
 import { FaSearch, FaGlobe, FaChevronDown } from "react-icons/fa";
 import logo from "../assets/images/logo.jpg";
+import { useTranslation } from "react-i18next";
 
 type LinkItem = { label: string; to: string };
 const LINKS: LinkItem[] = [
@@ -16,10 +17,9 @@ const LINKS: LinkItem[] = [
 ];
 
 const Navbar = () => {
-  const [open, setOpen] = useState(false);            // panneau mobile
-  const [showSearch, setShowSearch] = useState(false); // afficher la recherche dans le panneau
-  const [lang, setLang] = useState<"fr" | "en">("fr");
-  const [langOpen, setLangOpen] = useState(false);    // dropdown langue (desktop)
+  const [open, setOpen] = useState(false); 
+  const [showSearch, setShowSearch] = useState(false); 
+  const [langOpen, setLangOpen] = useState(false);
   const { pathname } = useLocation();
 
   const isActive = (to: string) =>
@@ -31,14 +31,19 @@ const Navbar = () => {
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
+  const { t, i18n } = useTranslation();
+
+  const currentLang = i18n.language;
+
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-50 bg-black text-white shadow-md">
+        <div className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
         <div className="container mx-auto px-5">
           {/* Ligne principale */}
-          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-3 lg:gap-4 h-16 md:h-20">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-3 lg:gap-24 xl:gap-32 h-16 md:h-24">
             {/* Logo + nom (nom TOUJOURS visible) */}
-            <Link to="/" className="flex items-center gap-3 min-w-0">
+            <Link to="/" className="flex items-center gap-2 min-w-0">
               <div className="h-10 w-10 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
                 <img
                   src={logo}
@@ -59,7 +64,7 @@ const Navbar = () => {
                 <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="search"
-                  placeholder="Rechercher"
+                  placeholder={t("Rechercher")}
                   className="w-full rounded-full bg-white py-2.5 pl-11 pr-4 text-sm md:text-[15px] text-gray-900 placeholder-gray-500 shadow-[0_10px_28px_rgba(0,0,0,0.10)] focus:outline-none"
                 />
               </div>
@@ -68,6 +73,8 @@ const Navbar = () => {
             {/* Actions droites (desktop) */}
             <div className="hidden md:flex items-center justify-end gap-3 sm:gap-4">
               <NavLink to="/contact" className="relative text-sm md:text-[15px]">
+                <span>{t('Contact')}</span>
+                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-cyan-400 rounded-full" />
                 <span>Contact</span>
                 <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-[#00A8E8] rounded-full" />
               </NavLink>
@@ -87,16 +94,16 @@ const Navbar = () => {
                 {langOpen && (
                   <div className="absolute right-0 mt-2 w-36 rounded-md bg-white text-gray-900 py-1 shadow-lg ring-1 ring-black/5">
                     <button
-                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${lang === "fr" ? "font-semibold text-[#00A8E8]" : ""}`}
-                      onClick={() => { setLang("fr"); setLangOpen(false); }}
+                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${currentLang === "fr" ? "font-semibold text-cyan-600" : ""}`}
+                      onClick={() => i18n.changeLanguage("fr")}
                     >
-                      Français
+                      {t('Français')}
                     </button>
                     <button
-                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${lang === "en" ? "font-semibold text-[#00A8E8]" : ""}`}
-                      onClick={() => { setLang("en"); setLangOpen(false); }}
+                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${currentLang === "en" ? "font-semibold text-cyan-600" : ""}`}
+                      onClick={() => i18n.changeLanguage("en")}
                     >
-                      English
+                      {t('Anglais')}
                     </button>
                   </div>
                 )}
@@ -146,7 +153,7 @@ const Navbar = () => {
                 }`}
               >
                 <span className="relative">
-                  {l.label}
+                  {t(l.label)}
                   <span
                     className={`absolute left-0 -bottom-1 h-[2px] w-full rounded-full transition-all ${
                       isActive(l.to) ? "bg-[#00A8E8] opacity-100" : "opacity-0"
@@ -221,7 +228,7 @@ const Navbar = () => {
                       isActive(l.to) ? "bg-white/10 text-white" : "text-gray-300 hover:bg-white/5"
                     }`}
                   >
-                    {l.label}
+                    {t(l.label)}
                   </Link>
                 </li>
               ))}
@@ -230,6 +237,8 @@ const Navbar = () => {
             {/* Contact + langue */}
             <div className="px-4 py-3 border-t border-white/10 mt-1 flex items-center justify-between">
               <Link to="/contact" onClick={() => setOpen(false)} className="relative text-[15px]">
+                <span>{t('Contact')}</span>
+                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-cyan-400 rounded-full" />
                 <span>Contact</span>
                 <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-cyan-400 rounded-full" />
               </Link>
@@ -237,21 +246,22 @@ const Navbar = () => {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className={`rounded-md px-3 py-1.5 text-sm ${lang === "fr" ? "bg-white/10 text-white" : "text-gray-300 hover:bg-white/5"}`}
-                  onClick={() => setLang("fr")}
+                  className={`rounded-md px-3 py-1.5 text-sm ${currentLang === "fr" ? "font-semibold text-cyan-600" : ""}`}
+                  onClick={() => i18n.changeLanguage("fr")}
                 >
-                  Français
+                  {t('Français')}
                 </button>
                 <button
                   type="button"
-                  className={`rounded-md px-3 py-1.5 text-sm ${lang === "en" ? "bg-white/10 text-white" : "text-gray-300 hover:bg-white/5"}`}
-                  onClick={() => setLang("en")}
+                  className={`rounded-md px-3 py-1.5 text-sm ${currentLang === "en" ? "font-semibold text-cyan-600" : ""}`}
+                  onClick={() => i18n.changeLanguage("en")}
                 >
-                  English
+                  {t('Anglais')}
                 </button>
               </div>
             </div>
           </div>
+        </div>
         </div>
       </header>
 
