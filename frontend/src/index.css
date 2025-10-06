@@ -1,3 +1,33 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Conteneur des dots */
+.custom-dots {
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Dots inactifs = petits ronds */
+.custom-dots li button:before {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+/* Dot actif = longue barre blanche */
+.custom-dots li.slick-active button:before {
+  content: "";
+  display: block;
+  width: 25px;     /* longueur de la barre */
+  height: 7px;     /* épaisseur */
+  border-radius: 10px;
+  background: white;
+  opacity: 1;
+}

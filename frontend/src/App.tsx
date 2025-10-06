@@ -9,7 +9,7 @@ import Accueil from "./pages/Accueil";
 
 const App: React.FC = () => {
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 text-white">
+    <main className="">
       <Routes>
         <Route path="/" element={<Accueil />} />
         {/* <Route path="/apropos" element={<Apropos />} />
