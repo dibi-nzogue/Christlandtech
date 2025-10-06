@@ -1,15 +1,21 @@
 // src/components/Presentation.tsx
 import React from "react";
-import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import {
+  FiChevronLeft,
+  FiChevronRight,
+  FiMenu,
+} from "react-icons/fi";
+import { MdClose } from "react-icons/md";
 import iphone from "../assets/images/iphone.jfif";
 
+/* ------------------- Types ------------------- */
 type Option = { label: string; value: string };
 type Filter = { title: string; options: Option[] };
 
 const ACCENT = "bg-[#00A8E8] text-white border-[#00A8E8]";
 const ACCENT_HOVER = "hover:opacity-90";
 
-/* ------------------- Filtres (options spécifiques) ------------------- */
+/* ------------------- Filtres (options) ------------------- */
 const brandOptions: Option[] = [
   { label: "SAMSUNG", value: "samsung" },
   { label: "HP", value: "hp" },
@@ -76,69 +82,55 @@ const categories = [
   "Réseau télécom / Sécurité",
 ];
 
-/* ------------------- Produits (avec attributs de filtre + category) ------------------- */
+/* ------------------- Produits ------------------- */
 type Product = {
   id: number;
   name: string;
   img: string;
   desc: string;
   category: string;
-  // attributs filtre
   brand?: string; screen?: string; cpu?: string; ram?: string; ssd?: string; color?: string;
-  // prix
-  price: number;        // prix actuel
-  oldPrice?: number;    // ancien prix (optionnel => promo si présent et > price)
+  price: number;
+  oldPrice?: number;
 };
 
-// Exemples (je garde tes attributs de filtre)
 const products: Product[] = [
-  // En promo (oldPrice présent)
   { id: 1, category: "Téléphones & Tablettes", brand: "samsung", name: "Galaxy S23",
     price: 200000, oldPrice: 220000,
     img: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e5?q=80&w=800&auto=format&fit=crop",
     desc: "Écran 6.1” • Snapdragon • 128 Go • 5G", screen:"6.1", cpu:"snapdragon", ram:"8", ssd:"256", color:"noir" },
-
   { id: 9, category: "Téléphones & Tablettes", brand: "samsung", name: "Galaxy A54",
     price: 150000, oldPrice: 175000,
     img: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=800&auto=format&fit=crop",
     desc: "6.4” • 8Go • 256Go • 5G", screen:"6.4", cpu:"snapdragon", ram:"8", ssd:"256", color:"vert" },
-
-  // Pas en promo (un seul prix)
   { id: 2, category: "Electronique", brand: "samsung", name: "TV 32” HD",
     price: 90000,
     img: "https://images.unsplash.com/photo-1584946488603-84f9eb6c4f3b?q=80&w=800&auto=format&fit=crop",
     desc: "LED • HDMI/USB • Mode jeu", screen:"32", color:"noir" },
-
   { id: 3, category: "Ordinateur", brand: "hp", name: "HP 15s",
     price: 260000,
     img: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop",
     desc: "15.6” • i5 • 8Go • 256Go SSD", screen:"15.6", cpu:"i5", ram:"8", ssd:"256", color:"argent" },
-
   { id: 4, category: "Ordinateur", brand: "hp", name: "HP Envy",
     price: 450000, oldPrice: 480000,
     img: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop",
     desc: "13” • i7 • 16Go • 512Go SSD", screen:"13", cpu:"i7", ram:"16", ssd:"512", color:"noir" },
-
   { id: 5, category: "Ordinateur", brand: "lenovo", name: "Lenovo IdeaPad",
     price: 230000,
     img: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=800&auto=format&fit=crop",
     desc: "14” • Ryzen 5 • 8Go • 512Go SSD", screen:"14", cpu:"ryzen5", ram:"8", ssd:"512", color:"argent" },
-
   { id: 6, category: "Ordinateur", brand: "lenovo", name: "Lenovo Legion",
     price: 650000, oldPrice: 720000,
     img: "https://images.unsplash.com/photo-1518779578993-ec3579fee39f?q=80&w=800&auto=format&fit=crop",
     desc: "15.6” • i7 • 16Go • 1To SSD", screen:"15.6", cpu:"i7", ram:"16", ssd:"1024", color:"noir" },
-
   { id: 7, category: "Electronique", brand: "benq", name: "BenQ 27” 144Hz",
     price: 180000,
     img: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop",
     desc: "27” • 144Hz • IPS • 1ms", screen:"27", color:"noir" },
-
   { id: 8, category: "Electronique", brand: "benq", name: "BenQ 24” FHD",
     price: 120000,
     img: "https://images.unsplash.com/photo-1527443154391-507e9dc6c5cc?q=80&w=800&auto=format&fit=crop",
     desc: "24” • 75Hz • Low Blue Light", screen:"24", color:"noir" },
-
   { id: 10, category: "Ordinateur", brand: "hp", name: "HP Victus",
     price: 520000,
     img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
@@ -146,7 +138,6 @@ const products: Product[] = [
 ];
 
 /* ------------------- Sous-composants ------------------- */
-// Groupe de filtres (accordéon) — radios dé-sélectionnables
 type FilterGroupProps = Filter & {
   selected?: string;
   onSelect: (title: string, v: string) => void;
@@ -186,29 +177,22 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, options, selected, onS
               return (
                 <label key={opt.value} className="flex items-center gap-2">
                   <input
-                    key={`${title}-${opt.value}-${isChecked ? "on" : "off"}`}  // force DOM refresh when toggling
+                    key={`${title}-${opt.value}-${isChecked ? "on" : "off"}`}
                     type="radio"
                     name={title}
                     value={opt.value}
                     checked={isChecked}
                     onClick={(e) => {
-                      // toggle off if clicking the already-checked radio
                       if (isChecked) {
                         e.preventDefault();
                         onSelect(title, "");
-                        (e.currentTarget as HTMLInputElement).blur(); // remove focus ring that can look blue
+                        (e.currentTarget as HTMLInputElement).blur();
                       }
                     }}
-                    onChange={() => {
-                      if (!isChecked) onSelect(title, opt.value);
-                    }}
+                    onChange={() => { if (!isChecked) onSelect(title, opt.value); }}
                     className="h-4 w-4 rounded-full border border-gray-300 accent-gray-300 checked:accent-[#00A8E8] transition-all duration-200"
                   />
-                  <span
-                    className={`transition-colors duration-200 ${
-                      isChecked ? "text-[#00A8E8] font-semibold" : "text-gray-700"
-                    }`}
-                  >
+                  <span className={`transition-colors duration-200 ${isChecked ? "text-[#00A8E8] font-semibold" : "text-gray-700"}`}>
                     {opt.label}
                   </span>
                 </label>
@@ -223,19 +207,14 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, options, selected, onS
 
 const fmt = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
 
-// Carte produit
 const ProductCard: React.FC<Product> = ({ name, price, oldPrice, img, desc }) => (
- <article className=" group rounded-2xl border border-gray-200 bg-white p-4 shadow transition-shadow hover:shadow-lg">
-  <div className="w-full h-44 md:h-48 lg:h-52 overflow-hidden rounded-xl border border-gray-100">
-    <img
-      src={img}
-      alt={name}
-      className="
-        h-full w-full object-cover
-        transform-gpu transition-transform duration-300 ease-out
-        group-hover:scale-105
-      "
-      loading="lazy"
+  <article className="group rounded-2xl border border-gray-200 bg-white p-4 shadow transition-shadow hover:shadow-lg">
+    <div className="w-full h-44 md:h-48 lg:h-52 overflow-hidden rounded-xl border border-gray-100">
+      <img
+        src={img}
+        alt={name}
+        className="h-full w-full object-cover transform-gpu transition-transform duration-300 ease-out group-hover:scale-105"
+        loading="lazy"
         onError={(e) => {
           (e.currentTarget as HTMLImageElement).src =
             "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='16'%3EImage indisponible%3C/text%3E%3C/svg%3E";
@@ -243,19 +222,18 @@ const ProductCard: React.FC<Product> = ({ name, price, oldPrice, img, desc }) =>
       />
     </div>
 
-    <h3 className="mt-3 text-base font-semibold text-gray-900">{name}</h3>
+    <h3 className="mt-3 text-[15px] sm:text-base font-semibold text-gray-900">{name}</h3>
     <p className="mt-1 line-clamp-2 text-sm text-gray-500">{desc}</p>
 
     <div className="mt-3 flex items-center justify-between">
-      <span className="text-2xl font-bold text-gray-900">{fmt(price)}</span>
-
+      <span className="text-xl sm:text-xl md:text-sm lg:text-2xl font-bold text-gray-900">{fmt(price)}</span>
       {typeof oldPrice === "number" && oldPrice > price && (
-        <span className="text-base text-red-500 line-through">{fmt(oldPrice)}</span>
+        <span className="text-sm sm:text-base md:text-text-base lg:text-lg text-red-500 line-through">{fmt(oldPrice)}</span>
       )}
     </div>
 
     <div className="mt-3 flex items-center justify-center">
-      <button className={`rounded-lg border px-3 py-1.5 text-md font-medium ${ACCENT} ${ACCENT_HOVER}`}>
+      <button className={`rounded-lg border px-3 py-1.5 text-sm sm:text-md font-medium ${ACCENT} ${ACCENT_HOVER}`}>
         Commander
       </button>
     </div>
@@ -264,7 +242,7 @@ const ProductCard: React.FC<Product> = ({ name, price, oldPrice, img, desc }) =>
 
 /* ------------------- Page ------------------- */
 const Presentation: React.FC = () => {
-  /** Carrousel catégories (sans scrollbar) */
+  /** Carrousel catégories (desktop) */
   const VISIBLE = 6.5;
   const ITEM_W = 160;
   const GAP = 16;
@@ -277,7 +255,7 @@ const Presentation: React.FC = () => {
   const handlePrev = () => setIndex((i) => Math.max(0, i - 1));
   const handleNext = () => setIndex((i) => Math.min(i + 1, maxIndex));
 
-  /** État des filtres + mapping titre -> clé produit */
+  /** État filtres */
   const [filters, setFilters] = React.useState<Record<string, string>>({
     MARQUE: "",
     "TAILLE DE L’ECRAN": "",
@@ -299,10 +277,10 @@ const Presentation: React.FC = () => {
   const handleSelect = (title: string, value: string) =>
     setFilters((f) => ({ ...f, [title]: value }));
 
-  /** Filtre catégorie (cliquable dans le carrousel) */
+  /** Catégorie active */
   const [activeCategory, setActiveCategory] = React.useState<string>("");
 
-  /** Filtrage combiné (catégorie + radios) */
+  /** Filtrage combiné */
   const filtered = React.useMemo(() => {
     return products.filter((p) => {
       if (activeCategory && p.category !== activeCategory) return false;
@@ -315,7 +293,7 @@ const Presentation: React.FC = () => {
     });
   }, [filters, activeCategory]);
 
-  /** Pagination : 4 rangées * 3 colonnes = 12 items/page */
+  /** Pagination */
   const PAGE_SIZE = 12;
   const [page, setPage] = React.useState(1);
   React.useEffect(() => { setPage(1); }, [filters, activeCategory]);
@@ -323,6 +301,17 @@ const Presentation: React.FC = () => {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
   const visibleProducts = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const goto = (n: number) => setPage(Math.min(Math.max(1, n), totalPages));
+
+  /** Tiroir filtres mobile */
+  const [mobileFiltersOpen, setMobileFiltersOpen] = React.useState(false);
+  React.useEffect(() => {
+    // lock scroll when drawer open
+    if (mobileFiltersOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [mobileFiltersOpen]);
 
   return (
     <>
@@ -338,7 +327,7 @@ const Presentation: React.FC = () => {
                 Explore Tous Les Produits
               </h1>
             </div>
-            <div className="md:block">
+            <div className="hidden sm:block">
               <div className="h-20 md:h-24 lg:h-28 xl:h-32 w-auto">
                 <img
                   src={iphone}
@@ -352,19 +341,43 @@ const Presentation: React.FC = () => {
         </div>
       </div>
 
-      {/* ===== CATÉGORIES (slide au clic, active + hover) ===== */}
-      <div className="container ml-auto px-5 pt-8">
+      {/* ===== CATÉGORIES ===== */}
+      <div className="container mx-auto px-5 pt-6">
         <div className="uppercase tracking-wider text-xs font-semibold text-gray-600 mb-2">
-          Cathegories
+          Catégories
         </div>
 
-        <div className="flex items-center gap-14">
+        {/* Mobile: simple scroll horizontal */}
+        <div className="md:hidden -mx-5 px-5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex gap-3 pb-1">
+            {categories.map((c) => {
+              const active = activeCategory === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setActiveCategory(active ? "" : c)}
+                  className={[
+                    "flex-none px-3 h-9 rounded-md border text-sm font-medium",
+                    active ? ACCENT : "bg-[#83888a] text-white border-[#83888a] hover:bg-[#b9c6ca]"
+                  ].join(" ")}
+                  title={c}
+                >
+                  <span className="truncate max-w-[160px]">{c}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Desktop: carrousel avec flèches */}
+        <div className="hidden md:flex items-center gap-6">
           <div
             className="overflow-hidden"
             style={{ width: `${VISIBLE * ITEM_W + VISIBLE * GAP}px` }}
           >
             <div
-              className="flex gap-10 transition-transform duration-300 ease-out"
+              className="flex gap-4 transition-transform duration-300 ease-out"
               style={{
                 width: `${categories.length * STEP}px`,
                 transform: `translateX(-${index * STEP}px)`,
@@ -379,9 +392,7 @@ const Presentation: React.FC = () => {
                     onClick={() => setActiveCategory(active ? "" : c)}
                     className={[
                       "w-40 h-10 flex-none rounded-md border text-sm font-medium text-center",
-                      active
-                        ? ACCENT
-                        : "bg-[#83888a] text-white border-[#83888a] hover:bg-[#b9c6ca]",
+                      active ? ACCENT : "bg-[#83888a] text-white border-[#83888a] hover:bg-[#b9c6ca]",
                     ].join(" ")}
                     title={c}
                   >
@@ -392,7 +403,7 @@ const Presentation: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 -ml-2">
+          <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
               onClick={handlePrev}
@@ -419,12 +430,25 @@ const Presentation: React.FC = () => {
         </div>
       </div>
 
-      {/* ===== CONTENU (Sidebar + Grille) ===== */}
+      {/* ===== BARRE D’ACTION (Mobile) : bouton Filtres (3 traits) ===== */}
+      <div className="container mx-auto px-5 mt-4 md:mt-6 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileFiltersOpen(true)}
+          className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm active:scale-[0.99]"
+          aria-label="Ouvrir les filtres"
+        >
+          <FiMenu className="h-5 w-5" />
+          Filtres
+        </button>
+      </div>
+
+      {/* ===== CONTENU (Sidebar desktop + Grille) ===== */}
       <div className="bg-white">
         <div className="container mx-auto px-5 py-6 lg:py-8">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Sidebar */}
-            <aside className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm h-fit">
+            {/* Sidebar desktop */}
+            <aside className="hidden lg:block rounded-2xl border border-gray-200 bg-white p-5 shadow-sm h-fit">
               <h3 className="text-lg font-bold text-gray-900">Filtrer</h3>
               <div className="mt-4 border-t border-[#00A8E8] pt-4">
                 {FILTERS.map((f) => (
@@ -438,15 +462,16 @@ const Presentation: React.FC = () => {
               </div>
             </aside>
 
-            {/* Produits filtrés + pagination */}
+            {/* Produits + pagination */}
             <main className="lg:col-span-3">
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-6">
+              {/* Grille responsive : 1 col <640px (résout ton 1er screenshot) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                 {visibleProducts.map((p) => (
                   <ProductCard key={p.id} {...p} />
                 ))}
               </div>
 
-              {/* Pagination : n’apparaît que s’il y a + de 12 items */}
+              {/* Pagination */}
               {filtered.length > 12 && (
                 <div className="mt-10 flex items-center justify-center gap-2">
                   <button
@@ -486,6 +511,75 @@ const Presentation: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ===== TIROIR FILTRES — MOBILE ===== */}
+      {mobileFiltersOpen && (
+        <div
+          className="fixed inset-0 z-[9999]"
+          aria-modal="true"
+          role="dialog"
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobileFiltersOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Panel */}
+          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[360px] bg-white shadow-2xl p-5 overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-bold">Filtrer</h3>
+              <button
+                type="button"
+                aria-label="Fermer"
+                onClick={() => setMobileFiltersOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white"
+              >
+                <MdClose className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="border-t border-[#00A8E8] pt-4">
+              {FILTERS.map((f) => (
+                <FilterGroup
+                  key={f.title}
+                  {...f}
+                  selected={filters[f.title] ?? ""}
+                  onSelect={handleSelect}
+                />
+              ))}
+            </div>
+
+            {/* Actions bas du tiroir */}
+            <div className="sticky bottom-0 -mx-5 mt-4 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 p-5 border-t">
+              <div className="flex gap-3">
+                <button
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${ACCENT} ${ACCENT_HOVER}`}
+                  onClick={() => setMobileFiltersOpen(false)}
+                >
+                  Appliquer
+                </button>
+                <button
+                  className="flex-1 rounded-lg border px-3 py-2 text-sm font-medium bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
+                  onClick={() =>
+                    setFilters({
+                      MARQUE: "",
+                      "TAILLE DE L’ECRAN": "",
+                      PROCESSEUR: "",
+                      "MÉMOIRE VIVE": "",
+                      "CAPACITÉ SSD": "",
+                      COULEURS: "",
+                    })
+                  }
+                >
+                  Réinitialiser
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

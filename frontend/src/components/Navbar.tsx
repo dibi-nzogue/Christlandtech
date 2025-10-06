@@ -231,7 +231,7 @@ const Navbar = () => {
             <div className="px-4 py-3 border-t border-white/10 mt-1 flex items-center justify-between">
               <Link to="/contact" onClick={() => setOpen(false)} className="relative text-[15px]">
                 <span>Contact</span>
-                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-[#00A8E8] rounded-full" />
+                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-cyan-400 rounded-full" />
               </Link>
 
               <div className="flex items-center gap-2">
