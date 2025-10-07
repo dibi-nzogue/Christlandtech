@@ -318,8 +318,8 @@ const Presentation: React.FC = () => {
       {/* ===== ENTÊTE ===== */}
       <div className="w-full bg-gray-100">
         <div className="container mx-auto px-5">
-          <div className="flex items-center justify-between h-24 md:h-28 lg:h-32">
-            <div className="min-w-0">
+          <div className="flex items-center justify-between h-40 md:h-40 lg:h-48 ">
+            <div className="min-w-0 mt-6">
               <div className="text-xs sm:text-sm text-gray-500">
                 Accueil <span className="text-gray-400">›</span> Produits
               </div>
@@ -327,7 +327,7 @@ const Presentation: React.FC = () => {
                 Explore Tous Les Produits
               </h1>
             </div>
-            <div className="hidden sm:block">
+            <div className=" sm:block">
               <div className="h-20 md:h-24 lg:h-28 xl:h-32 w-auto">
                 <img
                   src={iphone}
@@ -342,7 +342,7 @@ const Presentation: React.FC = () => {
       </div>
 
       {/* ===== CATÉGORIES ===== */}
-      <div className="container mx-auto px-5 pt-6">
+      <div className="container mx-auto px-5 pt-10">
         <div className="uppercase tracking-wider text-xs font-semibold text-gray-600 mb-2">
           Catégories
         </div>
@@ -445,7 +445,7 @@ const Presentation: React.FC = () => {
 
       {/* ===== CONTENU (Sidebar desktop + Grille) ===== */}
       <div className="bg-white">
-        <div className="container mx-auto px-5 py-6 lg:py-8">
+        <div className=" max-w-screen-4xl mx-auto px-5  py-6 lg:py-40">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Sidebar desktop */}
             <aside className="hidden lg:block rounded-2xl border border-gray-200 bg-white p-5 shadow-sm h-fit">
@@ -465,7 +465,7 @@ const Presentation: React.FC = () => {
             {/* Produits + pagination */}
             <main className="lg:col-span-3">
               {/* Grille responsive : 1 col <640px (résout ton 1er screenshot) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
                 {visibleProducts.map((p) => (
                   <ProductCard key={p.id} {...p} />
                 ))}

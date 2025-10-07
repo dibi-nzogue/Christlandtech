@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-<<<<<<< HEAD
+
 /* Conteneur des dots */
 .custom-dots {
   display: flex !important;
@@ -32,5 +32,4 @@
   background: white;
   opacity: 1;
 }
-=======
->>>>>>> 01f6360980fb6738c0e8b18469ac3e2001189b50
+
