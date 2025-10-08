@@ -37,14 +37,14 @@ const Navbar = () => {
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 md:pt-5 z-50 bg-black text-white shadow-md">
+      <header className="fixed inset-x-0 top-0 md:pt-5 z-50 bg-black text-white shadow-md py-2 md:py-0">
         <div className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
         <div className="">
           {/* Ligne principale */}
           <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-3 lg:gap-24 xl:gap-32 h-16 md:h-24">
             {/* Logo + nom (nom TOUJOURS visible) */}
-            <Link to="/" className="flex items-center gap-4 min-w-0">
-              <div className="h-10 w-10 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
+            <Link to="/" className="flex items-center gap-2 md:gap-4 min-w-0">
+              <div className="h-10 md:h-16 w-10 md:w-16 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
                 <img
                   src={logo}
                   alt="CHRISTLAND TECH"

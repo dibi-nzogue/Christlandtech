@@ -7,6 +7,10 @@
     "module": "ESNext",
     "types": ["vite/client"],
     "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@chakra-ui/react": ["./node_modules/@chakra-ui/react"]
+    },
 
     /* Bundler mode */
     "moduleResolution": "bundler",

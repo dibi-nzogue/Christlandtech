@@ -21,7 +21,7 @@ const Footer: React.FC = () => {
       {/* --- Haut du footer --- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
         <Link to="/" className="flex items-center gap-4 min-w-0">
-              <div className="h-10 w-10 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
+              <div className="h-10 md:h-16 w-10 md:w-16 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
                 <img
                   src={logo}
                   alt="CHRISTLAND TECH"
@@ -74,22 +74,22 @@ const Footer: React.FC = () => {
         <div className="space-y-3 text-sm">
           <div className="flex items-center gap-2">
             <FaEnvelope className="text-gray-400" />
-            <span>info@christland.tech</span>
+            <a href="mailto:info@christland.tech" className="hover:underline">info@christland.tech</a>
           </div>
           <div className="flex items-center gap-2">
             <FaPhone className="text-gray-400" />
-            <span>691 554 641</span>
+            <a href="tel:+237691554641" className="hover:underline">691 554 641</a>
           </div>
           <div className="flex items-center gap-2">
             <FaPhone className="text-gray-400" />
-            <span>676 089 671</span>
+            <a href="tel:+237676089671" className="hover:underline">676 089 671</a>
           </div>
         </div>
-      </div>
 
       {/* --- Bas du footer --- */}
       <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-200 pt-3 mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
         <p>© 2025, Christland Tech</p>
+      </div>
       </div>
     </footer>
   );
