@@ -6,7 +6,7 @@ import {
   FiMenu,
 } from "react-icons/fi";
 import { MdClose } from "react-icons/md";
-import iphone from "../assets/images/iphone.jfif";
+import iphone from "../assets/images/Apple announces iPhone 14 and more.jfif";
 import { useTranslation } from "react-i18next";
 
 /* ------------------- Types ------------------- */
@@ -136,6 +136,18 @@ const products: Product[] = [
     price: 520000,
     img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
     desc: "16” • i7 • 16Go • 512Go SSD", screen:"16", cpu:"i7", ram:"16", ssd:"512", color:"bleu" },
+    { id: 11, category: "Ordinateur", brand: "hp", name: "HP Victus",
+    price: 520000,
+    img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
+    desc: "16” • i7 • 16Go • 512Go SSD", screen:"16", cpu:"i7", ram:"16", ssd:"512", color:"bleu" },
+    { id: 12, category: "Ordinateur", brand: "hp", name: "HP Victus",
+    price: 520000,
+    img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
+    desc: "16” • i7 • 16Go • 512Go SSD", screen:"16", cpu:"i7", ram:"16", ssd:"512", color:"bleu" },
+    { id: 13, category: "Ordinateur", brand: "hp", name: "HP Victus",
+    price: 520000,
+    img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
+    desc: "16” • i7 • 16Go • 512Go SSD", screen:"16", cpu:"i7", ram:"16", ssd:"512", color:"bleu" },
 ];
 
 /* ------------------- Sous-composants ------------------- */
@@ -243,18 +255,52 @@ const ProductCard: React.FC<Product> = ({ name, price, oldPrice, img, desc }) =>
 
 /* ------------------- Page ------------------- */
 const Presentation: React.FC = () => {
-  /** Carrousel catégories (desktop) */
-  const VISIBLE = 6.5;
-  const ITEM_W = 160;
-  const GAP = 16;
-  const STEP = ITEM_W + GAP;
+/** Carrousel catégories — unifié mobile/desktop (scroll horizontal) */
+const ITEM_W = 160;   // largeur mini pour le step
+const GAP = 32;       // doit matcher le gap visuel
+const EPS = 4;        // tolérance pour éviter les faux positifs
 
-  const [index, setIndex] = React.useState(0);
-  const maxIndex = Math.max(0, categories.length - VISIBLE);
-  const canPrev = index > 0;
-  const canNext = index < maxIndex;
-  const handlePrev = () => setIndex((i) => Math.max(0, i - 1));
-  const handleNext = () => setIndex((i) => Math.min(i + 1, maxIndex));
+const trackRef = React.useRef<HTMLDivElement>(null);
+const [atStart, setAtStart] = React.useState(true);
+const [atEnd, setAtEnd] = React.useState(false);
+const [scrollable, setScrollable] = React.useState(false);
+
+const syncEdges = () => {
+  const el = trackRef.current;
+  if (!el) return;
+  const { scrollLeft, scrollWidth, clientWidth } = el;
+  setScrollable(scrollWidth > clientWidth + 1);
+  setAtStart(scrollLeft <= EPS);
+  setAtEnd(scrollLeft >= scrollWidth - clientWidth - EPS);
+};
+
+// scroll par “page” (80% de la largeur visible) — responsive
+const scrollStep = (dir: "prev" | "next") => {
+  const el = trackRef.current;
+  if (!el) return;
+  const step = Math.max(ITEM_W + GAP, Math.floor(el.clientWidth * 0.8));
+  el.scrollBy({ left: dir === "prev" ? -step : step, behavior: "smooth" });
+};
+
+// rattrapage: resynchronise pendant/après l’anim smooth
+const forceSync = () => {
+  syncEdges();
+  // Re-synchronise après l'animation (200–350ms typiques)
+  setTimeout(syncEdges, 200);
+  setTimeout(syncEdges, 400);
+};
+
+const handlePrev = () => { scrollStep("prev"); forceSync(); };
+const handleNext = () => { scrollStep("next"); forceSync(); };
+
+React.useEffect(() => {
+  syncEdges(); // init à l'affichage
+  const onResize = () => syncEdges();
+  window.addEventListener("resize", onResize);
+  return () => window.removeEventListener("resize", onResize);
+}, []);
+
+
 
   /** État filtres */
   const [filters, setFilters] = React.useState<Record<string, string>>({
@@ -327,7 +373,7 @@ const Presentation: React.FC = () => {
                 {t('Accueil')} <span className="text-gray-400">›</span> {t('Produits')}
               </div>
               <h1 className="mt-1 font-extrabold leading-tight tracking-tight text-xl sm:text-xl md:text-2xl lg:text-4xl">
-                Explore Tous Les Produits
+                {t('bar.description')}
               </h1>
             </div>
             <div className=" sm:block">
@@ -344,94 +390,88 @@ const Presentation: React.FC = () => {
         </div>
       </div>
 
-      {/* ===== CATÉGORIES ===== */}
-      <div className="container mx-auto px-5 pt-10">
-        <div className="uppercase tracking-wider text-xs font-semibold text-gray-600 mb-2">
-          Catégories
-        </div>
+{/* ===== CATÉGORIES ===== */}
+<div className="container mx-auto px-5 pt-10">
+  <div className="uppercase tracking-wider text-[11px] md:text-xs font-semibold text-gray-600 mb-3 md:mb-4">
+   {t('bar.cat')}
+  </div>
 
-        {/* Mobile: simple scroll horizontal */}
-        <div className="md:hidden -mx-5 px-5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex gap-3 pb-1">
-            {categories.map((c) => {
-              const active = activeCategory === c;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setActiveCategory(active ? "" : c)}
-                  className={[
-                    "flex-none px-3 h-9 rounded-md border text-sm font-medium",
-                    active ? ACCENT : "bg-[#83888a] text-white border-[#83888a] hover:bg-[#b9c6ca]"
-                  ].join(" ")}
-                  title={c}
-                >
-                  <span className="truncate max-w-[160px]">{c}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+  <div className="flex items-center gap-2 sm:gap-3">
+    {/* Piste scrollable (flex-1) */}
+    <div
+      ref={trackRef}
+     onScroll={syncEdges}
+  className="flex-1 overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+>
+      <div className="flex gap-2 sm:gap-3 md:gap-4 lg:gap-6">
+        {/* Bouton “Tous” dans la piste */}
+        <button
+          type="button"
+          onClick={() => setActiveCategory("")}
+          className={[
+            "shrink-0 rounded-md border font-medium whitespace-nowrap",
+            "px-3 sm:px-4 lg:px-5 h-9 sm:h-10 lg:h-11",
+            "text-xs sm:text-sm lg:text-base",
+            activeCategory === "" ? ACCENT : "bg-white text-gray-700 border-gray-200 hover:border-[#0a8fc3]"
+          ].join(" ")}
+          title="Afficher tout"
+        >
+          Tous
+        </button>
 
-        {/* Desktop: carrousel avec flèches */}
-        <div className="hidden md:flex items-center gap-6">
-          <div
-            className="overflow-hidden"
-            style={{ width: `${VISIBLE * ITEM_W + VISIBLE * GAP}px` }}
-          >
-            <div
-              className="flex gap-4 transition-transform duration-300 ease-out"
-              style={{
-                width: `${categories.length * STEP}px`,
-                transform: `translateX(-${index * STEP}px)`,
-              }}
-            >
-              {categories.map((c) => {
-                const active = activeCategory === c;
-                return (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setActiveCategory(active ? "" : c)}
-                    className={[
-                      "w-40 h-10 flex-none rounded-md border text-sm font-medium text-center",
-                      active ? ACCENT : "bg-[#83888a] text-white border-[#83888a] hover:bg-[#b9c6ca]",
-                    ].join(" ")}
-                    title={c}
-                  >
-                    <span className="block px-2 truncate">{c}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="ml-auto flex items-center gap-2">
+        {categories.map((c) => {
+          const active = activeCategory === c;
+          return (
             <button
+              key={c}
               type="button"
-              onClick={handlePrev}
-              disabled={!canPrev}
-              aria-label="Précédent"
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
-                canPrev ? "border-gray-200 hover:border-[#0a8fc3]" : "border-gray-100 opacity-40 cursor-not-allowed"
-              }`}
+              onClick={() => setActiveCategory(active ? "" : c)}
+              className={[
+                "shrink-0 rounded-md border text-center font-medium whitespace-nowrap",
+                "px-3 sm:px-4 lg:px-5 h-9 sm:h-10 lg:h-11",
+                "text-xs sm:text-sm lg:text-base",
+                active ? ACCENT : "bg-[#83888a] text-white border-[#83888a] hover:bg-[#b9c6ca]"
+              ].join(" ")}
+              title={c}
             >
-              <FiChevronLeft className="h-5 w-5" />
+              {c}
             </button>
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={!canNext}
-              aria-label="Suivant"
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
-                canNext ? "border-gray-200 hover:border-[#0a8fc3]" : "border-gray-100 opacity-40 cursor-not-allowed"
-              }`}
-            >
-              <FiChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
+          );
+        })}
       </div>
+    </div>
+
+    {/* Groupe de flèches à droite */}
+    <div className={`shrink-0 ml-2 md:ml-3 flex items-center gap-2 ${scrollable ? "" : "hidden"}`}></div>
+    <div className="shrink-0 ml-2 md:ml-3 flex items-center gap-2">
+      <button
+        type="button"
+        onClick={handlePrev}
+        aria-label="Précédent"
+        disabled={atStart}
+        className={`inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
+          !atStart ? "border-gray-200 hover:border-[#0a8fc3]" : "border-gray-100 opacity-40 cursor-not-allowed"
+        }`}
+      >
+        <FiChevronLeft className="h-5 w-5" />
+      </button>
+
+      <button
+        type="button"
+        onClick={handleNext}
+        aria-label="Suivant"
+        disabled={atEnd}
+        className={`inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
+          !atEnd ? "border-gray-200 hover:border-[#0a8fc3]" : "border-gray-100 opacity-40 cursor-not-allowed"
+        }`}
+      >
+        <FiChevronRight className="h-5 w-5" />
+      </button>
+    </div>
+    
+  </div>
+</div>
+
 
       {/* ===== BARRE D’ACTION (Mobile) : bouton Filtres (3 traits) ===== */}
       <div className="container mx-auto px-5 mt-4 md:mt-6 lg:hidden">
@@ -448,8 +488,8 @@ const Presentation: React.FC = () => {
 
       {/* ===== CONTENU (Sidebar desktop + Grille) ===== */}
       <div className="bg-white">
-        <div className=" max-w-screen-4xl mx-auto px-5  py-6 lg:py-40">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className=" max-w-screen-4xl mx-auto px-5  py-6 lg:py-20">
+          <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)] gap-8">
             {/* Sidebar desktop */}
             <aside className="hidden lg:block rounded-2xl border border-gray-200 bg-white p-5 shadow-sm h-fit">
               <h3 className="text-lg font-bold text-gray-900">Filtrer</h3>
@@ -466,7 +506,7 @@ const Presentation: React.FC = () => {
             </aside>
 
             {/* Produits + pagination */}
-            <main className="lg:col-span-3">
+            <main className="">
               {/* Grille responsive : 1 col <640px (résout ton 1er screenshot) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
                 {visibleProducts.map((p) => (

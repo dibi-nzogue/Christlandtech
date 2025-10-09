@@ -2,7 +2,10 @@
 import React from "react";
 import Navbar from "../components/Navbar";
 import Presentation from "../components/Presentation";
-
+import AchatProduit from "../components/AchatProduit";
+import ContactSection from "../components/ContactSection";
+import Footer from '../components/Footer';
+import ScrollToTopButton from "../components/ScrollToTopButton";
 const Produits: React.FC = () => {
   return (
     <>
@@ -10,6 +13,10 @@ const Produits: React.FC = () => {
       {/* OFFSET pour ne PAS être caché par la navbar fixe */}
       <main className="pt-1 md:pt-10">
         <Presentation />
+        <AchatProduit/>
+        <ContactSection />
+        <ScrollToTopButton />
+        <Footer />
       </main>
     </>
   );

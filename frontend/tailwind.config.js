@@ -5,6 +5,8 @@ export default {
     backgroundImage: {
       'hero-service': "url('./src/assets/images/hero3.png')",
     },
+    
   } },
   plugins: [],
 }
+

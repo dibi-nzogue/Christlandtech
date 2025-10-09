@@ -37,7 +37,7 @@ const Navbar = () => {
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 md:pt-5 z-50 bg-black text-white shadow-md">
+      <header className="fixed inset-x-0 top-0 md:pt- z-50 bg-black text-white shadow-md">
         <div className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
         <div className="">
           {/* Ligne principale */}
