@@ -72,7 +72,7 @@ const Navbar = () => {
 
             {/* Actions droites (desktop) */}
             <div className="hidden md:flex items-center justify-end gap-3 sm:gap-4">
-              <NavLink to="/contact" className="relative text-sm md:text-[15px]">
+              <NavLink to="/contact" className="relative text-sm md:text-base lg:text-lg font-bold">
                 <span>{t('Contact')}</span>
                 <span className="absolute left-0 -bottom-2 block h-[4px] w-full bg-[#00A9DC]" />
               </NavLink>
@@ -150,7 +150,7 @@ const Navbar = () => {
                   isActive(l.to) ? "text-white" : "text-gray-300 hover:text-white"
                 }`}
               >
-                <span className="relative text-sm md:text-base">
+                <span className="relative text-sm md:text-base lg:text-md font-bold">
                   {t(l.label)}
                   <span
                     className={`absolute left-0 -bottom-[22px] h-[5px] w-full transition-all ${
@@ -222,7 +222,7 @@ const Navbar = () => {
                   <Link
                     to={l.to}
                     onClick={() => setOpen(false)}
-                    className={`block rounded-lg px-4 py-3 text-[15px] ${
+                    className={`block rounded-lg px-4 py-3 text-[15px] font-bold ${
                       isActive(l.to) ? "bg-white/10 text-white" : "text-gray-300 hover:bg-white/5"
                     }`}
                   >
@@ -234,7 +234,7 @@ const Navbar = () => {
 
             {/* Contact + langue */}
             <div className="px-4 py-3 border-t border-white/10 mt-1 flex items-center justify-between">
-              <Link to="/contact" onClick={() => setOpen(false)} className="relative text-[15px]">
+              <Link to="/contact" onClick={() => setOpen(false)} className="relative text-[15px] font-bold">
                 <span>{t('Contact')}</span>
                 <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-[#00A9DC] rounded-full" />
               </Link>
