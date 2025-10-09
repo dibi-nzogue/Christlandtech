@@ -37,13 +37,13 @@ const Navbar = () => {
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-50 bg-black text-white shadow-md">
+      <header className="fixed inset-x-0 top-0 md:pt-5 z-50 bg-black text-white shadow-md">
         <div className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
-        <div className="container mx-auto px-5">
+        <div className="">
           {/* Ligne principale */}
           <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-3 lg:gap-24 xl:gap-32 h-16 md:h-24">
             {/* Logo + nom (nom TOUJOURS visible) */}
-            <Link to="/" className="flex items-center gap-2 min-w-0">
+            <Link to="/" className="flex items-center gap-4 min-w-0">
               <div className="h-10 w-10 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
                 <img
                   src={logo}
@@ -53,8 +53,8 @@ const Navbar = () => {
                 />
               </div>
               <div className="leading-5 whitespace-nowrap">
-                <span className="font-semibold tracking-wide text-[13px] sm:text-sm md:text-base">CHRISTLAND</span>{" "}
-                <span className="font-extrabold text-[#00A8E8] text-[13px] sm:text-sm md:text-base">TECH</span>
+                <span className="font-semibold tracking-wide text-[13px] sm:text-sm md:text-lg">CHRISTLAND</span>{" "}
+                <span className="font-extrabold text-[#00A8E8] text-[13px] sm:text-sm md:text-lg">TECH</span>
               </div>
             </Link>
 
@@ -74,12 +74,10 @@ const Navbar = () => {
             <div className="hidden md:flex items-center justify-end gap-3 sm:gap-4">
               <NavLink to="/contact" className="relative text-sm md:text-[15px]">
                 <span>{t('Contact')}</span>
-                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-cyan-400 rounded-full" />
-                <span>Contact</span>
-                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-[#00A8E8] rounded-full" />
+                <span className="absolute left-0 -bottom-2 block h-[4px] w-full bg-[#00A9DC]" />
               </NavLink>
-
               {/* Langue dropdown */}
+              <div className="relative bg-white px-[1px] py-3"></div>
               <div className="relative">
                 <button
                   type="button"
@@ -94,13 +92,13 @@ const Navbar = () => {
                 {langOpen && (
                   <div className="absolute right-0 mt-2 w-36 rounded-md bg-white text-gray-900 py-1 shadow-lg ring-1 ring-black/5">
                     <button
-                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${currentLang === "fr" ? "font-semibold text-cyan-600" : ""}`}
+                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${currentLang === "fr" ? "font-semibold text-[#00A9DC]" : ""}`}
                       onClick={() => i18n.changeLanguage("fr")}
                     >
                       {t('Français')}
                     </button>
                     <button
-                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${currentLang === "en" ? "font-semibold text-cyan-600" : ""}`}
+                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${currentLang === "en" ? "font-semibold text-[#00A9DC]" : ""}`}
                       onClick={() => i18n.changeLanguage("en")}
                     >
                       {t('Anglais')}
@@ -152,10 +150,10 @@ const Navbar = () => {
                   isActive(l.to) ? "text-white" : "text-gray-300 hover:text-white"
                 }`}
               >
-                <span className="relative">
+                <span className="relative text-sm md:text-base">
                   {t(l.label)}
                   <span
-                    className={`absolute left-0 -bottom-1 h-[2px] w-full rounded-full transition-all ${
+                    className={`absolute left-0 -bottom-[22px] h-[5px] w-full transition-all ${
                       isActive(l.to) ? "bg-[#00A8E8] opacity-100" : "opacity-0"
                     }`}
                   />
@@ -191,7 +189,7 @@ const Navbar = () => {
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                 />
               </div>
-                <span className="font-semibold text-sm">CHRISTLAND <span className="text-[#00A8E8]">TECH</span></span>
+                <span className="font-semibold text-md">CHRISTLAND <span className="text-[#00A8E8]">TECH</span></span>
               </div>
               <button
                 className="inline-flex items-center justify-center rounded-md p-2 text-gray-200"
@@ -238,22 +236,26 @@ const Navbar = () => {
             <div className="px-4 py-3 border-t border-white/10 mt-1 flex items-center justify-between">
               <Link to="/contact" onClick={() => setOpen(false)} className="relative text-[15px]">
                 <span>{t('Contact')}</span>
+
                 <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-cyan-400 rounded-full" />
                 <span>Contact</span>
                 <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-cyan-400 rounded-full" />
+
+                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-[#00A9DC] rounded-full" />
+
               </Link>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className={`rounded-md px-3 py-1.5 text-sm ${currentLang === "fr" ? "font-semibold text-cyan-600" : ""}`}
+                  className={`rounded-md px-3 py-1.5 text-sm ${currentLang === "fr" ? "font-semibold text-[#00A9DC]" : ""}`}
                   onClick={() => i18n.changeLanguage("fr")}
                 >
                   {t('Français')}
                 </button>
                 <button
                   type="button"
-                  className={`rounded-md px-3 py-1.5 text-sm ${currentLang === "en" ? "font-semibold text-cyan-600" : ""}`}
+                  className={`rounded-md px-3 py-1.5 text-sm ${currentLang === "en" ? "font-semibold text-[#00A9DC]" : ""}`}
                   onClick={() => i18n.changeLanguage("en")}
                 >
                   {t('Anglais')}

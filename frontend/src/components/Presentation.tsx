@@ -7,6 +7,7 @@ import {
 } from "react-icons/fi";
 import { MdClose } from "react-icons/md";
 import iphone from "../assets/images/iphone.jfif";
+import { useTranslation } from "react-i18next";
 
 /* ------------------- Types ------------------- */
 type Option = { label: string; value: string };
@@ -313,6 +314,8 @@ const Presentation: React.FC = () => {
     }
   }, [mobileFiltersOpen]);
 
+  const { t } = useTranslation();
+
   return (
     <>
       {/* ===== ENTÊTE ===== */}
@@ -321,7 +324,7 @@ const Presentation: React.FC = () => {
           <div className="flex items-center justify-between h-40 md:h-40 lg:h-48 ">
             <div className="min-w-0 mt-6">
               <div className="text-xs sm:text-sm text-gray-500">
-                Accueil <span className="text-gray-400">›</span> Produits
+                {t('Accueil')} <span className="text-gray-400">›</span> {t('Produits')}
               </div>
               <h1 className="mt-1 font-extrabold leading-tight tracking-tight text-xl sm:text-xl md:text-2xl lg:text-4xl">
                 Explore Tous Les Produits

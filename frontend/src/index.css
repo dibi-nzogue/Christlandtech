@@ -8,15 +8,14 @@
   display: flex !important;
   justify-content: center;
   align-items: center;
-  gap: 2px;
 }
 
 /* Dots inactifs = petits ronds */
 .custom-dots li button:before {
   content: "";
   display: block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   background: white;
   border-radius: 50%;
   opacity: 0.5;
@@ -26,10 +25,11 @@
 .custom-dots li.slick-active button:before {
   content: "";
   display: block;
-  width: 25px;     /* longueur de la barre */
-  height: 7px;     /* épaisseur */
-  border-radius: 10px;
+  width: 20px;     /* longueur de la barre */
+  height: 5px;     /* épaisseur */
+  border-radius: 35px;
   background: white;
   opacity: 1;
 }
+
 
