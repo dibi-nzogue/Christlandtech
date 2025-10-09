@@ -4,6 +4,7 @@ export default {
   theme: { extend: {
     backgroundImage: {
       'hero-service': "url('./src/assets/images/hero3.png')",
+      'hero-about': "url('./src/assets/images/hero5.png')",
     },
     
   } },

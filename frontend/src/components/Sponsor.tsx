@@ -27,13 +27,13 @@ const Sponsor: React.FC = () => {
       {
         breakpoint: 768, // en dessous de 768px
         settings: {
-          slidesToShow: 2,
+          slidesToShow: 3,
         },
       },
       {
         breakpoint: 480, // très petit écran
         settings: {
-          slidesToShow: 1,
+          slidesToShow: 2,
         },
       },
     ],

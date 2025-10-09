@@ -17,10 +17,11 @@ const LINKS: LinkItem[] = [
 ];
 
 const Navbar = () => {
-  const [open, setOpen] = useState(false); 
-  const [showSearch, setShowSearch] = useState(false); 
+  const [open, setOpen] = useState(false);           // panneau mobile
+  const [showSearch, setShowSearch] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const { pathname } = useLocation();
+  const { t, i18n } = useTranslation();
 
   const isActive = (to: string) =>
     pathname === to || (to !== "/" && pathname.startsWith(to));
@@ -28,28 +29,30 @@ const Navbar = () => {
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = open ? "hidden" : prev || "";
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [open]);
-
-  const { t, i18n } = useTranslation();
 
   const currentLang = i18n.language;
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 md:pt- z-50 bg-black text-white shadow-md">
+      {/* HEADER (unique) */}
+      <header className="fixed inset-x-0 top-0 z-50 bg-black text-white shadow-md md:pt-5">
         <div className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
-        <div className="">
           {/* Ligne principale */}
           <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-3 lg:gap-24 xl:gap-32 h-16 md:h-24">
-            {/* Logo + nom (nom TOUJOURS visible) */}
-            <Link to="/" className="flex items-center gap-4 min-w-0">
-              <div className="h-10 w-10 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
+            {/* Logo + nom */}
+            <Link to="/" className="flex items-center gap-2 md:gap-4 min-w-0">
+              <div className="h-10 md:h-16 w-10 md:w-16 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
                 <img
                   src={logo}
                   alt="CHRISTLAND TECH"
                   className="h-full w-full object-cover"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
                 />
               </div>
               <div className="leading-5 whitespace-nowrap">
@@ -58,7 +61,7 @@ const Navbar = () => {
               </div>
             </Link>
 
-            {/* Recherche collée au logo (≥ md) */}
+            {/* Recherche (≥ md) */}
             <div className="hidden md:block justify-self-start">
               <div className="relative w-[min(360px,46vw)] lg:w-[400px] xl:w-[520px]">
                 <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -73,11 +76,11 @@ const Navbar = () => {
             {/* Actions droites (desktop) */}
             <div className="hidden md:flex items-center justify-end gap-3 sm:gap-4">
               <NavLink to="/contact" className="relative text-sm md:text-[15px]">
-                <span>{t('Contact')}</span>
+                <span>{t("Contact")}</span>
                 <span className="absolute left-0 -bottom-2 block h-[4px] w-full bg-[#00A9DC]" />
               </NavLink>
+
               {/* Langue dropdown */}
-              <div className="relative bg-white px-[1px] py-3"></div>
               <div className="relative">
                 <button
                   type="button"
@@ -92,27 +95,34 @@ const Navbar = () => {
                 {langOpen && (
                   <div className="absolute right-0 mt-2 w-36 rounded-md bg-white text-gray-900 py-1 shadow-lg ring-1 ring-black/5">
                     <button
-                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${currentLang === "fr" ? "font-semibold text-[#00A9DC]" : ""}`}
+                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${
+                        currentLang === "fr" ? "font-semibold text-[#00A9DC]" : ""
+                      }`}
                       onClick={() => i18n.changeLanguage("fr")}
                     >
-                      {t('Français')}
+                      {t("Français")}
                     </button>
                     <button
-                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${currentLang === "en" ? "font-semibold text-[#00A9DC]" : ""}`}
+                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${
+                        currentLang === "en" ? "font-semibold text-[#00A9DC]" : ""
+                      }`}
                       onClick={() => i18n.changeLanguage("en")}
                     >
-                      {t('Anglais')}
+                      {t("Anglais")}
                     </button>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Actions mobiles : 🔍 + ☰ côte à côte à DROITE */}
+            {/* Actions mobiles */}
             <div className="md:hidden ml-auto flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => { setOpen(true); setShowSearch(true); }}
+                onClick={() => {
+                  setOpen(true);
+                  setShowSearch(true);
+                }}
                 className="inline-flex items-center justify-center rounded-md p-2 text-gray-200 hover:text-white"
                 aria-label="Ouvrir la recherche"
               >
@@ -122,7 +132,10 @@ const Navbar = () => {
               {!open ? (
                 <button
                   className="inline-flex items-center justify-center rounded-md p-2 text-gray-200 hover:text-white"
-                  onClick={() => { setOpen(true); setShowSearch(false); }}
+                  onClick={() => {
+                    setOpen(true);
+                    setShowSearch(false);
+                  }}
                   aria-label="Ouvrir le menu"
                 >
                   <FiMenu size={22} />
@@ -171,7 +184,7 @@ const Navbar = () => {
           onClick={() => setOpen(false)}
         />
 
-        {/* Panneau mobile = carte centrée */}
+        {/* Panneau mobile */}
         <div
           className={`fixed top-16 left-0 right-0 z-50 flex justify-center md:hidden transition-all duration-200 ${
             open ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0 pointer-events-none"
@@ -181,15 +194,19 @@ const Navbar = () => {
             {/* Barre du panneau */}
             <div className="flex items-center justify-between px-4 h-12 border-b border-white/10">
               <div className="flex items-center gap-3">
-                 <div className="h-10 w-10 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
-                <img
-                  src={logo}
-                  alt="CHRISTLAND TECH"
-                  className="h-full w-full object-cover"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                />
-              </div>
-                <span className="font-semibold text-md">CHRISTLAND <span className="text-[#00A8E8]">TECH</span></span>
+                <div className="h-10 w-10 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
+                  <img
+                    src={logo}
+                    alt="CHRISTLAND TECH"
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </div>
+                <span className="font-semibold text-md">
+                  CHRISTLAND <span className="text-[#00A8E8]">TECH</span>
+                </span>
               </div>
               <button
                 className="inline-flex items-center justify-center rounded-md p-2 text-gray-200"
@@ -200,14 +217,14 @@ const Navbar = () => {
               </button>
             </div>
 
-            {/* Recherche (affichée seulement si clic sur 🔍) */}
+            {/* Recherche mobile (si clic sur 🔍) */}
             {showSearch && (
               <div className="px-4 pt-3 pb-2 border-b border-white/10">
                 <div className="relative">
                   <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="search"
-                    placeholder="Rechercher"
+                    placeholder={t("Rechercher")}
                     className="w-full rounded-full bg-white py-2.5 pl-11 pr-4 text-sm text-gray-900 placeholder-gray-500"
                     autoFocus
                   />
@@ -235,40 +252,37 @@ const Navbar = () => {
             {/* Contact + langue */}
             <div className="px-4 py-3 border-t border-white/10 mt-1 flex items-center justify-between">
               <Link to="/contact" onClick={() => setOpen(false)} className="relative text-[15px]">
-                <span>{t('Contact')}</span>
-
-                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-cyan-400 rounded-full" />
-                <span>Contact</span>
-                <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-cyan-400 rounded-full" />
-
+                <span>{t("Contact")}</span>
                 <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-[#00A9DC] rounded-full" />
-
               </Link>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className={`rounded-md px-3 py-1.5 text-sm ${currentLang === "fr" ? "font-semibold text-[#00A9DC]" : ""}`}
+                  className={`rounded-md px-3 py-1.5 text-sm ${
+                    currentLang === "fr" ? "font-semibold text-[#00A9DC]" : ""
+                  }`}
                   onClick={() => i18n.changeLanguage("fr")}
                 >
-                  {t('Français')}
+                  {t("Français")}
                 </button>
                 <button
                   type="button"
-                  className={`rounded-md px-3 py-1.5 text-sm ${currentLang === "en" ? "font-semibold text-[#00A9DC]" : ""}`}
+                  className={`rounded-md px-3 py-1.5 text-sm ${
+                    currentLang === "en" ? "font-semibold text-[#00A9DC]" : ""
+                  }`}
                   onClick={() => i18n.changeLanguage("en")}
                 >
-                  {t('Anglais')}
+                  {t("Anglais")}
                 </button>
               </div>
             </div>
           </div>
         </div>
-        </div>
       </header>
 
       {/* espace sous le header fixed */}
-      <div className="h-16 md:h-20" />
+      <div className="h-16 md:h-24" />
     </>
   );
 };

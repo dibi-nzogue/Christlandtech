@@ -32,7 +32,7 @@ const ScrollToTopButton: React.FC = () => {
     >
       <button
         onClick={scrollToTop}
-        className="hover:bg-[#00A9DC] text-[#00A9DC] hover:text-white transition-colors bg-white py-5 px-5 rounded-full text-md shadow-md hover:shadow-lg"
+        className="hover:bg-[#00A9DC] text-[#00A9DC] hover:text-white transition-colors bg-white py-5 px-5 rounded-full text-md shadow-lg hover:shadow-xl shadow-slate-700"
         title="Retour en haut"
       >
         <div className="-rotate-90 text-md">
