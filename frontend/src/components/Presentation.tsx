@@ -1,12 +1,8 @@
 // src/components/Presentation.tsx
 import React from "react";
-import {
-  FiChevronLeft,
-  FiChevronRight,
-  FiMenu,
-} from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight, FiMenu } from "react-icons/fi";
 import { MdClose } from "react-icons/md";
-import iphone from "../assets/images/Apple announces iPhone 14 and more.jfif";
+import iphone from "../assets/images/produits/sans-fond/Apple Iphone 15 Black Smartphone PNG _ TopPNG.png";
 import { useTranslation } from "react-i18next";
 
 /* ------------------- Types ------------------- */
@@ -136,15 +132,15 @@ const products: Product[] = [
     price: 520000,
     img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
     desc: "16” • i7 • 16Go • 512Go SSD", screen:"16", cpu:"i7", ram:"16", ssd:"512", color:"bleu" },
-    { id: 11, category: "Ordinateur", brand: "hp", name: "HP Victus",
+  { id: 11, category: "Ordinateur", brand: "hp", name: "HP Victus",
     price: 520000,
     img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
     desc: "16” • i7 • 16Go • 512Go SSD", screen:"16", cpu:"i7", ram:"16", ssd:"512", color:"bleu" },
-    { id: 12, category: "Ordinateur", brand: "hp", name: "HP Victus",
+  { id: 12, category: "Ordinateur", brand: "hp", name: "HP Victus",
     price: 520000,
     img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
     desc: "16” • i7 • 16Go • 512Go SSD", screen:"16", cpu:"i7", ram:"16", ssd:"512", color:"bleu" },
-    { id: 13, category: "Ordinateur", brand: "hp", name: "HP Victus",
+  { id: 13, category: "Ordinateur", brand: "hp", name: "HP Victus",
     price: 520000,
     img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
     desc: "16” • i7 • 16Go • 512Go SSD", screen:"16", cpu:"i7", ram:"16", ssd:"512", color:"bleu" },
@@ -158,10 +154,8 @@ type FilterGroupProps = Filter & {
 
 const FilterGroup: React.FC<FilterGroupProps> = ({ title, options, selected, onSelect }) => {
   const [open, setOpen] = React.useState(true);
-
   return (
     <div className="mb-6">
-      {/* Header */}
       <div
         className="flex items-center justify-between mt-8 select-none cursor-pointer"
         onClick={() => setOpen((v) => !v)}
@@ -178,10 +172,7 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, options, selected, onS
           <span className={["block h-1 rounded-full bg-[#00A8E8] transition-all duration-300", open ? "w-5" : "w-8"].join(" ")} />
         </button>
       </div>
-
       <div className="mt-2 border-t border-[#00A8E8]" />
-
-      {/* Collapsible content */}
       <div className={["grid transition-[grid-template-rows] duration-300 ease-out", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"].join(" ")}>
         <div className="overflow-hidden">
           <div className="mt-3 space-y-2 text-sm">
@@ -234,17 +225,14 @@ const ProductCard: React.FC<Product> = ({ name, price, oldPrice, img, desc }) =>
         }}
       />
     </div>
-
     <h3 className="mt-3 text-[15px] sm:text-base font-semibold text-gray-900">{name}</h3>
     <p className="mt-1 line-clamp-2 text-sm text-gray-500">{desc}</p>
-
     <div className="mt-3 flex items-center justify-between">
       <span className="text-xl sm:text-xl md:text-sm lg:text-2xl font-bold text-gray-900">{fmt(price)}</span>
       {typeof oldPrice === "number" && oldPrice > price && (
         <span className="text-sm sm:text-base md:text-text-base lg:text-lg text-red-500 line-through">{fmt(oldPrice)}</span>
       )}
     </div>
-
     <div className="mt-3 flex items-center justify-center">
       <button className={`rounded-lg border px-3 py-1.5 text-sm sm:text-md font-medium ${ACCENT} ${ACCENT_HOVER}`}>
         Commander
@@ -255,52 +243,39 @@ const ProductCard: React.FC<Product> = ({ name, price, oldPrice, img, desc }) =>
 
 /* ------------------- Page ------------------- */
 const Presentation: React.FC = () => {
-/** Carrousel catégories — unifié mobile/desktop (scroll horizontal) */
-const ITEM_W = 160;   // largeur mini pour le step
-const GAP = 32;       // doit matcher le gap visuel
-const EPS = 4;        // tolérance pour éviter les faux positifs
+  /** Carrousel catégories — md+ seulement */
+  const trackRef = React.useRef<HTMLDivElement>(null);
+  const [atStart, setAtStart] = React.useState(true);
+  const [atEnd, setAtEnd] = React.useState(false);
+  const [scrollable, setScrollable] = React.useState(false);
+  const EPS = 4;
 
-const trackRef = React.useRef<HTMLDivElement>(null);
-const [atStart, setAtStart] = React.useState(true);
-const [atEnd, setAtEnd] = React.useState(false);
-const [scrollable, setScrollable] = React.useState(false);
+  const syncEdges = () => {
+    const el = trackRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setScrollable(scrollWidth > clientWidth + 1);
+    setAtStart(scrollLeft <= EPS);
+    setAtEnd(scrollLeft >= scrollWidth - clientWidth - EPS);
+  };
 
-const syncEdges = () => {
-  const el = trackRef.current;
-  if (!el) return;
-  const { scrollLeft, scrollWidth, clientWidth } = el;
-  setScrollable(scrollWidth > clientWidth + 1);
-  setAtStart(scrollLeft <= EPS);
-  setAtEnd(scrollLeft >= scrollWidth - clientWidth - EPS);
-};
+  const scrollStep = (dir: "prev" | "next") => {
+    const el = trackRef.current;
+    if (!el) return;
+    const step = Math.max(160 + 32, Math.floor(el.clientWidth * 0.8));
+    el.scrollBy({ left: dir === "prev" ? -step : step, behavior: "smooth" });
+    setTimeout(syncEdges, 220);
+    setTimeout(syncEdges, 420);
+  };
+  const handlePrev = () => scrollStep("prev");
+  const handleNext = () => scrollStep("next");
 
-// scroll par “page” (80% de la largeur visible) — responsive
-const scrollStep = (dir: "prev" | "next") => {
-  const el = trackRef.current;
-  if (!el) return;
-  const step = Math.max(ITEM_W + GAP, Math.floor(el.clientWidth * 0.8));
-  el.scrollBy({ left: dir === "prev" ? -step : step, behavior: "smooth" });
-};
-
-// rattrapage: resynchronise pendant/après l’anim smooth
-const forceSync = () => {
-  syncEdges();
-  // Re-synchronise après l'animation (200–350ms typiques)
-  setTimeout(syncEdges, 200);
-  setTimeout(syncEdges, 400);
-};
-
-const handlePrev = () => { scrollStep("prev"); forceSync(); };
-const handleNext = () => { scrollStep("next"); forceSync(); };
-
-React.useEffect(() => {
-  syncEdges(); // init à l'affichage
-  const onResize = () => syncEdges();
-  window.addEventListener("resize", onResize);
-  return () => window.removeEventListener("resize", onResize);
-}, []);
-
-
+  React.useEffect(() => {
+    syncEdges();
+    const onResize = () => syncEdges();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   /** État filtres */
   const [filters, setFilters] = React.useState<Record<string, string>>({
@@ -344,21 +319,20 @@ React.useEffect(() => {
   const PAGE_SIZE = 12;
   const [page, setPage] = React.useState(1);
   React.useEffect(() => { setPage(1); }, [filters, activeCategory]);
-
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
   const visibleProducts = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const goto = (n: number) => setPage(Math.min(Math.max(1, n), totalPages));
 
-  /** Tiroir filtres mobile */
+  /** Tiroirs mobile */
   const [mobileFiltersOpen, setMobileFiltersOpen] = React.useState(false);
+  const [mobileCatsOpen, setMobileCatsOpen] = React.useState(false);
   React.useEffect(() => {
-    // lock scroll when drawer open
-    if (mobileFiltersOpen) {
+    if (mobileFiltersOpen || mobileCatsOpen) {
       const prev = document.body.style.overflow;
       document.body.style.overflow = "hidden";
       return () => { document.body.style.overflow = prev; };
     }
-  }, [mobileFiltersOpen]);
+  }, [mobileFiltersOpen, mobileCatsOpen]);
 
   const { t } = useTranslation();
 
@@ -376,7 +350,7 @@ React.useEffect(() => {
                 {t('bar.description')}
               </h1>
             </div>
-            <div className=" sm:block">
+            <div className=" sm:block pt-6">
               <div className="h-20 md:h-24 lg:h-28 xl:h-32 w-auto">
                 <img
                   src={iphone}
@@ -390,29 +364,49 @@ React.useEffect(() => {
         </div>
       </div>
 
-{/* ===== CATÉGORIES ===== */}
-<div className="container mx-auto px-5 pt-10">
-  <div className="uppercase tracking-wider text-[11px] md:text-xs font-semibold text-gray-600 mb-3 md:mb-4">
-   {t('bar.cat')}
+     <div className="container mx-auto px-5 pt-10">
+  {/* Libellé visible uniquement à partir de md */}
+  <div className="uppercase tracking-wider text-[11px] md:text-xs font-semibold text-gray-600 mb-3 md:mb-4 hidden md:block">
+    {t('bar.cat')}
   </div>
 
-  <div className="flex items-center gap-2 sm:gap-3">
-    {/* Piste scrollable (flex-1) */}
+  {/* Ligne d’actions mobile : Catégories + Filtres (côte à côte) */}
+  <div className="flex items-center gap-3 md:hidden">
+    <button
+      type="button"
+      onClick={() => setMobileCatsOpen(true)}
+      className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm active:scale-[0.99]"
+      aria-label="Ouvrir les catégories"
+    >
+      <FiMenu className="h-5 w-5" />
+      Catégories
+    </button>
+    <button
+      type="button"
+      onClick={() => setMobileFiltersOpen(true)}
+      className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm active:scale-[0.99]"
+      aria-label="Ouvrir les filtres"
+    >
+      <FiMenu className="h-5 w-5" />
+      Filtres
+    </button>
+  </div>
+
+  {/* Piste de catégories + flèches (md et +) */}
+  <div className="hidden md:flex items-center gap-3 mt-0">
     <div
       ref={trackRef}
-     onScroll={syncEdges}
-  className="flex-1 overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
->
-      <div className="flex gap-2 sm:gap-3 md:gap-4 lg:gap-6">
-        {/* Bouton “Tous” dans la piste */}
+      onScroll={syncEdges}
+      className="flex-1 overflow-x-auto whitespace-nowrap scroll-smooth
+                 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+    >
+      <div className="flex gap-3 lg:gap-4">
         <button
           type="button"
           onClick={() => setActiveCategory("")}
           className={[
-            "shrink-0 rounded-md border font-medium whitespace-nowrap",
-            "px-3 sm:px-4 lg:px-5 h-9 sm:h-10 lg:h-11",
-            "text-xs sm:text-sm lg:text-base",
-            activeCategory === "" ? ACCENT : "bg-white text-gray-700 border-gray-200 hover:border-[#0a8fc3]"
+            "shrink-0 rounded-md border font-medium px-4 lg:px-5 py-2",
+            activeCategory === "" ? ACCENT : "bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
           ].join(" ")}
           title="Afficher tout"
         >
@@ -427,10 +421,8 @@ React.useEffect(() => {
               type="button"
               onClick={() => setActiveCategory(active ? "" : c)}
               className={[
-                "shrink-0 rounded-md border text-center font-medium whitespace-nowrap",
-                "px-3 sm:px-4 lg:px-5 h-9 sm:h-10 lg:h-11",
-                "text-xs sm:text-sm lg:text-base",
-                active ? ACCENT : "bg-[#83888a] text-white border-[#83888a] hover:bg-[#b9c6ca]"
+                "shrink-0 rounded-md border font-medium whitespace-nowrap px-4 lg:px-5 py-2",
+                active ? ACCENT : "bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
               ].join(" ")}
               title={c}
             >
@@ -441,50 +433,33 @@ React.useEffect(() => {
       </div>
     </div>
 
-    {/* Groupe de flèches à droite */}
-    <div className={`shrink-0 ml-2 md:ml-3 flex items-center gap-2 ${scrollable ? "" : "hidden"}`}></div>
-    <div className="shrink-0 ml-2 md:ml-3 flex items-center gap-2">
+    <div className={`shrink-0 flex items-center gap-2 ${scrollable ? "" : "opacity-0 pointer-events-none"}`}>
       <button
         type="button"
         onClick={handlePrev}
         aria-label="Précédent"
         disabled={atStart}
-        className={`inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
-          !atStart ? "border-gray-200 hover:border-[#0a8fc3]" : "border-gray-100 opacity-40 cursor-not-allowed"
+        className={`inline-flex h-10 w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
+          !atStart ? "border-gray-200 hover:border-[#00A8E8]" : "border-gray-100 opacity-40 cursor-not-allowed"
         }`}
       >
         <FiChevronLeft className="h-5 w-5" />
       </button>
-
       <button
         type="button"
         onClick={handleNext}
         aria-label="Suivant"
         disabled={atEnd}
-        className={`inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
-          !atEnd ? "border-gray-200 hover:border-[#0a8fc3]" : "border-gray-100 opacity-40 cursor-not-allowed"
+        className={`inline-flex h-10 w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
+          !atEnd ? "border-gray-200 hover:border-[#00A8E8]" : "border-gray-100 opacity-40 cursor-not-allowed"
         }`}
       >
         <FiChevronRight className="h-5 w-5" />
       </button>
     </div>
-    
   </div>
 </div>
 
-
-      {/* ===== BARRE D’ACTION (Mobile) : bouton Filtres (3 traits) ===== */}
-      <div className="container mx-auto px-5 mt-4 md:mt-6 lg:hidden">
-        <button
-          type="button"
-          onClick={() => setMobileFiltersOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm active:scale-[0.99]"
-          aria-label="Ouvrir les filtres"
-        >
-          <FiMenu className="h-5 w-5" />
-          Filtres
-        </button>
-      </div>
 
       {/* ===== CONTENU (Sidebar desktop + Grille) ===== */}
       <div className="bg-white">
@@ -506,15 +481,13 @@ React.useEffect(() => {
             </aside>
 
             {/* Produits + pagination */}
-            <main className="">
-              {/* Grille responsive : 1 col <640px (résout ton 1er screenshot) */}
+            <main>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
                 {visibleProducts.map((p) => (
                   <ProductCard key={p.id} {...p} />
                 ))}
               </div>
 
-              {/* Pagination */}
               {filtered.length > 12 && (
                 <div className="mt-10 flex items-center justify-center gap-2">
                   <button
@@ -525,7 +498,6 @@ React.useEffect(() => {
                   >
                     <FiChevronLeft />
                   </button>
-
                   {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 5).map((n) => (
                     <button
                       key={n}
@@ -539,7 +511,6 @@ React.useEffect(() => {
                       {n}
                     </button>
                   ))}
-
                   <button
                     className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white hover:border-[#00A8E8]"
                     onClick={() => goto(page + 1)}
@@ -555,22 +526,60 @@ React.useEffect(() => {
         </div>
       </div>
 
+      {/* ===== TIROIR CATÉGORIES — MOBILE ===== */}
+      {mobileCatsOpen && (
+        <div className="fixed inset-0 z-[9999]" aria-modal="true" role="dialog">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileCatsOpen(false)} aria-hidden="true" />
+          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[360px] bg-white shadow-2xl p-5 overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-bold">Catégories</h3>
+              <button
+                type="button"
+                aria-label="Fermer"
+                onClick={() => setMobileCatsOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white"
+              >
+                <MdClose className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="pt-3">
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setActiveCategory(""); setMobileCatsOpen(false); }}
+                  className={`rounded-xl border px-4 py-2 text-sm font-medium text-left ${
+                    activeCategory === "" ? `${ACCENT} ${ACCENT_HOVER}` : "bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
+                  }`}
+                >
+                  Tous
+                </button>
+                {categories.map((c) => {
+                  const active = activeCategory === c;
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => { setActiveCategory(active ? "" : c); setMobileCatsOpen(false); }}
+                      className={`rounded-xl border px-4 py-2 text-sm font-medium text-left ${
+                        active ? `${ACCENT} ${ACCENT_HOVER}` : "bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ===== TIROIR FILTRES — MOBILE ===== */}
       {mobileFiltersOpen && (
-        <div
-          className="fixed inset-0 z-[9999]"
-          aria-modal="true"
-          role="dialog"
-        >
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setMobileFiltersOpen(false)}
-            aria-hidden="true"
-          />
-
-          {/* Panel */}
-          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[360px] bg-white shadow-2xl p-5 overflow-y-auto">
+        <div className="fixed inset-0 z-[9999]" aria-modal="true" role="dialog">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileFiltersOpen(false)} aria-hidden="true" />
+          <div className="absolute left-0 top-0 h-full w=[86%] w-[86%] max-w-[360px] bg-white shadow-2xl p-5 overflow-y-auto">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-base font-bold">Filtrer</h3>
               <button
@@ -594,7 +603,6 @@ React.useEffect(() => {
               ))}
             </div>
 
-            {/* Actions bas du tiroir */}
             <div className="sticky bottom-0 -mx-5 mt-4 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 p-5 border-t">
               <div className="flex gap-3">
                 <button

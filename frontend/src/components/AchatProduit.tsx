@@ -2,9 +2,11 @@
 import React from "react";
 import { FiChevronRight } from "react-icons/fi";
 import { MdOutlineWhatsapp } from "react-icons/md";
-import iphone15Black from "../assets/images/produits/sans-fond/Apple Iphone 15 Black Smartphone PNG _ TopPNG.png";
+import iphone15Black from "../assets/images/achat/b376285d-d10e-4d67-bee9-85d8efc11186.jfif";
 import logo from "../assets/images/logo.jpg";
 import { useTranslation } from "react-i18next";
+import ordi from "../assets/images/achat/779c4768-1ab0-4692-92a5-718c01baf4f8.jfif";
+import cana from "../assets/images/achat/0cbf9c9c-7cfd-4c3d-ae29-e2b2b0471cfe.jfif";
 
 const ACCENT = "bg-[#00A8E8] text-white border-[#00A8E8]";
 const ACCENT_HOVER = "hover:opacity-90";
@@ -27,9 +29,9 @@ const AchatProduit: React.FC = () => {
 
   /* --- Promo (slide vertical) --- */
   const PROMOS = [
-    "https://images.unsplash.com/photo-1607252650355-f7fd0460ccdb?q=80&w=1060&auto=format&fit=crop",
+    cana,
     "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1060&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=1060&auto=format&fit=crop",
+    ordi,
   ];
   const [promoIndex, setPromoIndex] = React.useState(0);
   const nextPromo = () => setPromoIndex((i) => (i + 1) % PROMOS.length);
@@ -70,6 +72,37 @@ OK contact: ${okContact ? "Oui" : "Non"}`
   };
 const { t } = useTranslation();
 
+// durée entre 2 slides
+const AUTO_MS = 3500;
+const timerRef = React.useRef<number | null>(null);
+
+const startAuto = React.useCallback(() => {
+  if (timerRef.current) return;
+  timerRef.current = window.setInterval(() => {
+    setPromoIndex((i) => (i + 1) % PROMOS.length);
+  }, AUTO_MS);
+}, [PROMOS.length]);
+
+const stopAuto = React.useCallback(() => {
+  if (timerRef.current) {
+    clearInterval(timerRef.current);
+    timerRef.current = null;
+  }
+}, []);
+
+React.useEffect(() => {
+  startAuto();
+  return stopAuto; // cleanup
+}, [startAuto, stopAuto]);
+
+// pause si l’onglet n’est plus visible, reprise au retour
+React.useEffect(() => {
+  const onVis = () => (document.hidden ? stopAuto() : startAuto());
+  document.addEventListener("visibilitychange", onVis);
+  return () => document.removeEventListener("visibilitychange", onVis);
+}, [startAuto, stopAuto]);
+
+
   return (
     <section className="w-full">
       {/* conteneur global élargi */}
@@ -78,7 +111,9 @@ const { t } = useTranslation();
         <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-6 lg:gap-8">
           {/* ---- CARTE PROMO ---- */}
           <article className="relative md:self-center">
-            <div className="relative overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-black h-[360px] sm:h-[380px] md:h-[420px] lg:h-[460px]">
+            <div className="relative overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-black h-[360px] sm:h-[380px] md:h-[420px] lg:h-[460px]"
+            onMouseEnter={stopAuto}
+            onMouseLeave={startAuto}>
               <div
                 className="absolute inset-0 transition-transform duration-500 ease-out"
                 style={{
@@ -93,14 +128,14 @@ const { t } = useTranslation();
                 ))}
               </div>
               <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
-              <div className="relative h-full flex flex-col justify-between p-5 sm:p-6 text-white">
+               <div className="relative h-full flex flex-col justify-between p-5 sm:p-6 text-white">
                 <div className="space-y-2 drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]">
                   <h3 className="font-extrabold leading-tight tracking-wide text-[17px] sm:text-[18px]">
                      {t('com.ex')}
                     <br /> 
                   </h3>
-                  <div className="text-3xl font-semibold opacity-90">8:54</div>
-                  <p className="max-w-[28ch] text-[11px] sm:text-[12px] leading-relaxed opacity-90">
+                  <div className="text-3xl font-semibold opacity-90 pt-20">8:54</div>
+                  <p className="lg:max-w-[40ch] md:max-w-[50ch] sm:max-w-[50ch] text-[11px] sm:text-[12px] lg:text-[15px]  md:text-[15px] leading-relaxed opacity-90 pt-4">
                    {t('com.do')}
                   </p>
                 </div>
@@ -132,14 +167,30 @@ const { t } = useTranslation();
             {/* Bandeau supérieur + formulaire ensemble dans la grille */}
             <div className="px-5 sm:px-7 md:px-8 pt-7 md:pt-8">
               {/* élargis la colonne image sans agrandir l'image */}
-              <div className="grid grid-cols-1 sm:grid-cols-[300px_minmax(0,1fr)] md:grid-cols-[340px_minmax(0,1fr)] gap-6 md:gap-8 items-start">
+              <div className="grid grid-cols-1
+                sm:grid-cols-[220px_minmax(0,1fr)]
+                md:grid-cols-[260px_minmax(0,1fr)]
+                lg:grid-cols-[320px_minmax(0,1fr)]
+                xl:grid-cols-[360px_minmax(0,1fr)]
+                2xl:grid-cols-[420px_minmax(0,1fr)]
+                gap-6 md:gap-8 items-start">
                 {/* GAUCHE : image + infos */}
                 <div className="flex flex-col">
                   {/* zone visuelle large, image centrée (image taille fixe) */}
-                 <div className="w-full rounded-xl bg-[#E9F6FB] border border-sky-100 overflow-hidden grid place-items-center
-                   h-[460px] sm:h-[420px] md:h-[480px] lg:h-[520px]">
-                    <img src={produit.image} alt={produit.nom} className="w-[220px] md:w-[240px] h-auto object-contain" />
+                 <div
+                    className="w-full overflow-hidden rounded-xl border border-sky-100 flex justify-center items-center"
+                  >
+                     <img
+      src={produit.image}
+      alt={produit.nom}
+      className="w-full h-auto object-cover rounded-xl
+                 max-h-[220px] sm:max-h-[240px] md:max-h-[260px]
+                 lg:max-h-[300px] xl:max-h-[340px]"
+    />
                   </div>
+
+
+
 
                   <div className="mt-3 leading-tight pt-4">
                     <h3 className="text-[18px] md:text-[20px] font-semibold text-gray-900">
