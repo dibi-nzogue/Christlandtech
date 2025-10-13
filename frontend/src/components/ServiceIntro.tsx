@@ -1,8 +1,15 @@
 // src/components/ServiceIntro.tsx
 import React from "react";
 import banner from "../assets/images/achat/07b83e0c-2d5b.webp";
+import { useTranslation } from "react-i18next";
+
+
+
 
 const ServiceIntro: React.FC = () => {
+
+const { t } = useTranslation();
+
   return (
     <section className="bg-white ">
       {/* ===== BANNIÈRE ===== */}
@@ -24,7 +31,7 @@ const ServiceIntro: React.FC = () => {
           <div className="absolute inset-0 bg-black/30 flex items-center justify-center text-center">
             <h1 className="text-white uppercase font-extrabold tracking-wide
                            text-xl sm:text-3xl md:text-5xl lg:text-6xl">
-              DÉCOUVREZ NOS <span className="text-[#00A8E8]">SERVICES</span>
+             {t('ser.title')} <span className="text-[#00A8E8]">{t('ser.title1')}</span>
             </h1>
           </div>
         </div>
@@ -33,14 +40,13 @@ const ServiceIntro: React.FC = () => {
       {/* ===== INTRO TEXTE ===== */}
       <div className="mx-auto w-full max-w-screen-2xl  px-6 sm:px-8 lg:px-10 py-10 text-left ">
         <h3 className=" text-[15px] sm:text-[16px] md:text-[20px]  lg:text-[28px] font-semibold text-gray-900 uppercase leading-snug">
-          Notre raison d’être est d’aider nos clients
+         {t('ser.ch')}
           <br />
-          à changer le monde
+          {t('ser.ch1')}
         </h3>
         <div className="h-[3px] w-12 bg-[#00A8E8] mt-3 mb-6" />
         <p className="text-[12px] sm:text-[14px] md:text-[18px] lg:text-[22px] text-[#00A8E8]">
-          Et nos clients comptent parmi les plus grandes organisations au monde
-          / Organismes du continent.
+         {t('ser.an')}
         </p>
       </div>
     </section>

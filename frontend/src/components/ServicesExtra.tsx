@@ -24,6 +24,7 @@ const ITEMS: ExtraItem[] = [
       "Sécurité Microsoft : Defender for Business, MFA, Intune/MDM, stratégies d’accès conditionnel.",
       "Protection des postes/serveurs : Kaspersky Endpoint, EDR, chiffrement (BitLocker), correctifs automatisés.",
       "Sécurité Microsoft : Defender for Business, MFA, Intune/MDM, stratégies d’accès conditionnel.",
+      
     ],
     image: imgSecurite,
   },
@@ -142,19 +143,20 @@ const ExtraRow: React.FC<{
         }`}
       >
         <div ref={imgBoxRef} className="rounded-2xl overflow-hidden w-full h-full">
-          <img
-            src={item.image}
-            alt={item.title}
-            className="
-              w-full object-cover
-              aspect-[16/10] sm:aspect-[4/3]   /* mobile/tablette */
-              md:aspect-auto md:h-full        /* md+ : prend toute la hauteur disponible */
-            "
-            loading="lazy"
-            decoding="async"
-            sizes="(min-width: 1024px) 560px, (min-width: 768px) 45vw, 100vw"
-            onLoad={measure}
-          />
+         <img
+  src={item.image}
+  alt={item.title}
+  className="
+    w-full object-cover
+    aspect-[16/10] sm:aspect-[4/3]
+    md:aspect-auto md:h-full
+  "
+  loading="lazy"
+  decoding="async"
+  sizes="(min-width: 1024px) 560px, (min-width: 768px) 45vw, 100vw"
+  onLoad={measure}
+/>
+
         </div>
       </div>
     </article>

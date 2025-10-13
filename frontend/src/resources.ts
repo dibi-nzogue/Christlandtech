@@ -88,8 +88,18 @@ const resources = {
       "stat.client": "Satisfied Clients",
       "stat.exp": "Experience",
       "stat.commande": "Commands",
+      "ser.title": "DISCOVER OUR ",
+      "ser.title1": " SERVICES",
+      "ser.ch": "Our purpose is to help our clients",
+      "ser.ch1": "to change the world",
+      "ser.an": "And our clients include some of the largest organizations in the world / Institutions across the continent.",
+
     },
   },
+
+
+
+
 
   fr: {
     translation: {
@@ -179,6 +189,14 @@ const resources = {
       "stat.client": "Clients Satisfaits",
       "stat.exp": "Expérience",
       "stat.commande": "Commandes",
+      
+      // services
+      "ser.title": "DÉCOUVREZ NOS",
+      "ser.title1": " SERVICES",
+      "ser.ch": "Notre raison d’être est d’aider nos clients",
+      "ser.ch1": "à changer le monde",
+      "ser.an": "Et nos clients comptent parmi les plus grandes organisations au monde / Organismes du continent.",
+
     },
   },
 };
