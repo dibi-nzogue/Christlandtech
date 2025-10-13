@@ -1,6 +1,6 @@
 // src/components/Presentation.tsx
 import React from "react";
-import { FiChevronLeft, FiChevronRight, FiMenu } from "react-icons/fi";
+import {  FiChevronLeft, FiChevronRight, FiMenu, FiChevronDown } from "react-icons/fi";
 import { MdClose } from "react-icons/md";
 import iphone from "../assets/images/produits/sans-fond/Apple Iphone 15 Black Smartphone PNG _ TopPNG.png";
 import { useTranslation } from "react-i18next";
@@ -154,26 +154,35 @@ type FilterGroupProps = Filter & {
 
 const FilterGroup: React.FC<FilterGroupProps> = ({ title, options, selected, onSelect }) => {
   const [open, setOpen] = React.useState(true);
+
   return (
     <div className="mb-6">
       <div
         className="flex items-center justify-between mt-8 select-none cursor-pointer"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(v => !v)}
         role="button"
         aria-expanded={open}
       >
         <h4 className="text-sm font-semibold tracking-wide text-gray-700">{title}</h4>
+
+        {/* bouton chevron */}
         <button
           type="button"
           aria-label={open ? "Réduire" : "Déployer"}
-          onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-          className="relative p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00A8E8]"
+          onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }}
+          className={`p-1 rounded-md text-[#00A8E8] transition-transform duration-300
+                      focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00A8E8]
+                      ${open ? "rotate-180" : ""}`}
         >
-          <span className={["block h-1 rounded-full bg-[#00A8E8] transition-all duration-300", open ? "w-5" : "w-8"].join(" ")} />
+          <FiChevronDown className="h-5 w-5" />
         </button>
+
       </div>
+
       <div className="mt-2 border-t border-[#00A8E8]" />
-      <div className={["grid transition-[grid-template-rows] duration-300 ease-out", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"].join(" ")}>
+
+      {/* accordéon fluide */}
+      <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
         <div className="overflow-hidden">
           <div className="mt-3 space-y-2 text-sm">
             {options.map((opt) => {
@@ -209,6 +218,7 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, options, selected, onS
   );
 };
 
+
 const fmt = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
 
 const ProductCard: React.FC<Product> = ({ name, price, oldPrice, img, desc }) => (
@@ -230,10 +240,10 @@ const ProductCard: React.FC<Product> = ({ name, price, oldPrice, img, desc }) =>
     <div className="mt-3 flex items-center justify-between">
       <span className="text-xl sm:text-xl md:text-sm lg:text-2xl font-bold text-gray-900">{fmt(price)}</span>
       {typeof oldPrice === "number" && oldPrice > price && (
-        <span className="text-sm sm:text-base md:text-text-base lg:text-lg text-red-500 line-through">{fmt(oldPrice)}</span>
+        <span className="text-sm sm:text-base md:text-text-base lg:text-lg text-gray-500 line-through">{fmt(oldPrice)}</span>
       )}
     </div>
-    <div className="mt-3 flex items-center justify-center">
+    <div className="mt-3 flex items-center ">
       <button className={`rounded-lg border px-3 py-1.5 text-sm sm:text-md font-medium ${ACCENT} ${ACCENT_HOVER}`}>
         Commander
       </button>
@@ -316,7 +326,7 @@ const Presentation: React.FC = () => {
   }, [filters, activeCategory]);
 
   /** Pagination */
-  const PAGE_SIZE = 12;
+  const PAGE_SIZE = 16;
   const [page, setPage] = React.useState(1);
   React.useEffect(() => { setPage(1); }, [filters, activeCategory]);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
@@ -466,19 +476,28 @@ const Presentation: React.FC = () => {
         <div className=" max-w-screen-4xl mx-auto px-5  py-6 lg:py-20">
           <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)] gap-8">
             {/* Sidebar desktop */}
-            <aside className="hidden lg:block rounded-2xl border border-gray-200 bg-white p-5 shadow-sm h-fit">
-              <h3 className="text-lg font-bold text-gray-900">Filtrer</h3>
-              <div className="mt-4 border-t border-[#00A8E8] pt-4">
-                {FILTERS.map((f) => (
-                  <FilterGroup
-                    key={f.title}
-                    {...f}
-                    selected={filters[f.title] ?? ""}
-                    onSelect={handleSelect}
-                  />
-                ))}
-              </div>
-            </aside>
+            {/* Sidebar desktop */}
+              <aside
+                className="
+                  hidden lg:block sticky top-24      /* reste visible au scroll */
+                  rounded-2xl border border-gray-200 bg-white p-5 shadow-sm
+                  max-h-[calc(100vh-7rem)]           /* hauteur max = hauteur d'écran - marge top */
+                  overflow-y-hidden hover:overflow-y-auto  /* scroll interne uniquement au survol */
+                "
+              >
+                <h3 className="text-lg font-bold text-gray-900">Filtrer</h3>
+                <div className="mt-4 border-t border-[#00A8E8] pt-4">
+                  {FILTERS.map((f) => (
+                    <FilterGroup
+                      key={f.title}
+                      {...f}
+                      selected={filters[f.title] ?? ""}
+                      onSelect={handleSelect}
+                    />
+                  ))}
+                </div>
+              </aside>
+
 
             {/* Produits + pagination */}
             <main>
