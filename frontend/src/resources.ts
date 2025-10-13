@@ -95,6 +95,9 @@ const resources = {
       "ser.ch": "Our purpose is to help our clients",
       "ser.ch1": "to change the world",
       "ser.an": "And our clients include some of the largest organizations in the world / Institutions across the continent.",
+      "ser.me": "THANK YOU",
+      "ser.me1": "At CHRISTLANDTECH, we believe that impeccable service begins with a warm welcome and ends with a satisfied customer.From the first inquiry to after-sales support, we are committed to providing you with expertise, clarity, and professionalism.With accessible, high-quality service, we offer promotions all year round — monthly deals, weekend discounts, bundles, and loyalty cards.You leave reassured, well advised… and with the best value for money.",
+
 
     },
   },
@@ -200,7 +203,9 @@ const resources = {
       "ser.ch": "Notre raison d’être est d’aider nos clients",
       "ser.ch1": "à changer le monde",
       "ser.an": "Et nos clients comptent parmi les plus grandes organisations au monde / Organismes du continent.",
-      "ser.me": "Et nos clients comptent parmi les plus grandes organisations au monde / Organismes du continent.",
+      "ser.me": "MERCI",
+      "ser.me1": "Chez CHRISTLANDTECH, nous croyons qu’un service impeccable commence par un accueil chaleureux et se termine par un client serein. De la première information jusqu’au suivi après-vente, nous nous engageons à vous apporter expertise, clarté et professionnalisme. Avec une qualité de service accessible, nous mettons en place des promotions toute l’année : offres du mois, remises week-end, packs, cartes de fidélité. Vous repartez rassuré, bien conseillé… et avec le meilleur rapport qualité-prix.",
+
 
 
     },
