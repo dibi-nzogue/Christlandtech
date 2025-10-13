@@ -142,7 +142,9 @@ const ExtraRow: React.FC<{
           reverseOnMd ? "md:order-1" : "md:order-2"
         }`}
       >
-        <div ref={imgBoxRef} className="rounded-2xl overflow-hidden w-full h-full">
+        <div ref={imgBoxRef} className=" rounded-2xl overflow-hidden w-full self-start
+    h-auto md:h-[220px] lg:h-[270px] xl:h-[300px]
+  ">
          <img
   src={item.image}
   alt={item.title}
