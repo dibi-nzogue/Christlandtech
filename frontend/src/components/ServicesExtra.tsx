@@ -1,6 +1,6 @@
 // src/components/ServicesExtra.tsx
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-
+import { useTranslation } from "react-i18next";
 // images (remplace par les tiennes)
 import imgSecurite from "../assets/images/achat/69249ff2-e5f5-438f-9427-d61c3295ca52.webp";
 import imgReseau from "../assets/images/achat/Réseau informatique_.webp";
@@ -166,6 +166,9 @@ const ExtraRow: React.FC<{
 };
 
 const ServicesExtra: React.FC = () => {
+
+  const { t } = useTranslation();
+
   return (
     <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
       <div className="space-y-10 lg:space-y-12">
@@ -191,14 +194,10 @@ const ServicesExtra: React.FC = () => {
 
         <div className="rounded-2xl bg-white p-4 sm:p-6 lg:p-7">
           <h4 className="text-center text-[15px] sm:text-[16px] font-semibold text-gray-900 mb-2">
-            MERCI
+            {t('ser.me')}
           </h4>
           <p className="mx-auto lg:max-w-6xl md:max-w-4xl text-center text-[11px] sm:text-[12px] leading-relaxed text-gray-700">
-            Chez CHRISTLANDTECH, nous croyons qu’un service impeccable commence par un accueil chaleureux et se
-            termine par un client serein. De la première information jusqu’au suivi après-vente, nous nous engageons
-            à vous apporter expertise, clarté et professionnalisme. Avec une qualité de service accessible, nous
-            mettons en place des promotions toute l’année : offres du mois, remises week-end, packs, cartes de
-            fidélité. Vous repartez rassuré, bien conseillé… et avec le meilleur rapport qualité-prix.
+             {t('ser.me1')}
           </p>
         </div>
       </div>
