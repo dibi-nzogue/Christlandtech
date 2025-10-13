@@ -36,6 +36,8 @@ const resources = {
 
       // Misc
       "siege": "Head Office",
+      "new": "New Arrivals",
+      "pdt": "All Products",
 
       // Forms
       "form.button": "Send",
@@ -140,6 +142,8 @@ const resources = {
 
       // Misc
       "siege": "Siège Principal",
+      "new": "Nouveautés",
+      "pdt": "Tous les Produits",
 
       // Forms
       "form.button": "Envoyer",
