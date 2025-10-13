@@ -87,7 +87,7 @@ const Footer: React.FC = () => {
         </div>
 
       {/* --- Bas du footer --- */}
-      <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-200 pt-3 mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
+      <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-200 pt-3 w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
         <p>© 2025, Christland Tech</p>
       </div>
       </div>

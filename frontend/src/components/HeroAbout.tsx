@@ -1,28 +1,49 @@
 import React from 'react'
 import hero4 from '../assets/images/hero4.png';
+import hero5 from '../assets/images/hero5.png';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const HeroAbout: React.FC = () => {
+
+    const navigate = useNavigate();
+    const { t } = useTranslation();
+
   return (
-    <div className='mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 pt-8 md:pt-28 lg:pt-32 pb-20'>
+    <div className='mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 pt-8 md:pt-28 lg:pt-32'>
         <div className=''>
             <h1 className='font-extrabold text-[13px] sm:text-sm md:text-xl lg:text-2xl xl:text-4xl'>
-                A Propos de CHRISTLAND <span className="text-[#00A8E8]">TECH</span>
+                {t('A_propos')} CHRISTLAND <span className="text-[#00A8E8]">TECH.</span>
             </h1>
             <p className='pt-4 md:pt-10 font-semibold text-sm md:text-lg lg:text-xl'>
-                C'est simple: <br /> Nous voulons ce que vous voulez,
+                {t('highlighted1')}: <br /> {t('highlighted2')}
             </p>
         </div>
-        <div className='flex justify-between pt-10 md:pt-16'>
-            <div className='w-2/3'>
+        <div className="flex justify-center items-center relative">
+            {/* Image de gauche */}
+            <div className="w-1/3 hidden lg:block">
                 <img src={hero4} alt="" />
             </div>
-            <div className='bg-[#6cbad9]/30 rounded-tr-[50px] rounded-br-[50px]'>
-                <h2>
-                    Nous Sommes Un Fournisseur Indépendant De Technologies Et De Services. 
-                </h2>
-                <p>
-                    Nous sommes une  entreprise responsable qui croit en la possibilité de gagner ensemble pour nos collaborateurs et  notre planète, continent.  Nous accompagnons nos clients dans les phases d'approvisionnement, de transformation et de  gestion de leur infrastructure technologique pour leur assurer une transformation numérique  permettant à leurs employés et à leur entreprise de se développer.
-                </p>
+
+            {/* Image de droite avec texte superposé */}
+            <div className="w-full lg:w-2/3 relative">
+                <img src={hero5} alt="" className=" object-cover hidden lg:block" />
+
+                {/* Texte positionné par-dessus l’image */}
+                <div className="relative lg:absolute inset-0 flex flex-col justify-center gap-5 lg:gap-6 xl:gap-10 px-5 lg:px-10 py-10 lg:py-0 lg:w-[80%] bg-[#6CBAD9]/40 lg:bg-transparent mt-10 rounded-xl lg:rounded-none">
+                    <h2 className="lg:text-2xl font-bold mb-4">
+                        {t('about.title')}
+                    </h2>
+                    <p className="text-sm md:text-auto text-gray-700 leading-relaxed">
+                        {t('about.description')}
+                    </p>
+                    <button 
+                        onClick={() => navigate('/Services')}
+                        className="bg-[#00A9DC] text-white px-2 md:px-4 py-1 md:py-2 rounded-md text-md md:text-lg w-[40%] md:w-[35%] lg:w-[40%] xl:w-[30%]"
+                    >
+                        {t('service.button')}
+                    </button>
+                </div>
             </div>
         </div>
     </div>

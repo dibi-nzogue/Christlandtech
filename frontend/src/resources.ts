@@ -2,21 +2,42 @@
 const resources = {
   en: {
     translation: {
+      // Nav & basics
       "Accueil": "Home",
       "A propos": "About",
+      "A_propos": "About",
       "Produits": "Products",
       "Services": "Services",
       "Assistance": "Support",
       "Contact": "Contact",
       "Rechercher": "Search",
-      "hero.button": "Buy Now",
       "Français": "French",
       "Anglais": "English",
+
+      // Hero / general
+      "hero.button": "Buy Now",
       "highlighted": "technology",
+      "highlighted1": "It's simple",
+      "highlighted2": "We want what you want.",
       "hero.title": "Discover the world of modern",
-      "hero.description": "Smartphones, computers, headphones, TVs and connected gadgets at the best price.",
-      "service.description": "Trust our services: authentic, verified, and responsible brands.",
+      "hero.description":
+        "Smartphones, computers, headphones, TVs and connected gadgets at the best price.",
+
+      // About
+      "about.title":
+        "We Are an Independent Provider of Technology and Services.",
+      "about.description":
+        "We are a responsible company that believes in the possibility of succeeding together for our employees and our planet. We support our clients through the phases of procurement, transformation, and management of their technological infrastructure to ensure a digital transformation that enables their employees and their business to grow.",
+
+      // Services / buttons
+      "service.description":
+        "Trust our services: authentic, verified, and responsible brands.",
+      "service.button": "Our Services",
+
+      // Misc
       "siege": "Head Office",
+
+      // Forms
       "form.button": "Send",
       "form.button1": "Sign Up",
       "form.button2": "Sign In",
@@ -27,14 +48,19 @@ const resources = {
       "password.input": "Password",
       "confirm.input": "Password confirm",
       "form.description": "Leave your message",
+
+      // Products page / bar
       "bar.description": "Explore All Products",
       "bar.cat": "Categories",
+
+      // Purchase card (AchatProduit)
       "com.ach": "PURCHASE PRODUCT",
       "com.nom": "Product",
       "com.type": "Type of Request",
       "com.ex": "EXPLORE OUR MULTIPLE ",
       "com.se": "SERVICES",
-      "com.do": "Dual 12 MP camera (wide + ultra-wide), Night Mode, 4K60 video, 12 MP selfie. Face ID, aluminum + glass body, IP68, stereo, Haptic Touch.",
+      "com.do":
+        "Dual 12 MP camera (wide + ultra-wide), Night Mode, 4K60 video, 12 MP selfie. Face ID, aluminum + glass body, IP68, stereo, Haptic Touch.",
       "com.ref": "Reference",
       "com.qo": "Quote",
       "com.ac": "Purchase",
@@ -46,29 +72,63 @@ const resources = {
       "com.a": "I agree to be contacted",
       "com.sen": "Send via WhatsApp",
       "com.tel": "Phone Number",
+
+      // Account helpers
       "compte.desc": "Already have an account?",
       "compte.desc1": "Log In",
       "compte.desc2": "Not registered?",
-      "compte.desc3": "Sign Up"
+      "compte.desc3": "Sign Up",
+
+      // Team / stats / categories
+      "team": "Our Team",
+      "categorie": "OUR CATEGORIES",
+      "team.des":
+        "We focus on the details of everything we do to help businesses around the world focus on what matters most to them.",
+      "team.contact": "Contact Us",
+      "stat.client": "Satisfied Clients",
+      "stat.exp": "Experience",
+      "stat.commande": "Commands",
     },
   },
+
   fr: {
     translation: {
+      // Nav & basics
       "Accueil": "Accueil",
       "A propos": "A propos",
+      "A_propos": "A propos de",
       "Produits": "Produits",
       "Services": "Services",
       "Assistance": "Assistance",
       "Contact": "Contact",
       "Rechercher": "Rechercher",
-      "hero.button": "Acheter Maintenant",
       "Français": "Français",
       "Anglais": "Anglais",
+
+      // Hero / general
+      "hero.button": "Acheter Maintenant",
       "highlighted": "technologie",
+      "highlighted1": "C'est simple",
+      "highlighted2": "Nous voulons ce que vous voulez.",
       "hero.title": "Découvrez l’univers de la",
-      "hero.description": "Smartphones, ordinateurs, casques, télévisions et gadgets connectés retrouvez les meilleures marques au meilleur prix.",
-      "service.description": "Faites confiance à nos services : des marques authentiques, contrôlées et responsables.",
+      "hero.description":
+        "Smartphones, ordinateurs, casques, télévisions et gadgets connectés retrouvez les meilleures marques au meilleur prix.",
+
+      // About
+      "about.title":
+        "Nous Sommes Un Fournisseur Indépendant De Technologies Et De Services.",
+      "about.description":
+        "Nous sommes une entreprise responsable qui croit en la possibilité de gagner ensemble pour nos collaborateurs et notre planète, continent. Nous accompagnons nos clients dans les phases d'approvisionnement, de transformation et de gestion de leur infrastructure technologique pour leur assurer une transformation numérique permettant à leurs employés et à leur entreprise de se développer.",
+
+      // Services / buttons
+      "service.description":
+        "Faites confiance à nos services : des marques authentiques, contrôlées et responsables.",
+      "service.button": "Nos Services",
+
+      // Misc
       "siege": "Siège Principal",
+
+      // Forms
       "form.button": "Envoyer",
       "form.button1": "Créer Compte",
       "form.button2": "Connexion",
@@ -76,32 +136,49 @@ const resources = {
       "email.input": "Email",
       "phone.input": "Téléphone",
       "message.input": "Message",
+      "password.input": "Mot de passe",
+      "confirm.input": "Confirmation mot de passe",
+      "form.description": "Laissez votre message",
+
+      // Products page / bar
       "bar.description": "Explore Tous Les Produits",
       "bar.cat": "Catégories",
+
+      // Purchase card (AchatProduit)
       "com.ach": "ACHAT DE PRODUIT",
       "com.nom": "Produit",
       "com.type": "Type de demande",
       "com.ex": "EXPLORE NOS MULTIPLE",
       "com.se": "SERVICES",
-      "com.do": "Double appareil photo 12 MP (grand-angle + ultra grand-angle), Mode Nuit, vidéo 4K60, selfie 12 MP. Face ID, châssis alu + verre, IP68, stéréo, Haptic Touch.",
+      "com.do":
+        "Double appareil photo 12 MP (grand-angle + ultra grand-angle), Mode Nuit, vidéo 4K60, selfie 12 MP. Face ID, châssis alu + verre, IP68, stéréo, Haptic Touch.",
       "com.ref": "Reference",
       "com.qo": "Devis",
       "com.ac": "Achat",
       "com.in": "Information",
-      "com.di": "Disponibilité",
       "com.vo": "VOIR PLUS",
+      "com.di": "Disponibilité",
       "com.quc": "Quantité",
       "com.np": "Nom & Prénom",
       "com.a": "J’accepte d’être contacté",
       "com.sen": "Envoyer via Whatsapp",
       "com.tel": "Téléphone",
-      "password.input": "Mot de passe",
-      "confirm.input": "Confirmation mot de passe",
-      "form.description": "Laissez votre message",
+
+      // Account helpers
       "compte.desc": "Déjà un compte ?",
       "compte.desc1": "Connectez-vous",
       "compte.desc2": "Pas encore enregistré ?",
-      "compte.desc3": "Créez votre compte"
+      "compte.desc3": "Créez votre compte",
+
+      // Team / stats / categories
+      "team": "Notre Equipe",
+      "categorie": "NOS CATEGORIES",
+      "team.des":
+        "Nous nous concentrons sur les détails de tout ce que nous faisons, afin d’aider les entreprises du monde entier à se focaliser sur ce qui compte le plus pour elles.",
+      "team.contact": "Nous Contacter",
+      "stat.client": "Clients Satisfaits",
+      "stat.exp": "Expérience",
+      "stat.commande": "Commandes",
     },
   },
 };

@@ -1,6 +1,6 @@
 // src/components/ServiceIntro.tsx
 import React from "react";
-import banner from "../assets/images/achat/07b83e0c-2d5b-4dca-ab7f-7edb60921292.webp";
+import banner from "../assets/images/achat/07b83e0c-2d5b.webp";
 
 const ServiceIntro: React.FC = () => {
   return (

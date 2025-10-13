@@ -6,6 +6,8 @@ import ContactSection from "../components/ContactSection";
 import ServiceSection from "../components/ServiceSection";
 import Footer from '../components/Footer';
 import ScrollToTopButton from "../components/ScrollToTopButton";
+import CategoriesCarousel from "../components/CategoriesCarousel";
+import Nouveautes from '../components/Nouveautes';
 // import { useTranslation } from "react-i18next";
 
 const Accueil: React.FC = () => {
@@ -18,7 +20,9 @@ const Accueil: React.FC = () => {
       <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 pt-8 md:pt-28 lg:pt-32">
         <HeroCarousel />
       </section>
+      <CategoriesCarousel />
       <Sponsor />
+      <Nouveautes />
       <ServiceSection />
       <ContactSection />
       <ScrollToTopButton />

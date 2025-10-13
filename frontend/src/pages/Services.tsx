@@ -4,6 +4,9 @@ import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
 import ServiceIntro from "../components/ServiceIntro";
 import ServicesBloc from "../components/ServicesBloc";
+import ServicesExtra from "../components/ServicesExtra";
+import ContactSection from "../components/ContactSection";
+
 
 const Services: React.FC = () => {
   return (
@@ -11,6 +14,8 @@ const Services: React.FC = () => {
       <Navbar />
       <ServiceIntro />
        <ServicesBloc/>
+       <ServicesExtra/>
+       <ContactSection />
       <Footer />
       <ScrollToTopButton />
     </div>
