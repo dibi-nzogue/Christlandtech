@@ -86,7 +86,7 @@ const ExtraRow: React.FC<{
   }, [open, imgHeight]);
 
   return (
-    <article className="grid grid-cols-12 items-stretch gap-3 md:gap-5 lg:gap-6">
+    <article className="grid grid-cols-12 items-start gap-3 md:gap-5 lg:gap-6">
       {/* Colonne TEXTE (toujours 1ère dans le DOM pour mobile) */}
       <div
         className={`col-span-12 md:col-span-7 ${
