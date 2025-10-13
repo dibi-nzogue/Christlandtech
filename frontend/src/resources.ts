@@ -196,6 +196,8 @@ const resources = {
       "ser.ch": "Notre raison d’être est d’aider nos clients",
       "ser.ch1": "à changer le monde",
       "ser.an": "Et nos clients comptent parmi les plus grandes organisations au monde / Organismes du continent.",
+      "ser.me": "Et nos clients comptent parmi les plus grandes organisations au monde / Organismes du continent.",
+
 
     },
   },
