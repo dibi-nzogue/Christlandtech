@@ -6,6 +6,7 @@ import Produits from "./pages/Produits";
 import Services from "./pages/Services";
 import Compte from "./pages/Compte";
 import Connexion from "./pages/Connexion";
+import Dashboard from "./pages/Dashboard";
 // import Assistance from "./pages/Assistance";
 // import Contact from "./pages/Contact";
 
@@ -19,6 +20,7 @@ const App: React.FC = () => {
         <Route path="/Services" element={<Services />} />
         <Route path="/Création-compte" element={<Compte />} />
         <Route path="/Connexion" element={<Connexion />} />
+        <Route path="/Dashboard" element={<Dashboard />} />
         {/* <Route path="/assistance" element={<Assistance />} />
         <Route path="/contact" element={<Contact />} /> */}
       </Routes>

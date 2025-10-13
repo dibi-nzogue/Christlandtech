@@ -4,6 +4,7 @@ import Slider from "react-slick";
 import { ArrowRight } from "lucide-react";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import { useTranslation } from 'react-i18next';
 
 import lenovo from "../assets/images/lenovo.webp";
 import hp from "../assets/images/hp.jpg";
@@ -104,6 +105,7 @@ const PrevArrow = (props: any) => {
 export default function Nouveautes() {
   const [activeTab, setActiveTab] = useState<"Notebooks" | "Desktops" | "Iphone">("Notebooks");
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const filteredProducts = products.filter((p) => p.category === activeTab);
 
@@ -131,7 +133,7 @@ export default function Nouveautes() {
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 flex flex-col items-center py-10 bg-white">
-      <h2 className="text-3xl font-bold mb-6 text-gray-900">Nouveautés</h2>
+      <h2 className="text-3xl font-bold mb-6 text-gray-900">{t('new')}</h2>
 
       {/* Onglets */}
       <div className="flex space-x-6 mb-10">
@@ -155,7 +157,7 @@ export default function Nouveautes() {
         <Slider {...settings}>
           {filteredProducts.map((p) => (
             <div key={p.id} className="px-3">
-              <div className="relative bg-white shadow-md rounded-2xl p-4 flex flex-col justify-between items-start gap-5 md:gap-8 hover:shadow-lg transition-shadow">
+              <div className="relative bg-white shadow-md rounded-2xl my-5 p-4 flex flex-col justify-between items-start gap-5 md:gap-8 hover:shadow-lg transition-shadow">
                 <img
                   src={p.image}
                   alt={p.name}
@@ -190,7 +192,7 @@ export default function Nouveautes() {
         onClick={() => navigate("/Produits")}
         className="bg-[#00A9DC] text-white px-6 py-3 rounded-2xl font-semibold hover:bg-sky-600 transition-colors mt-10"
       >
-        Tous les produits
+        {t('pdt')}
       </button>
     </div>
   );
