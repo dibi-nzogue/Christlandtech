@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { Trash2, Plus } from "lucide-react";
 
 import lenovo from "../assets/images/lenovo.webp";
 import hp from "../assets/images/hp.jpg";
 import dell from "../assets/images/dell.jpg";
+
+import { useNavigate } from "react-router-dom";
 
 type Product = {
   id: number;
@@ -21,12 +24,46 @@ const products: Product[] = [
   { id: 6, name: "HP Elitebook", price: "90.000Cfa", qty: 5, img: dell },
 ];
 
+const articles: Product[] = [
+  { id: 1, name: "Clavier Logitech", price: "15.000Cfa", qty: 40, img: dell },
+  { id: 2, name: "Souris HP", price: "7.000Cfa", qty: 55, img: hp },
+  { id: 3, name: "Casque Sony", price: "30.000Cfa", qty: 20, img: lenovo },
+];
+
 const ProductTable = () => {
+  const [activeTab, setActiveTab] = useState<"produits" | "articles">("produits");
+
+  const currentList = activeTab === "produits" ? products : articles;
+
+  const navigate = useNavigate();
+
   return (
     <div className="bg-white p-4 rounded-xl shadow-sm w-full md:w-3/4 overflow-hidden">
-      <h2 className="font-semibold mb-4 text-gray-700">Tous Les Produits</h2>
+      {/* --- Onglets --- */}
+      <div className="flex border-b mb-4">
+        <button
+          onClick={() => setActiveTab("produits")}
+          className={`px-4 py-2 text-sm font-medium ${
+            activeTab === "produits"
+              ? "text-[#00A9DC] border-b-2 border-[#00A9DC]"
+              : "text-gray-500 hover:text-[#00A9DC]"
+          }`}
+        >
+          Tous les Produits
+        </button>
+        <button
+          onClick={() => setActiveTab("articles")}
+          className={`px-4 py-2 text-sm font-medium ${
+            activeTab === "articles"
+              ? "text-[#00A9DC] border-b-2 border-[#00A9DC]"
+              : "text-gray-500 hover:text-[#00A9DC]"
+          }`}
+        >
+          Tous les Articles
+        </button>
+      </div>
 
-      {/* --- Table responsive container --- */}
+      {/* --- Table responsive --- */}
       <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
         <table className="min-w-[600px] w-full text-sm text-left border-collapse">
           <thead className="text-gray-500 border-b">
@@ -41,7 +78,7 @@ const ProductTable = () => {
           </thead>
 
           <tbody>
-            {products.map((p) => (
+            {currentList.map((p) => (
               <tr
                 key={p.id}
                 className="border-b hover:bg-gray-50 transition-colors duration-200"
@@ -61,7 +98,7 @@ const ProductTable = () => {
                 </td>
                 <td className="py-2 px-2 md:px-4">{p.qty}</td>
                 <td className="py-2 px-2 md:px-4">
-                  <Plus className="text-[#00A9DC] cursor-pointer" size={18} />
+                  <Plus className="text-[#00A9DC] cursor-pointer" size={18} onClick={() => navigate('/Dashboard/Modifier')}/>
                 </td>
                 <td className="py-2 px-2 md:px-4">
                   <Trash2 className="text-red-500 cursor-pointer" size={18} />
