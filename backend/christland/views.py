@@ -53,6 +53,12 @@ def _apply_faceted_filters(qs, params, cate_ids: Iterable[int]):
         slugs = [s.strip() for s in brand.split(",") if s.strip()]
         qs = qs.filter(marque__slug__in=slugs)
 
+    # 0) état produit
+    etat = params.get("etat")
+    if etat:
+        etats = [s.strip() for s in etat.split(",") if s.strip()]
+        qs = qs.filter(etat__in=etats)
+
     # 2) couleur
     color = params.get("color")
     if color:
@@ -86,19 +92,22 @@ def _apply_faceted_filters(qs, params, cate_ids: Iterable[int]):
         except Attribut.DoesNotExist:
             continue
 
-        # NOTE : on suppose que Produits a des reverse relations 'specs' et Variantes 'specs'.
-        # Si vos related_names sont différents, adaptez ici. Le bug signalé venait de ValeurAttribut (corrigé plus bas).
         q_attr = Q(specs__attribut=attr) | Q(variantes__specs__attribut=attr)
 
         if attr.type == Attribut.CHOIX:
             qs = qs.filter(
-                q_attr &
-                (Q(specs__valeur_choice__slug__in=values) | Q(variantes__specs__valeur_choice__slug__in=values))
+                q_attr & (
+                    Q(specs__valeur_choice__slug__in=values) |
+                    Q(variantes__specs__valeur_choice__slug__in=values)
+                )
             )
         elif attr.type == Attribut.TEXTE:
+            regex = "|".join(values)
             qs = qs.filter(
-                q_attr &
-                (Q(specs__valeur_text__iregex="|".join(values)) | Q(variantes__specs__valeur_text__iregex="|".join(values)))
+                q_attr & (
+                    Q(specs__valeur_text__iregex=regex) |
+                    Q(variantes__specs__valeur_text__iregex=regex)
+                )
             )
         else:
             q_num = Q()
@@ -137,6 +146,7 @@ def _apply_faceted_filters(qs, params, cate_ids: Iterable[int]):
                 qs = qs.filter(q_attr & q_num)
 
     return qs.distinct()
+
 
 
 class SmallPagination(PageNumberPagination):
@@ -262,6 +272,25 @@ class CategoryFilters(APIView):
         price_min = prix_aggr["min"] or prix_aggr["min_fallback"]
         price_max = prix_aggr["max"] or prix_aggr["max_fallback"]
 
+        # États (neuf/occasion/reconditionné) dans le périmètre
+        states_qs = (
+            base.exclude(etat__isnull=True)
+                .exclude(etat__exact="")
+                .values_list("etat", flat=True)
+                .distinct()
+        )
+        states = [{"value": v, "label": dict(Produits.ETATS).get(v, v.title())} for v in states_qs]
+
+        # Fallback Couleurs : si aucune couleur trouvée dans la catégorie courante,
+        # on montre les couleurs globales actives (optionnel mais demandé pour toujours afficher le filtre)
+        couleurs = list(couleurs)
+        if not couleurs:
+            couleurs = list(
+                Couleurs.objects.filter(est_active=True)
+                .values("nom", "slug", "code_hex")
+                .order_by("nom")
+            )
+
         # Attributs
         attrs_list = []
         # CategorieAttribut peut ne pas exister dans certains schémas,
@@ -322,6 +351,7 @@ class CategoryFilters(APIView):
             "brands": list(marques),
             "colors": list(couleurs),
             "price": {"min": price_min, "max": price_max},
+            "states": states,
             "attributes": attrs_list,
         }
         return Response(payload)
@@ -349,3 +379,43 @@ class CategoryListView(APIView):
             for c in qs.order_by("nom")
         ]
         return Response(data)
+    
+    
+class ProductMiniView(APIView):
+    """
+    GET /christland/api/catalog/product/<pk_or_slug>/mini/
+    -> { id, slug, nom, ref, image }
+    - ref : premier SKU de variante si dispo, sinon slug produit
+    - image : image principale (ou première) du produit
+    """
+    def get(self, request, pk_or_slug: str):
+        qs = (Produits.objects
+              .filter(est_actif=True, visible=1)
+              .select_related("categorie", "marque")
+              .prefetch_related("images", "variantes"))
+
+        if pk_or_slug.isdigit():
+            prod = get_object_or_404(qs, id=int(pk_or_slug))
+        else:
+            prod = get_object_or_404(qs, slug=pk_or_slug)
+
+        # image principale si marquée, sinon première par position
+        img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
+        img_url = img.url if img else ""
+        if img_url and not img_url.lower().startswith(("http://", "https://", "data:")):
+            img_url = request.build_absolute_uri(img_url)
+
+        # ref : SKU d'une variante si présent, sinon slug produit
+        sku = (prod.variantes
+               .exclude(sku__isnull=True).exclude(sku__exact="")
+               .values_list("sku", flat=True)
+               .first()) or ""
+
+        payload = {
+            "id": prod.id,
+            "slug": prod.slug,
+            "nom": prod.nom,
+            "ref": sku or prod.slug,
+            "image": img_url,
+        }
+        return Response(payload)    

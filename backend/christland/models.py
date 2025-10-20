@@ -114,7 +114,8 @@ class Produits(models.Model):
     prix_reference_avant = models.IntegerField(null=True, blank=True)
     cree_le = models.DateTimeField(null=True, blank=True)
     dimensions = models.CharField(max_length=255, blank=True)
-    
+    ETATS = [("neuf", "Neuf"), ("occasion", "Occasion"), ("reconditionne", "Reconditionné")]
+    etat = models.CharField(max_length=20, choices=ETATS, blank=True)
 
     # clés de rattachement usuelles (si présentes dans ton schéma relationnel)
     categorie = models.ForeignKey(Categories, on_delete=models.SET_NULL, null=True, blank=True, related_name='produits')
