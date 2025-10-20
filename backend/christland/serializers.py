@@ -1,6 +1,6 @@
 from django.utils.text import slugify
 from rest_framework import serializers
-
+from django.conf import settings
 from .models import (
     Categories, Marques, Couleurs,
     Produits, VariantesProduits, ImagesProduits,
@@ -16,35 +16,38 @@ class CouleurMiniSerializer(serializers.ModelSerializer):
 
 class ImageProduitSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
-    slug = serializers.SerializerMethodField()   # <-- calculé (au lieu d'un champ modèle)
 
     class Meta:
         model = ImagesProduits
-        fields = ("url", "alt_text", "position", "principale", "slug")
+        fields = ("url", "alt_text", "position", "principale")  # slug inutile ici
 
     def get_url(self, obj):
         request = self.context.get("request")
-        path = None
+
+        # 1) Si tu as un vrai FileField (image/fichier/photo/...) on l'utilise
         for field in ("fichier", "image", "photo", "fichier_image"):
             f = getattr(obj, field, None)
             if f and hasattr(f, "url"):
-                path = f.url
-                break
-        if not path:
+                return request.build_absolute_uri(f.url) if request else f.url
+
+        # 2) Sinon on utilise le texte 'url' venant de la BD (chemin relatif)
+        val = getattr(obj, "url", None)
+        if not val:
             return None
+
+        val = str(val).strip()
+        # déjà absolu ?
+        if val.startswith("http://") or val.startswith("https://"):
+            return val
+
+        # déjà sous /media/ ?
+        if val.startswith("/media/"):
+            return request.build_absolute_uri(val) if request else val
+
+        # chemin relatif -> prefixe MEDIA_URL
+        path = f"{settings.MEDIA_URL.rstrip('/')}/{val.lstrip('/')}"
         return request.build_absolute_uri(path) if request else path
 
-    def get_slug(self, obj):
-        # si tu ne veux PAS de slug, supprime complètement ce SerializerMethodField et le champ des fields
-        base = (getattr(obj, "alt_text", None) or "").strip()
-        if not base:
-            # tente de dériver du nom du fichier si dispo
-            for field in ("fichier", "image", "photo", "fichier_image"):
-                f = getattr(obj, field, None)
-                if f and getattr(f, "name", None):
-                    base = f.name.rsplit("/", 1)[-1]
-                    break
-        return slugify(base) if base else None
 
 
 class VarianteSerializer(serializers.ModelSerializer):
