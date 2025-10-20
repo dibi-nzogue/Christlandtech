@@ -1,12 +1,22 @@
 import hp from "../assets/images/hp.jpg";
+import { useNavigate } from "react-router-dom";
 
 const RightPanel = () => {
+
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-4 w-full md:w-1/4">
-      <button className="w-full bg-[#00A9DC] hover:bg-sky-600 text-white py-2 rounded-xl shadow">
+      <button 
+        onClick={() => navigate('/Dashboard/Ajouter_produit')}
+        className="w-full bg-[#00A9DC] hover:bg-sky-600 text-white py-2 rounded-xl shadow"
+      >
         Ajouter un produit
       </button>
-      <button className="w-full bg-[#00A9DC] hover:bg-sky-600 text-white py-2 rounded-xl shadow">
+      <button 
+        onClick={() => navigate('/Dashboard/Ajouter_article')}
+        className="w-full bg-[#00A9DC] hover:bg-sky-600 text-white py-2 rounded-xl shadow"
+      >
         Ajouter un article
       </button>
 

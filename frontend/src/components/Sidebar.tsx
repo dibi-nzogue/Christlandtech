@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { Home, BarChart2, Settings, LogOut, Menu, X } from "lucide-react";
 import logo from "../assets/images/logo1.png";
+import { useNavigate } from "react-router-dom";
 
 const Sidebar = () => {
   const [open, setOpen] = useState(false);
+
+  const navigate = useNavigate();
 
   return (
     <>
@@ -31,7 +34,7 @@ const Sidebar = () => {
 
           {/* Menu navigation */}
           <nav className="flex flex-col gap-10 text-gray-300">
-            <Home className="hover:text-white cursor-pointer" size={22} />
+            <Home className="hover:text-white cursor-pointer" size={22} onClick={() => navigate('/Dashboard')}/>
             <BarChart2 className="hover:text-white cursor-pointer" size={22} />
             <Settings className="hover:text-white cursor-pointer" size={22} />
           </nav>
