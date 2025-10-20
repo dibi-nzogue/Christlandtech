@@ -45,7 +45,7 @@ const POSTS_TOP: Post[] = [
   },
 ];
 
-/* --- 2 cartes du bas (verticales à md, horizontales à lg) --- */
+/* --- 2 cartes du bas --- */
 const POSTS_BOTTOM: Post[] = [
   {
     id: 5,
@@ -63,36 +63,93 @@ const POSTS_BOTTOM: Post[] = [
   },
 ];
 
-/* --- Carte “TOP” : horizontale dès md --- */
+/* --- Carte TOP : horizontale dès md, tailles responsives --- */
 const CardTop: React.FC<{ post: Post }> = ({ post }) => (
   <div className="flex flex-col md:flex-row gap-4 sm:gap-5 p-3 rounded-xl bg-white transition h-full">
-    {/* image : pleine largeur en mobile, fixe dès md */}
-    <div className="relative w-full aspect-video md:w-[220px] md:min-w-[220px] md:h-[140px] md:aspect-auto overflow-hidden rounded-xl border border-gray-100">
-      <img src={post.image} alt={post.title} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+    {/* Image : pleine largeur en mobile, tailles fixes par breakpoint */}
+    <div
+      className="
+        relative w-full aspect-[16/9]
+        sm:aspect-[16/9]
+        md:w-[230px] md:min-w-[230px] md:h-[150px] md:aspect-auto
+        lg:w-[260px] lg:min-w-[260px] lg:h-[160px]
+        xl:w-[300px] xl:min-w-[300px] xl:h-[180px]
+        overflow-hidden rounded-xl border border-gray-100
+      "
+    >
+      <img
+        src={post.image}
+        alt={post.title}
+        className="absolute inset-0 h-full w-full object-cover"
+        loading="lazy"
+      />
     </div>
+
+    {/* Texte : tailles de police adaptatives */}
     <div className="flex-1 min-w-0">
-      <h3 className="text-sm sm:text-base md:text-[14px] font-semibold text-gray-900 uppercase leading-snug break-words">
+      <h3
+        className="
+          font-semibold text-gray-900 uppercase leading-snug break-words
+          text-[clamp(12px,2.5vw,14px)]
+          sm:text-[clamp(13px,2.1vw,15px)]
+          md:text-[14px]
+          lg:text-[15px]
+        "
+      >
         {post.title}
       </h3>
-      <p className="mt-2 sm:mt-3 text-xs sm:text-sm md:text-[14px] leading-6 text-gray-600 break-words">
+      <p
+        className="
+          mt-2 sm:mt-3 text-gray-600 break-words leading-6
+          text-[clamp(12px,2.7vw,14px)]
+          sm:text-[clamp(12.5px,2.2vw,14.5px)]
+          md:text-[14px]
+          lg:text-[15px]
+        "
+      >
         {post.excerpt}
       </p>
     </div>
   </div>
 );
 
-/* --- Carte “BOTTOM” : verticale jusqu’à lg, horizontale à partir de lg --- */
+/* --- Carte BOTTOM : verticale jusqu’à lg, horizontale à partir de lg --- */
 const CardBottom: React.FC<{ post: Post }> = ({ post }) => (
   <div className="flex flex-col lg:flex-row gap-4 sm:gap-5 p-3 rounded-xl bg-white transition h-full">
-    {/* à md : on FORCE la dispo verticale (image au-dessus, texte dessous) */}
-    <div className="relative w-full aspect-video lg:w-[220px] lg:min-w-[220px] lg:h-[140px] lg:aspect-auto overflow-hidden rounded-xl border border-gray-100">
-      <img src={post.image} alt={post.title} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+    <div
+      className="
+        relative w-full aspect-[16/9]
+        lg:w-[260px] lg:min-w-[260px] lg:h-[160px] lg:aspect-auto
+        xl:w-[300px] xl:min-w-[300px] xl:h-[180px]
+        overflow-hidden rounded-xl border border-gray-100
+      "
+    >
+      <img
+        src={post.image}
+        alt={post.title}
+        className="absolute inset-0 h-full w-full object-cover"
+        loading="lazy"
+      />
     </div>
     <div className="flex-1 min-w-0">
-      <h3 className="text-sm sm:text-base md:text-sm lg:text-[14px] font-semibold text-gray-900 uppercase leading-snug break-words">
+      <h3
+        className="
+          font-semibold text-gray-900 uppercase leading-snug break-words
+          text-[clamp(12px,2.5vw,14px)]
+          md:text-[13px]
+          lg:text-[14px] 
+        "
+      >
         {post.title}
       </h3>
-      <p className="mt-2 sm:mt-3 text-xs sm:text-sm md:text-sm lg:text-[14px] leading-6 text-gray-600 break-words">
+      <p
+        className="
+          mt-2 sm:mt-3 text-gray-600 break-words leading-6
+          text-[clamp(12px,2.7vw,14px)]
+          md:text-[13px]
+          lg:text-[14px]
+        "
+      >
         {post.excerpt}
       </p>
     </div>
@@ -102,18 +159,23 @@ const CardBottom: React.FC<{ post: Post }> = ({ post }) => (
 const PostsSection: React.FC = () => {
   return (
     <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 -mt-14">
-      <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-semibold tracking-wider text-[#0086c9] uppercase">
+      <h2
+        className="
+          font-semibold tracking-wider text-[#0086c9] uppercase
+          text-[clamp(12px,2.2vw,16px)]
+        "
+      >
         Nos poste
       </h2>
 
-      {/* 4 du haut : liste verticale → horizontal dès md */}
+      {/* 4 du haut */}
       <div className="mt-5 space-y-6">
         {POSTS_TOP.map((post) => (
           <CardTop key={post.id} post={post} />
         ))}
       </div>
 
-      {/* 2 du bas : deux colonnes dès md, mais cartes VERTICALES à md */}
+      {/* 2 du bas */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
         {POSTS_BOTTOM.map((post) => (
           <CardBottom key={post.id} post={post} />

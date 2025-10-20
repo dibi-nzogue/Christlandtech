@@ -1,7 +1,7 @@
 import React from 'react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import StatCard from '../components/Statcard'
+import StatCard from '../components/StatCard'
 import ProductTable from '../components/ProductTable'
 import RightPanel from '../components/RightPanel'
 

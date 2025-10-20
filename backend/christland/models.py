@@ -114,6 +114,7 @@ class Produits(models.Model):
     prix_reference_avant = models.IntegerField(null=True, blank=True)
     cree_le = models.DateTimeField(null=True, blank=True)
     dimensions = models.CharField(max_length=255, blank=True)
+    
 
     # clés de rattachement usuelles (si présentes dans ton schéma relationnel)
     categorie = models.ForeignKey(Categories, on_delete=models.SET_NULL, null=True, blank=True, related_name='produits')
@@ -131,7 +132,7 @@ class VariantesProduits(models.Model):
     sku = models.CharField(max_length=255, blank=True)
     code_barres = models.CharField(max_length=255, blank=True)
     nom = models.CharField(max_length=255, blank=True)
-    prix = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    prix = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True) 
     prix_promo = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     stock = models.IntegerField(null=True, blank=True)
     couleur = models.ForeignKey(Couleurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='variantes')
@@ -212,6 +213,59 @@ class Commandes(models.Model):
 
     def __str__(self):
         return self.numero or f'CMD#{self.id}'
+
+
+class Attribut(models.Model):
+    TEXTE, ENTIER, DECIMAL, BOOLEEN, CHOIX = "text","int","dec","bool","choice"
+    TYPES = [(TEXTE,"Texte"),(ENTIER,"Entier"),(DECIMAL,"Décimal"),(BOOLEEN,"Booléen"),(CHOIX,"Choix")]
+    code = models.SlugField(max_length=80, unique=True)
+    libelle = models.CharField(max_length=120)
+    type = models.CharField(choices=TYPES, max_length=10, default=TEXTE)
+    unite = models.CharField(max_length=20, blank=True)
+    ordre = models.IntegerField(default=0)
+    actif = models.BooleanField(default=True)
+    class Meta: db_table="attributs"; ordering=["ordre","libelle"]
+
+class ValeurAttribut(models.Model):
+    attribut = models.ForeignKey(Attribut, on_delete=models.CASCADE, related_name="valeurs")
+    valeur = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=140)
+    class Meta: db_table="attributs_valeurs"; unique_together=[("attribut","slug")]; ordering=["valeur"]
+
+class CategorieAttribut(models.Model):
+    categorie = models.ForeignKey(Categories, on_delete=models.CASCADE, related_name="attributs")
+    attribut = models.ForeignKey(Attribut, on_delete=models.CASCADE, related_name="categories")
+    obligatoire = models.BooleanField(default=False)
+    ordre = models.IntegerField(default=0)
+    class Meta: db_table="categories_attributs"; unique_together=[("categorie","attribut")]; ordering=["ordre"]
+
+class SpecProduit(models.Model):
+    produit = models.ForeignKey(Produits, on_delete=models.CASCADE, related_name="specs")
+    attribut = models.ForeignKey(Attribut, on_delete=models.CASCADE, related_name="specs_produit")
+    valeur_text = models.CharField(max_length=255, blank=True)
+    valeur_int = models.IntegerField(null=True, blank=True)
+    valeur_dec = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    valeur_choice = models.ForeignKey(ValeurAttribut, null=True, blank=True, on_delete=models.SET_NULL)
+    class Meta:
+        db_table="specs_produits"
+        unique_together=[("produit","attribut")]
+        indexes=[models.Index(fields=["attribut","valeur_int"]),
+                 models.Index(fields=["attribut","valeur_dec"]),
+                 models.Index(fields=["attribut","valeur_choice"])]
+
+class SpecVariante(models.Model):
+    variante = models.ForeignKey(VariantesProduits, on_delete=models.CASCADE, related_name="specs")
+    attribut = models.ForeignKey(Attribut, on_delete=models.CASCADE, related_name="specs_variante")
+    valeur_text = models.CharField(max_length=255, blank=True)
+    valeur_int = models.IntegerField(null=True, blank=True)
+    valeur_dec = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    valeur_choice = models.ForeignKey(ValeurAttribut, null=True, blank=True, on_delete=models.SET_NULL)
+    class Meta:
+        db_table="specs_variantes"
+        unique_together=[("variante","attribut")]
+        indexes=[models.Index(fields=["attribut","valeur_int"]),
+                 models.Index(fields=["attribut","valeur_dec"]),
+                 models.Index(fields=["attribut","valeur_choice"])]
 
 
 class LignesCommande(models.Model):
