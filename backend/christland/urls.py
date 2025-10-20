@@ -1,6 +1,11 @@
+# christland/urls.py
 from django.urls import path
-from .views import ping
+from .views import CategoryProductList, CategoryFilters, CategoryListView
+
+app_name = "christland"
 
 urlpatterns = [
-    path("ping", ping),
+    path("api/catalog/categories/", CategoryListView.as_view(), name="catalog-categories"),
+    path("api/catalog/products/",   CategoryProductList.as_view(), name="catalog-products"),
+    path("api/catalog/filters/",    CategoryFilters.as_view(),     name="catalog-filters"),
 ]
