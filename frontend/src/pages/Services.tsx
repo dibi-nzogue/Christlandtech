@@ -15,7 +15,7 @@ const Services: React.FC = () => {
       <ServiceIntro />
        <ServicesBloc/>
        <ServicesExtra/>
-       <ContactSection />
+       <ContactSection id="contact"/>
       <Footer />
       <ScrollToTopButton />
     </div>

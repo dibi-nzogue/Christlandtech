@@ -24,7 +24,7 @@ const Accueil: React.FC = () => {
       <Sponsor />
       <Nouveautes />
       <ServiceSection />
-      <ContactSection />
+      <ContactSection id="contact"/>
       <ScrollToTopButton />
       <Footer />
     </>

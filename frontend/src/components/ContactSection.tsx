@@ -3,12 +3,16 @@ import { Mail, Phone } from "lucide-react";
 import profil from '../assets/images/profil.png'
 import { useTranslation } from "react-i18next";
 
-const ContactSection: React.FC = () => {
+type ContactSectionProps = {
+  id?: string;
+};
+
+const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
 
   const { t } = useTranslation();
 
   return (
-    <section className="bg-[#EAF4FB] py-10 px-6 md:px-10 lg:rounded-2xl shadow-md max-w-5xl mx-auto my-5 md:my-10">
+    <section className="bg-[#EAF4FB] py-10 px-6 md:px-10 lg:rounded-2xl shadow-md max-w-5xl mx-auto my-5 md:my-10" id={id}>
       <div className="grid md:grid-cols-2 gap-10 items-center">
         {/* Partie gauche */}
         <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-6">

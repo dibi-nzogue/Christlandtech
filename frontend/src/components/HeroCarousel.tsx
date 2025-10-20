@@ -34,7 +34,7 @@ const slides = [
 
 const NextArrow = ({ onClick }: any) => (
         <div
-            className="absolute right-5 top-2/3 md:top-1/2 z-10 cursor-pointer bg-white rounded-full p-1 md:p-2 lg:p-3 text-gray-900 text-sm md:text-md"
+            className="absolute right-5 top-2/3 md:top-1/2 z-10 cursor-pointer bg-white rounded-full p-2 lg:p-3 text-gray-900 text-sm md:text-md"
             onClick={onClick}
         >
             <FaArrowRight />
@@ -43,7 +43,7 @@ const NextArrow = ({ onClick }: any) => (
 
 const PrevArrow = ({ onClick }: any) => (
         <div
-            className="absolute left-5 top-2/3 md:top-1/2 z-10 cursor-pointer bg-white rounded-full p-1 md:p-2 lg:p-3 text-gray-900 text-sm md:text-md"
+            className="absolute left-5 top-2/3 md:top-1/2 z-10 cursor-pointer bg-white rounded-full p-2 lg:p-3 text-gray-900 text-sm md:text-md"
             onClick={onClick}
         >
             <FaArrowLeft />

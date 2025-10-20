@@ -82,7 +82,7 @@ const NextArrow = (props: any) => {
   const { onClick } = props;
   return (
     <div
-      className="absolute top-1/2 -right-5 transform -translate-y-1/2 z-10 bg-white shadow-md rounded-full p-5 cursor-pointer hover:bg-gray-100 transition"
+      className="absolute top-1/2 -right-5 transform -translate-y-1/2 z-10 bg-white shadow-md rounded-full p-3 md:p-5 cursor-pointer hover:bg-gray-100 transition"
       onClick={onClick}
     >
       <ArrowRight size={18} className="text-gray-700" />
@@ -94,7 +94,7 @@ const PrevArrow = (props: any) => {
   const { onClick } = props;
   return (
     <div
-      className="absolute top-1/2 -left-5 transform -translate-y-1/2 z-10 bg-white shadow-md rounded-full p-5 cursor-pointer hover:bg-gray-100 transition rotate-180"
+      className="absolute top-1/2 -left-5 transform -translate-y-1/2 z-10 bg-white shadow-md rounded-full p-3 md:p-5 cursor-pointer hover:bg-gray-100 transition rotate-180"
       onClick={onClick}
     >
       <ArrowRight size={18} className="text-gray-700" />
@@ -136,12 +136,12 @@ export default function Nouveautes() {
       <h2 className="text-3xl font-bold mb-6 text-gray-900">{t('new')}</h2>
 
       {/* Onglets */}
-      <div className="flex space-x-6 mb-10">
+      <div className="flex space-x-2 md:space-x-6 mb-5 md:mb-10">
         {(["Notebooks", "Desktops", "Iphone"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-full font-medium transition-all ${
+            className={`px-2 md:px-4 py-1 md:py-2 rounded-full font-medium transition-all ${
               activeTab === tab
                 ? "bg-gray-200 text-black"
                 : "text-gray-500 hover:text-black"
@@ -153,15 +153,15 @@ export default function Nouveautes() {
       </div>
 
       {/* Carrousel Slick */}
-      <div className="relative w-full mb-10">
+      <div className="relative w-full mb-5 md:mb-10">
         <Slider {...settings}>
           {filteredProducts.map((p) => (
-            <div key={p.id} className="px-3">
-              <div className="relative bg-white shadow-md rounded-2xl my-5 p-4 flex flex-col justify-between items-start gap-5 md:gap-8 hover:shadow-lg transition-shadow">
+            <div key={p.id} className="px-1 md:px-3">
+              <div className="relative bg-white shadow-md rounded-2xl my-5 p-4 flex flex-col justify-between items-start gap-5 md:gap-8 hover:shadow-lg transition-shadow h-[500px] md:h-auto">
                 <img
                   src={p.image}
                   alt={p.name}
-                  className="h-60 object-cover w-full mb-4 rounded-2xl"
+                  className="h-40 md:h-60 object-cover w-full mb-4 rounded-2xl"
                 />
                 <h4 className="text-sm text-gray-500">{p.brand}</h4>
                 <div>
@@ -169,7 +169,7 @@ export default function Nouveautes() {
                   <p className="text-sm text-gray-600 mb-2">{p.specs}</p>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-col md:flex-row items-start md:items-center space-x-0 md:space-x-2">
                   {p.oldPrice && (
                     <span className="text-gray-400 line-through text-sm">
                       Fcfa {p.oldPrice}
@@ -178,7 +178,7 @@ export default function Nouveautes() {
                   <span className="font-bold text-gray-900">Fcfa {p.price}</span>
                 </div>
 
-                <div className="mt-4 bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl text-sm font-medium w-full text-center">
+                <div className="mt-2 md:mt-4 bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl text-sm font-medium w-full text-center">
                   État: {p.state}
                 </div>
               </div>
@@ -190,7 +190,7 @@ export default function Nouveautes() {
       {/* Bouton */}
       <button
         onClick={() => navigate("/Produits")}
-        className="bg-[#00A9DC] text-white px-6 py-3 rounded-2xl font-semibold hover:bg-sky-600 transition-colors mt-10"
+        className="bg-[#00A9DC] text-white px-3 md:px-6 py-2 md:py-3 rounded-2xl font-semibold hover:bg-sky-600 transition-colors mt-5 md:mt-10"
       >
         {t('pdt')}
       </button>

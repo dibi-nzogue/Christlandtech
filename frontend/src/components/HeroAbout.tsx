@@ -39,7 +39,7 @@ const HeroAbout: React.FC = () => {
                     </p>
                     <button 
                         onClick={() => navigate('/Services')}
-                        className="bg-[#00A9DC] text-white px-2 md:px-4 py-1 md:py-2 rounded-md text-md md:text-lg w-[40%] md:w-[35%] lg:w-[40%] xl:w-[30%]"
+                        className="bg-[#00A9DC] text-white px-2 md:px-4 py-1 md:py-2 rounded-md text-md md:text-lg w-[45%] md:w-[35%] lg:w-[40%] xl:w-[30%]"
                     >
                         {t('service.button')}
                     </button>

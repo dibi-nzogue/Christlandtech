@@ -76,12 +76,16 @@ const Navbar = () => {
             {/* Actions droites (desktop) */}
             <div className="hidden md:flex items-center justify-end gap-3 sm:gap-4">
 
-              <NavLink to="/contact" className="relative text-sm md:text-[15px]">
+              <div className="relative text-sm md:text-[15px] cursor-pointer" onClick={() => {
+                const contactSection = document.getElementById("contact");
+                contactSection?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
                 <span>{t("Contact")}</span>
 
 
                 <span className="absolute left-0 -bottom-2 block h-[4px] w-full bg-[#00A9DC]" />
-              </NavLink>
+              </div>
 
               {/* Langue dropdown */}
               <div className="relative">
@@ -253,14 +257,19 @@ const Navbar = () => {
             </ul>
 
             {/* Contact + langue */}
-            <div className="px-4 py-3 border-t border-white/10 mt-1 flex items-center justify-between">
+            <div className="px-4 py-3 border-t border-white/10 mt-1 flex items-center justify-between" onClick={() => {
+                  const contactSection = document.getElementById("contact");
+                  contactSection?.scrollIntoView({ behavior: "smooth" });
+                  }}
+            >
 
-              <Link to="/contact" onClick={() => setOpen(false)} className="relative text-[15px]">
-                <span>{t("Contact")}</span>
+              <div onClick={() => setOpen(false)} className="relative text-[15px]">
+                <span 
+                >{t("Contact")}</span>
 
 
                 <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-[#00A9DC] rounded-full" />
-              </Link>
+              </div>
 
               <div className="flex items-center gap-2">
                 <button

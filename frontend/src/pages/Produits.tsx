@@ -14,7 +14,7 @@ const Produits: React.FC = () => {
       <main className="pt-1 md:pt-10">
         <Presentation />
         <AchatProduit/>
-        <ContactSection />
+        <ContactSection id="contact"/>
         <ScrollToTopButton />
         <Footer />
       </main>
