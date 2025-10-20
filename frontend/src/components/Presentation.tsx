@@ -148,22 +148,22 @@ const ProductCard: React.FC<{
   desc?: string;
 }> = ({ name, price, oldPrice, img, desc }) => (
   <article className="group rounded-2xl border border-gray-200 bg-white p-4 shadow transition-shadow hover:shadow-lg">
-    <div className="w-full h-44 md:h-48 lg:h-52 overflow-hidden rounded-xl border border-gray-100">
-      {img ? (
-        <img
-          src={img}
-          alt={name}
-          className="h-full w-full object-cover transform-gpu transition-transform duration-300 ease-out group-hover:scale-105"
-          loading="lazy"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src =
-              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='16'%3EImage indisponible%3C/text%3E%3C/svg%3E";
-          }}
-        />
-      ) : (
-        <div className="h-full w-full grid place-items-center text-xs text-gray-400">Image indisponible</div>
-      )}
-    </div>
+   <div className="relative w-full bg-white border border-gray-100 rounded-xl">
+  {/* ratio: carré sur mobile, 4/3 à partir de md */}
+  <div className="pt-[100%] md:pt-[75%]" /> 
+  <img
+    src={img}
+    alt={name}
+    loading="lazy"
+    width={800}
+    height={600}
+    className="absolute inset-0 h-full w-full object-contain p-3 transform-gpu transition-transform duration-300 ease-out group-hover:scale-[1.02]"
+    onError={(e) => {
+      (e.currentTarget as HTMLImageElement).src =
+        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='16'%3EImage indisponible%3C/text%3E%3C/svg%3E";
+    }}
+  />
+</div>
 
     <h3 className="mt-3 text-[15px] sm:text-base font-semibold text-gray-900">{name}</h3>
 
@@ -204,6 +204,9 @@ const Presentation: React.FC = () => {
   const [scrollable, setScrollable] = React.useState(false);
   const EPS = 4;
 
+
+
+  
   const syncEdges = React.useCallback(() => {
     const el = trackRef.current;
     if (!el) return;
@@ -230,6 +233,29 @@ const Presentation: React.FC = () => {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [syncEdges]);
+
+  
+// Mesure immédiatement après le premier paint
+React.useLayoutEffect(() => {
+  const id = requestAnimationFrame(syncEdges);
+  return () => cancelAnimationFrame(id);
+}, [syncEdges]);
+
+// Re-mesure quand le container change de taille
+React.useEffect(() => {
+  const el = trackRef.current;
+  if (!el) return;
+  const ro = new ResizeObserver(() => syncEdges());
+  ro.observe(el);
+  return () => ro.disconnect();
+}, [syncEdges]);
+
+// Certaines polices peuvent changer les largeurs
+React.useEffect(() => {
+  // @ts-ignore
+  if (document.fonts?.ready) (document as any).fonts.ready.then(() => syncEdges());
+}, [syncEdges]);
+
 
   /** Catégorie active (slug) + sous-catégorie (slug) */
   const [categorySlug, setCategorySlug] = React.useState<string>("tous");
@@ -259,6 +285,13 @@ const { data: catsRaw, loading: catsLoading, error: catsError } =
     const list = !catsRaw ? [] : Array.isArray(catsRaw) ? catsRaw : catsRaw.results ?? [];
     return list;
   }, [catsRaw]);
+
+  React.useEffect(() => {
+  // re-mesure quand la liste de catégories arrive ou change
+  const id = requestAnimationFrame(syncEdges);
+  return () => cancelAnimationFrame(id);
+}, [apiCategories.length, syncEdges]);
+
 
   /* ==================== Fetch: Filtres globaux ==================== */
   const filterParams = React.useMemo(
@@ -366,6 +399,12 @@ const { data: catsRaw, loading: catsLoading, error: catsError } =
       document.body.style.overflow = prev;
     };
   }, [mobileFiltersOpen, mobileCatsOpen]);
+const stop = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
+
+// Afficher les flèches aussi pendant le chargement initial
+const showArrows = scrollable || catsLoading || apiCategories.length > 0;
+
+
 
   return (
     <>
@@ -474,30 +513,31 @@ const { data: catsRaw, loading: catsLoading, error: catsError } =
             </div>
           </div>
 
-          <div className={`shrink-0 flex items-center gap-2 ${scrollable ? "" : "opacity-0 pointer-events-none"}`}>
-            <button
-              type="button"
-              onClick={handlePrev}
-              aria-label="Précédent"
-              disabled={atStart}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
-                !atStart ? "border-gray-200 hover:border-[#00A8E8]" : "border-gray-100 opacity-40 cursor-not-allowed"
-              }`}
-            >
-              <FiChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              onClick={handleNext}
-              aria-label="Suivant"
-              disabled={atEnd}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
-                !atEnd ? "border-gray-200 hover:border-[#00A8E8]" : "border-gray-100 opacity-40 cursor-not-allowed"
-              }`}
-            >
-              <FiChevronRight className="h-5 w-5" />
-            </button>
-          </div>
+          <div className={`shrink-0 flex items-center gap-2 ${showArrows ? "" : "opacity-0 pointer-events-none"}`}>
+  <button
+    type="button"
+    onClick={(e) => { stop(e); handlePrev(); }}
+    aria-label="Précédent"
+    disabled={atStart}
+    className={`inline-flex h-10 w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
+      !atStart ? "border-gray-200 hover:border-[#00A8E8]" : "border-gray-100 opacity-40 cursor-not-allowed"
+    }`}
+  >
+    <FiChevronLeft className="h-5 w-5" />
+  </button>
+  <button
+    type="button"
+    onClick={(e) => { stop(e); handleNext(); }}
+    aria-label="Suivant"
+    disabled={atEnd}
+    className={`inline-flex h-10 w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
+      !atEnd ? "border-gray-200 hover:border-[#00A8E8]" : "border-gray-100 opacity-40 cursor-not-allowed"
+    }`}
+  >
+    <FiChevronRight className="h-5 w-5" />
+  </button>
+</div>
+
         </div>
         {catsError && (
   <div className="mt-2 text-sm text-red-600">

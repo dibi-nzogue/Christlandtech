@@ -108,12 +108,16 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # }
 
 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'christland',          # 🔁 remplace par le nom de ta base
         'USER': 'postgres',
-        'PASSWORD': 'Franckchristy1',  # 🔁 ton nouveau mot de passe
+        'PASSWORD': 'Admin1234',  # 🔁 ton nouveau mot de passe
         'HOST': 'localhost',
         'PORT': '5432',
     }}
