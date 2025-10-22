@@ -1,6 +1,7 @@
 // src/components/AssistanceHero.tsx
 import React from "react";
 import imgMerci from "../assets/images/achat/𝕮𝖔𝖒𝖕𝖚𝖙𝖊𝖗𝕸𝖔𝖈𝖐.webp";
+import { useBlogHero } from "../hooks/useFetchQuery"; // ✅ on récupère title & slug
 
 type Props = {
   titleLeft?: string;
@@ -10,10 +11,22 @@ type Props = {
 const CONTAINER =
   "mx-auto max-w-screen-2xl px-6 sm:px-8 lg:px-10"; // => DOIT être le même que dans la Navbar
 
+// découpe le titre en 2 segments (premier mot / le reste) pour garder 2 spans
+function splitTitle(title?: string | null) {
+  const t = (title || "").trim();
+  if (!t) return { first: "BIENVENUE", rest: "DANS NOTRE UNIVERS" };
+  const [first, ...restArr] = t.split(/\s+/);
+  return { first: first || "", rest: restArr.join(" ") || "" };
+}
+
 const AssistanceHero: React.FC<Props> = ({
   titleLeft = "ARTICLE",
   titleRight = "BLOG",
 }) => {
+  // ⚡ charge { title, slug } depuis /api/blog/hero/
+  const { data: hero, loading } = useBlogHero();
+  const { first, rest } = React.useMemo(() => splitTitle(hero?.title), [hero?.title]);
+
   return (
     <section className="w-full relative">
       {/* HERO plein écran */}
@@ -37,25 +50,28 @@ const AssistanceHero: React.FC<Props> = ({
       <div className={`relative z-10 ${CONTAINER} py-10`}>
         {/* Carte : pas de px, seulement du py pour éviter le décalage */}
         <div className=" py-6 md:py-10">
+          {/* ⬇️ H2 — récupéré depuis TITRE (2 spans, couleurs conservées) */}
           <h2 className="text-center font-semibold tracking-wide lg:text-[20px] md:text-[18px] sm:text-[15px] text-[12px]">
-            <span className="text-[#00A8E8]">BIENVENUE DANS</span>{" "}
-            <span className="text-gray-900">NOTRE UNIVERS</span>
+            {loading && !hero?.title ? (
+              <>
+                <span className="text-[#00A8E8]">Chargement</span>{" "}
+                <span className="text-gray-900">…</span>
+              </>
+            ) : (
+              <>
+                <span className="text-[#00A8E8]">{first}</span>{" "}
+                <span className="text-gray-900">{rest}</span>
+              </>
+            )}
           </h2>
 
-          {/* Zone texte : aucun px ici non plus */}
+          {/* ⬇️ Zone texte — remplace les paragraphes par le champ SLUG */}
           <div className="mt-5 lg:text-[18px] md:text-[16px] sm:text-[14px] text-[12px] text-gray-700">
-            <p className="mb-3">
-              Bienvenue sur notre blog : des contenus courts, utiles et concrets
-              pour vous aider à choisir, comparer, entretenir et profiter de vos
-              achats au meilleur prix.
-            </p>
-            <p className="mb-3">
-              Chaque article va droit au but, avec des conseils pratiques adaptés
-              au marché local (prix en FCFA, disponibilité, livraison Douala/Yaoundé
-              et régions), des comparatifs honnêtes, des check-lists faciles à
-              suivre et des témoignages réels. Parcourez nos rubriques et trouvez
-              rapidement l’info qui vous fait gagner du temps… et de l’argent.
-            </p>
+            {loading && !hero?.slug ? (
+              <p className="mb-3 opacity-70">Chargement…</p>
+            ) : (
+              <p className="mb-3 break-words">{hero?.slug || ""}</p>
+            )}
           </div>
         </div>
       </div>

@@ -1,5 +1,7 @@
 // src/components/ServicesBloc.tsx
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { motion, type Variants } from "framer-motion";
 
 import imgMaintenance from "../assets/images/achat/6614c6fd-129e-450f-9b14-765118c05dc5.webp";
 import imgComms from "../assets/images/achat/Internet.webp";
@@ -12,40 +14,25 @@ type ServiceItem = {
   points?: string[];
 };
 
-const ITEMS: ServiceItem[] = [
-  {
-    title: "Maintenance informatique",
-    accroche:
-      "Accroche : Assurez la continuité de votre activité avec une infrastructure propre, mise à jour et suivie.",
-    points: [
-      "Ce que ça comprend :",
-      "Installation : postes Windows/Linux, serveurs, imprimantes, logiciels métiers, antivirus, messagerie (Microsoft 365/Google).",
-      "Dépannage : intervention à distance et sur site, diagnostic et résolution, suppression de malwares, recentrage de sécurité.",
-      "Conseil : audit de parc, dimensionnement, sauvegardes (NAS/Cloud), plan de continuité (PCA/PRA), migrations (Cloud/On-prem).",
-      "Suivi & qualité : tickets via GLPI, rapports d’intervention, SLA (4h / Next Business Day).",
-    ],
-    image: imgMaintenance,
+const toArray = (v: unknown): string[] => (Array.isArray(v) ? (v as string[]) : []);
+
+/* ------------ Variants Framer Motion (réutilisables) ------------ */
+const fadeUp: Variants = {
+  hidden: { opacity: 0, y: 28 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: "easeOut" } },
+};
+
+const containerStagger: Variants = {
+  hidden: {},
+  show: {
+    transition: { staggerChildren: 0.08, delayChildren: 0.05 },
   },
-  {
-    title: "Communication",
-    accroche:
-      "Accroche : Parlez à vos clients au bon moment, sur le bon canal.",
-    points: [
-      "Ce que ça comprend :",
-      "Bulk SMS : expéditeur personnalisé, segmentation, modèles, suivi des livraisons, API pour vos applis.",
-      "GLPI (Helpdesk/ITSM) : portail de tickets, catalogue de services, base de connaissances, inventaire automatique, indicateurs SLA.",
-      "Contact Center (VoIP) : numéros locaux/DID, IVR, files d’attente, enregistrement d’appels, reporting temps réel, intégration WhatsApp/FB.",
-      "Hébergement web & Noms de domaine : enregistrement (.cm, .com…), DNS, SSL, emails pro, mutualisé/VPS, sauvegardes quotidiennes, CDN, uptime 99,9%.",
-    ],
-    image: imgComms,
-  },
-  // Carte image pleine largeur + texte dessous
-  {
-    accroche:
-      "Nous travaillons dur pour connaître nos clients, comprendre leurs besoins et les mettre au cœur de tout ce que nous faisons. Nous travaillons sans relâche pour bâtir leur confiance à long terme afin qu'ils puissent compter sur nous dans un monde complexe et en constante évolution, et cela est toujours soutenu par la valeur inégalée que nous créons pour eux grâce à notre portefeuille de services équilibré.",
-    image: imgThird,
-  },
-];
+};
+
+const itemUp: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+};
 
 /* ---------- Sous-composant : une ligne image | texte avec “Voir plus” ---------- */
 const ServiceRow: React.FC<{ item: ServiceItem }> = ({ item }) => {
@@ -61,8 +48,7 @@ const ServiceRow: React.FC<{ item: ServiceItem }> = ({ item }) => {
     const ih = imgBoxRef.current?.getBoundingClientRect().height ?? 0;
     const fullTextH = textInnerRef.current?.scrollHeight ?? 0;
     setImgHeight(ih);
-    setOverflowing(fullTextH > ih + 2); // marge de sécurité
-    // si fermé, fixe la hauteur max = hauteur image (sans scrollbar)
+    setOverflowing(fullTextH > ih + 2);
     if (!open && textWrapRef.current) {
       textWrapRef.current.style.maxHeight = ih ? `${ih}px` : "none";
     }
@@ -78,42 +64,52 @@ const ServiceRow: React.FC<{ item: ServiceItem }> = ({ item }) => {
 
   useEffect(() => {
     if (!textWrapRef.current) return;
-    if (open) {
-      textWrapRef.current.style.maxHeight = "none"; // on déroule tout
-    } else {
-      textWrapRef.current.style.maxHeight = imgHeight ? `${imgHeight}px` : "none";
-    }
+    textWrapRef.current.style.maxHeight = open ? "none" : imgHeight ? `${imgHeight}px` : "none";
   }, [open, imgHeight]);
 
   return (
-    <article className="bg-white p-3 sm:p-4 lg:p-5 shadow-none">
-      <div className="grid items-stretch gap-4 sm:gap-5 lg:gap-6 md:grid-cols-[260px,1fr]">
-        {/* Image — coins arrondis TOUTES tailles */}
-        <div className="h-full">
+    <motion.article
+      variants={fadeUp}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, amount: 0.25 }}
+      className="bg-white p-3 sm:p-4 lg:p-5 shadow-none"
+    >
+      <motion.div
+        variants={containerStagger}
+        className="grid items-stretch gap-4 sm:gap-5 lg:gap-6 md:grid-cols-[260px,1fr]"
+      >
+        {/* Image avec zoom au survol */}
+        <motion.div variants={itemUp} className="h-full">
           <div
             ref={imgBoxRef}
-            className="h-full rounded-2xl overflow-hidden"
+            className="group h-full rounded-2xl overflow-hidden"
           >
-            <img
+            <motion.img
               src={item.image}
               alt={item.title ?? "illustration"}
-              className="h-full w-full object-cover  sm:h-[240px] md:h-[300px] lg:h-[340px]" // hauteur responsive
+              className="h-full w-full object-cover sm:h-[240px] md:h-[300px] lg:h-[340px] transform-gpu will-change-transform"
               loading="lazy"
               onLoad={measure}
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.99 }}
+              transition={{ type: "spring", stiffness: 220, damping: 20 }}
             />
           </div>
-        </div>
+        </motion.div>
 
-        {/* Texte — pas de scrollbar; clamp = hauteur image; bouton si overflow */}
-        <div className="pt-1 max-w-[760px] leading-[1.65] relative">
+        {/* Texte */}
+        <motion.div variants={itemUp} className="pt-1 max-w-[760px] leading-[1.65] relative">
           {item.title && (
-            <h3 className="text-[17px] sm:text-[18px] md:text-[20px] lg:text-[22px] font-semibold text-gray-900 mb-2">
+            <motion.h3
+              variants={itemUp}
+              className="text-[17px] sm:text-[18px] md:text-[20px] lg:text-[22px] font-semibold text-gray-900 mb-2"
+            >
               {item.title}
-            </h3>
+            </motion.h3>
           )}
 
           <div className="relative">
-            {/* zone qui se ferme / s’ouvre sans scrollbar */}
             <div
               ref={textWrapRef}
               className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
@@ -128,24 +124,31 @@ const ServiceRow: React.FC<{ item: ServiceItem }> = ({ item }) => {
                     <p className="text-[15px] sm:text-[16px] md:text-[16px] lg:text-[17px] font-medium text-gray-800 mb-2">
                       {item.points[0]}
                     </p>
-                    <ul className="list-disc pl-5 text-[13px] sm:text-[15px] md:text-[14px] lg:text-[15px] text-gray-700 marker:text-[#00A8E8]
-                                   space-y-1.5 md:space-y-2 lg:space-y-3">
+                    {/* Stagger des puces */}
+                    <motion.ul
+                      variants={containerStagger}
+                      initial="hidden"
+                      whileInView="show"
+                      viewport={{ once: true, amount: 0.3 }}
+                      className="list-disc pl-5 text-[13px] sm:text-[15px] md:text-[14px] lg:text-[15px] text-gray-700 marker:text-[#00A8E8]
+                                 space-y-1.5 md:space-y-2 lg:space-y-3"
+                    >
                       {item.points.slice(1).map((p, i) => (
-                        <li key={i}>{p}</li>
+                        <motion.li key={i} variants={itemUp}>
+                          {p}
+                        </motion.li>
                       ))}
-                    </ul>
+                    </motion.ul>
                   </>
                 ) : null}
               </div>
             </div>
 
-            {/* léger dégradé quand c’est fermé et qu’il y a du contenu masqué */}
             {!open && overflowing && (
               <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white to-transparent rounded-b-xl" />
             )}
           </div>
 
-          {/* Bouton seulement s’il y a overflow */}
           {overflowing && (
             <button
               type="button"
@@ -155,45 +158,80 @@ const ServiceRow: React.FC<{ item: ServiceItem }> = ({ item }) => {
               {open ? "Voir moins" : "Voir plus"}
             </button>
           )}
-        </div>
-      </div>
-    </article>
+        </motion.div>
+      </motion.div>
+    </motion.article>
   );
 };
 
 const ServicesBloc: React.FC = () => {
+  const { t } = useTranslation();
+
+  const items: ServiceItem[] = [
+    {
+      title: t("ser.tit"),
+      accroche: t("ser.ac"),
+      points: toArray(t("ser.points1", { returnObjects: true })),
+      image: imgMaintenance,
+    },
+    {
+      title: t("ser.tit2"),
+      accroche: t("ser.ac2"),
+      points: toArray(t("ser.points2", { returnObjects: true })),
+      image: imgComms,
+    },
+    {
+      accroche: t("ser.ac3"),
+      image: imgThird,
+    },
+  ];
+
   return (
-    <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10"
+    >
       <div className="space-y-8 lg:space-y-10">
-        {ITEMS.map((it, idx) => {
+        {items.map((it, idx) => {
           const onlyImageAndText = !it.title && !(it.points && it.points.length);
 
           if (onlyImageAndText) {
-            // carte image au-dessus + paragraphe
+            // carte image au-dessus + paragraphe (aussi animée au scroll) + zoom hover
             return (
-              <div key={idx} className="space-y-4 sm:space-y-5 lg:space-y-6">
-                <div className="rounded-2xl overflow-hidden">
-                  <img
+              <motion.div
+                key={idx}
+                variants={fadeUp}
+                initial="hidden"
+                whileInView="show"
+                viewport={{ once: true, amount: 0.25 }}
+                className="space-y-4 sm:space-y-5 lg:space-y-6"
+              >
+                <motion.div variants={itemUp} className="rounded-2xl overflow-hidden">
+                  <motion.img
                     src={it.image}
                     alt="illustration"
-                    className="w-full h-[200px] sm:h-[260px] md:h-[340px] lg:h-[400px] object-cover"
+                    className="w-full h-[200px] sm:h-[260px] md:h-[340px] lg:h-[400px] object-cover transform-gpu will-change-transform"
                     loading="lazy"
+                    whileHover={{ scale: 1.06 }}
+                    whileTap={{ scale: 0.99 }}
+                    transition={{ type: "spring", stiffness: 220, damping: 20 }}
                   />
-                </div>
-                <div className="rounded-2xl bg-white p-4 sm:p-6 lg:p-7">
+                </motion.div>
+                <motion.div variants={itemUp} className="rounded-2xl bg-white p-4 sm:p-6 lg:p-7">
                   <p className="text-[12px] sm:text-[14px] md:text-[16px] lg:text-[18px] leading-relaxed text-gray-700">
                     {it.accroche}
                   </p>
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
             );
           }
 
-          // lignes normales avec “Voir plus”
           return <ServiceRow key={idx} item={it} />;
         })}
       </div>
-    </section>
+    </motion.section>
   );
 };
 

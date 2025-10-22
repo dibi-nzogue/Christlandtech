@@ -10,11 +10,15 @@ from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
+from django.db.models import QuerySet
+from django.views.decorators.http import require_GET
+from django.http import JsonResponse
+from django.conf import settings
 
 from .models import (
     Categories, Produits, VariantesProduits, ImagesProduits,
     Marques, Couleurs,
-    Attribut, ValeurAttribut, SpecProduit, SpecVariante
+    Attribut, ValeurAttribut, SpecProduit, SpecVariante, ArticlesBlog
 )
 from .serializers import ProduitCardSerializer
 
@@ -419,3 +423,72 @@ class ProductMiniView(APIView):
             "image": img_url,
         }
         return Response(payload)    
+    
+
+# --------- Helpers ----------
+def _abs_media(request, path: str | None) -> str | None:
+    """
+    Ton champ image_couverture est un CharField.
+    - S'il contient déjà une URL absolue (http/https/data:), on la renvoie telle quelle.
+    - Sinon, on préfixe avec MEDIA_URL pour produire une URL absolue.
+    """
+    if not path:
+        return None
+    p = str(path).strip()
+    if p.lower().startswith(("http://", "https://", "data:")):
+        return p
+    base = request.build_absolute_uri(settings.MEDIA_URL)
+    return f"{base.rstrip('/')}/{p.lstrip('/')}"
+
+def _serialize_article(a: ArticlesBlog, request):
+    return {
+        "id": a.id,
+        "slug": a.slug or "",
+        "title": a.titre or "",
+        "excerpt": a.extrait or "",
+        "content": a.contenu or "",
+        "image": _abs_media(request, getattr(a, "image_couverture", None)),
+        # Tu peux exposer autres champs si besoin :
+        # "published_at": a.publie_le,
+        # "created_at": a.cree_le,
+    }
+
+class BlogHeroView(APIView):
+    """
+    GET /christland/api/blog/hero/
+    -> renvoie { title, slug } pour alimenter l’intro de la page
+    Règle : on prend le plus ancien (id ASC). Si tu préfères
+    "dernier publié", remplace order_by("id") par order_by("-publie_le", "-id")
+    """
+    def get(self, request):
+        qs: QuerySet[ArticlesBlog] = ArticlesBlog.objects.all().order_by("id")
+        a = qs.first()
+        if not a:
+            return Response({"title": "", "slug": ""})
+        return Response({"title": a.titre or "", "slug": a.slug or ""})
+
+class BlogPostsView(APIView):
+    """
+    GET /christland/api/blog/posts/
+    -> { "top": [...tous sauf les 2 derniers...], "bottom": [...2 derniers...] }
+    L’ordre est chronologique (id ASC) pour que "les 2 derniers" restent en bas.
+    """
+    def get(self, request):
+        qs: QuerySet[ArticlesBlog] = ArticlesBlog.objects.all().order_by("id")
+        items = list(qs)
+
+        if not items:
+            return Response({"top": [], "bottom": []})
+
+        if len(items) >= 2:
+            top_items = items[:-2]
+            bottom_items = items[-2:]
+        else:
+            top_items = []
+            bottom_items = items
+
+        data = {
+            "top": [_serialize_article(a, request) for a in top_items],
+            "bottom": [_serialize_article(a, request) for a in bottom_items],
+        }
+        return Response(data)

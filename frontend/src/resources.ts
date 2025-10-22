@@ -96,11 +96,62 @@ const resources = {
       "ser.ch1": "to change the world",
       "ser.an": "And our clients include some of the largest organizations in the world / Institutions across the continent.",
       "ser.me": "THANK YOU",
-      "ser.me1": "At CHRISTLANDTECH, we believe that impeccable service begins with a warm welcome and ends with a satisfied customer.From the first inquiry to after-sales support, we are committed to providing you with expertise, clarity, and professionalism.With accessible, high-quality service, we offer promotions all year round — monthly deals, weekend discounts, bundles, and loyalty cards.You leave reassured, well advised… and with the best value for money.",
+      "ser.me1": "At CHRISTLANDTECH, we believe that impeccable service begins with a warm welcome and ends with a satisfied customer.From the first inquiry to after-sales support, we are committed to providing you with expertise, clarity, and professionalism.With accessible, high-quality service, we offer promotions all year round monthly deals, weekend discounts, bundles, and loyalty cards.You leave reassured, well advised… and with the best value for money.",
+       "ser.tit": "IT Maintenance",
+      "ser.ac": "Keep your business running smoothly with a clean, up-to-date, and well-monitored IT infrastructure.",
+      "ser.points1": [
+        "What it includes:",
+        "Installation: Windows/Linux workstations, servers, printers, line-of-business apps, antivirus, email (Microsoft 365/Google).",
+        "Troubleshooting: remote/on-site support, diagnostics and fixes, malware removal, security hardening.",
+        "Consulting: infrastructure audit, capacity planning, backups (NAS/Cloud), BCP/DRP, cloud/on-prem migrations.",
+        "Monitoring & Quality: GLPI ticketing, intervention reports, SLA (4h / Next Business Day)."
+      ],
 
+      "ser.tit2": "Communication",
+      "ser.ac2": "Speak to your customers at the right time, through the right channel.",
+      "ser.points2": [
+        "What it includes:",
+        "Bulk SMS: custom sender ID, segmentation, templates, delivery tracking, API integration.",
+        "GLPI (Helpdesk/ITSM): ticket portal, service catalog, knowledge base, auto-inventory, SLA metrics.",
+        "Contact Center (VoIP): local/DID numbers, IVR, queues, call recording, real-time reporting, WhatsApp/Facebook integration.",
+        "Web Hosting & Domains: registration (.cm, .com…), DNS, SSL, professional email, shared/VPS, daily backups, CDN, 99.9% uptime."
+      ],
 
-    },
+      "ser.ac3": "We work hard to know our clients, understand their needs, and place them at the heart of everything we do. We strive tirelessly to build long-term trust so they can rely on us in a complex and ever-changing world always supported by the unmatched value we deliver through our well-balanced portfolio of services.",
+      
+      
+      // --- ServicesExtra (Security + Network) ---
+      "ex1.tit": "Security",
+      "ex1.ac": "Protect your endpoints, data, and network against modern threats.",
+      "ex1.points": [
+        "What it includes:",
+        "Endpoint/Server Protection: Kaspersky Endpoint, EDR, encryption (BitLocker), automated patching.",
+        "Microsoft Security: Defender for Business, MFA, Intune/MDM, Conditional Access policies.",
+        "Backup & Recovery: snapshots, off-site/Cloud copies, restore tests.",
+        "Firewall & Network: IPS/IDS, web filtering, VPN, segmentation.",
+        "Compliance & Awareness: policies, logging, phishing awareness training."
+      ],
+
+      "ex2.tit": "Enterprise Networking",
+      "ex2.ac": "A reliable, fast, and secure network for your offices and remote sites.",
+      "ex2.points": [
+        "What it includes:",
+        "Cabling & Racks: Cat6/6A copper, fiber, patching, certification (Fluke tests).",
+        "Switching & Routing: VLANs, QoS, LACP, Spanning Tree, site interconnect (VPN).",
+        "Pro Wi-Fi: site survey, centralized controller, captive portal, seamless roaming, PoE.",
+        "Monitoring & SLAs: proactive alerts, performance dashboards, monthly reports."
+      ],
+
+      // Buttons
+      "see.more": "See more",
+      "see.less": "See less",
+
+   
+   
+    }
   },
+
+ 
 
 
 
@@ -205,7 +256,54 @@ const resources = {
       "ser.an": "Et nos clients comptent parmi les plus grandes organisations au monde / Organismes du continent.",
       "ser.me": "MERCI",
       "ser.me1": "Chez CHRISTLANDTECH, nous croyons qu’un service impeccable commence par un accueil chaleureux et se termine par un client serein. De la première information jusqu’au suivi après-vente, nous nous engageons à vous apporter expertise, clarté et professionnalisme. Avec une qualité de service accessible, nous mettons en place des promotions toute l’année : offres du mois, remises week-end, packs, cartes de fidélité. Vous repartez rassuré, bien conseillé… et avec le meilleur rapport qualité-prix.",
+    
+      "ser.tit": "Maintenance informatique",
+      "ser.ac": "Assurez la continuité de votre activité avec une infrastructure propre, mise à jour et suivie.",
+      "ser.points1": [
+        "Ce que ça comprend :",
+        "Installation : postes Windows/Linux, serveurs, imprimantes, logiciels métiers, antivirus, messagerie (Microsoft 365/Google).",
+        "Dépannage : intervention à distance et sur site, diagnostic et résolution, suppression de malwares, recentrage de sécurité.",
+        "Conseil : audit de parc, dimensionnement, sauvegardes (NAS/Cloud), plan de continuité (PCA/PRA), migrations (Cloud/On-prem).",
+        "Suivi & qualité : tickets via GLPI, rapports d’intervention, SLA (4h / Next Business Day)."
+      ],
 
+      "ser.tit2": "Communication",
+      "ser.ac2": "Parlez à vos clients au bon moment, sur le bon canal.",
+      "ser.points2": [
+        "Ce que ça comprend :",
+        "Bulk SMS : expéditeur personnalisé, segmentation, modèles, suivi des livraisons, API pour vos applis.",
+        "GLPI (Helpdesk/ITSM) : portail de tickets, catalogue de services, base de connaissances, inventaire automatique, indicateurs SLA.",
+        "Contact Center (VoIP) : numéros locaux/DID, IVR, files d’attente, enregistrement d’appels, reporting temps réel, intégration WhatsApp/FB.",
+        "Hébergement web & Noms de domaine : enregistrement (.cm, .com…), DNS, SSL, emails pro, mutualisé/VPS, sauvegardes quotidiennes, CDN, uptime 99,9%."
+      ],
+
+      "ser.ac3": "Nous travaillons dur pour connaître nos clients, comprendre leurs besoins et les mettre au cœur de tout ce que nous faisons. Nous travaillons sans relâche pour bâtir leur confiance à long terme afin qu'ils puissent compter sur nous dans un monde complexe et en constante évolution, et cela est toujours soutenu par la valeur inégalée que nous créons pour eux grâce à notre portefeuille de services équilibré.",
+      
+    // --- ServicesExtra (Sécurité + Réseau) ---
+        "ex1.tit": "Sécurité",
+        "ex1.ac": "Protégez vos postes, vos données et votre réseau contre les menaces.",
+        "ex1.points": [
+          "Ce que ça comprend :",
+          "Protection des postes/serveurs : Kaspersky Endpoint, EDR, chiffrement (BitLocker), correctifs automatisés.",
+          "Sécurité Microsoft : Defender for Business, MFA, Intune/MDM, stratégies d’accès conditionnel.",
+          "Sauvegardes & reprise : snapshots, copies hors site/Cloud, tests de restauration.",
+          "Pare-feu & réseau : IPS/IDS, filtrage web, VPN, segmentation.",
+          "Conformité & sensibilisation : politiques, journaux, formation anti-phishing."
+        ],
+
+        "ex2.tit": "Réseau informatique",
+        "ex2.ac": "Un réseau fiable, rapide et sécurisé pour vos bureaux et sites distants.",
+        "ex2.points": [
+          "Ce que ça comprend :",
+          "Câblage & baies : cuivre Cat6/6A, fibre optique, brassage, certification (tests Fluke).",
+          "Switching & routage : VLAN, QoS, LACP, Spanning Tree, interconnexion de sites (VPN).",
+          "Wi-Fi Pro : site survey, contrôleur centralisé, portail captif, roaming fluide, PoE.",
+          "Supervision & SLA : monitoring proactif, tableaux de bord, rapports mensuels."
+        ],
+
+        // Boutons
+        "see.more": "Voir plus",
+        "see.less": "Voir moins",
 
 
     },
