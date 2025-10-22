@@ -4,6 +4,9 @@ import { FiChevronLeft, FiChevronRight, FiMenu, FiChevronDown } from "react-icon
 import { MdClose } from "react-icons/md";
 import iphone from "../assets/images/produits/sans-fond/Apple Iphone 15 Black Smartphone PNG _ TopPNG.png";
 import { useTranslation } from "react-i18next";
+// + ajoute le type
+import { motion } from "framer-motion";
+import type { Variants, Transition } from "framer-motion";
 
 import {
   useTopCategories,
@@ -17,6 +20,55 @@ import type { ProduitMini } from "../pages/Produits";
 /* ==================== UI Types ==================== */
 type Option = { label: string; value: string };
 type Filter = { title: string; code: string; options: Option[] };
+
+// NEW — variantes d’animations (douces, discrètes)
+// --- Eases réutilisables (tuple littéral) ---
+// Ease réutilisable
+const EASE_CUBIC = [0.22, 1, 0.36, 1] as const;
+// rotation continue (linear pour une vitesse constante)
+// const SPIN: Transition = { duration: 16, ease: "linear", repeat: Infinity };
+
+// Rotation (typée → évite l’erreur TS)
+// const TWEEN_ROTATE: Transition = { type: "tween", duration: 1.1, ease: EASE_CUBIC };
+
+// Image du téléphone: état normal + état hover (rotation + léger zoom)
+// const phoneImgVariants: Variants = {
+//   initial: { rotate: 0, scale: 1 },
+//   hover:   { rotate: 360, scale: 1.08, transition: TWEEN_ROTATE },
+// };
+
+
+
+// --- Transitions typées ---
+const TWEEN_500: Transition = { type: "tween", duration: 0.5, ease: EASE_CUBIC };
+const TWEEN_550: Transition = { type: "tween", duration: 0.55, ease: EASE_CUBIC };
+const TWEEN_600: Transition = { type: "tween", duration: 0.66, ease: EASE_CUBIC };
+const TWEEN_400: Transition = { type: "tween", duration: 0.4, ease: EASE_CUBIC };
+
+// --- Variants typés ---
+const headerEnter: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  show:   { opacity: 1, y: 0, transition: TWEEN_500 },
+};
+
+const crumbFade: Variants = {
+  hidden: { opacity: 0 },
+  show:   { opacity: 1, transition: { ...TWEEN_400, delay: 0.15 } },
+};
+
+const h1Down: Variants = {
+  hidden: { y: -16, opacity: 0 },
+  show:   { y: 0, opacity: 1, transition: { ...TWEEN_600, delay: 0.25 } },
+};
+
+const phonePop: Variants = {
+  hidden: { y: 8, scale: 0.98, opacity: 0 },
+  show:   { y: 0, scale: 1,    opacity: 1, transition: TWEEN_550 },
+};
+
+
+
+
 
 const ACCENT = "bg-[#00A8E8] text-white border-[#00A8E8]";
 const ACCENT_HOVER = "hover:opacity-90";
@@ -370,31 +422,64 @@ const showArrows = scrollable || catsLoading || cats.length > 0;
 
   return (
     <>
-      {/* ===== ENTÊTE ===== */}
-      <div className="w-full bg-gray-100">
-        <div className="container mx-auto px-5">
-          <div className="flex items-center justify-between h-40 md:h-40 lg:h-48 ">
-            <div className="min-w-0 mt-6">
-              <div className="text-xs sm:text-sm text-gray-500">
-                {t("Accueil")} <span className="text-gray-400">›</span> {t("Produits")}
-              </div>
-              <h1 className="mt-1 font-extrabold leading-tight tracking-tight text-xl sm:text-xl md:text-2xl lg:text-4xl">
-                {t("bar.description")}
-              </h1>
-            </div>
-            <div className=" sm:block pt-6">
-              <div className="h-20 md:h-24 lg:h-28 xl:h-32 w-auto">
-                <img
-                  src={iphone}
-                  alt="Produit vedette"
-                  className="h-full w-auto object-contain pointer-events-none select-none"
-                  loading="lazy"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+   {/* ===== ENTÊTE ===== */}
+<motion.div className="w-full bg-gray-100" variants={headerEnter} initial="hidden" animate="show">
+  <div className="container mx-auto px-5">
+    <div className="flex items-center justify-between h-40 md:h-40 lg:h-48 ">
+      <div className="min-w-0 mt-6">
+        <motion.div
+          className="text-xs sm:text-sm text-gray-500"
+          variants={crumbFade}
+          initial="hidden"
+          animate="show"
+        >
+          {t("Accueil")} <span className="text-gray-400">›</span> {t("Produits")}
+        </motion.div>
+
+        <motion.h1
+          className="mt-1 font-extrabold leading-tight tracking-tight text-xl sm:text-xl md:text-2xl lg:text-4xl"
+          variants={h1Down}
+          initial="hidden"
+          animate="show"
+        >
+          {t("bar.description")}
+        </motion.h1>
       </div>
+
+     <motion.div
+  className="sm:block pt-6"
+  variants={phonePop}
+  initial="hidden"
+  animate="show"
+>
+  {/* wrapper: NO overflow-hidden, allow overflow to be visible while rotating */}
+  <div
+    className="h-20 md:h-24 lg:h-28 xl:h-32 w-auto rounded-xl"
+    style={{ perspective: 1000, overflow: "visible" }} // <- key to avoid clipping + 3D depth
+  >
+    <motion.img
+      src={iphone}
+      alt="Produit vedette"
+      // 3D left→right rotation forever
+      animate={{ rotateY: 360, scale: 0.92 }}       // <- small scale to keep margins while spinning
+      transition={{ duration: 12, ease: "linear", repeat: Infinity }}
+      style={{
+        transformOrigin: "50% 50%",                  // spin around center
+        transformStyle: "preserve-3d",               // proper 3D
+      }}
+      className="h-full w-auto object-contain select-none will-change-transform"
+      loading="lazy"
+    />
+  </div>
+</motion.div>
+
+
+
+    </div>
+  </div>
+</motion.div>
+
+
 
       {/* ===== Catégories (mobile + carrousel) ===== */}
       <div className="container mx-auto px-5 pt-10">
