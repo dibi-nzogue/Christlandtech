@@ -87,6 +87,8 @@ const Navbar = () => {
                 <span className="absolute left-0 -bottom-2 block h-[4px] w-full bg-[#00A9DC]" />
               </div>
 
+              <div className="bg-white py-4 pr-1"></div>
+
               {/* Langue dropdown */}
               <div className="relative">
                 <button
@@ -94,7 +96,7 @@ const Navbar = () => {
                   onClick={() => setLangOpen((v) => !v)}
                   aria-haspopup="menu"
                   aria-expanded={langOpen}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-gray-200 hover:text-white"
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-white"
                 >
                   <FaGlobe className="h-5 w-5" />
                   <FaChevronDown className="h-3 w-3" />
@@ -173,7 +175,7 @@ const Navbar = () => {
                 <span className="relative text-sm md:text-base lg:text-md font-bold">
                   {t(l.label)}
                   <span
-                    className={`absolute left-0 -bottom-[22px] h-[5px] w-full transition-all ${
+                    className={`absolute left-0 -bottom-[22px] h-[5px] w-full transition-all duration-300 ease-in-out origin-left ${
                       isActive(l.to) ? "bg-[#00A8E8] opacity-100" : "opacity-0"
                     }`}
                   />

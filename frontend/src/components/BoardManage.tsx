@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import team1 from '../assets/images/team.png';
 import team2 from '../assets/images/team1.png';
 import team3 from '../assets/images/team2.png';
+import { motion } from 'framer-motion';
 
 const BoardManage: React.FC = () => {
 
@@ -51,13 +52,26 @@ const BoardManage: React.FC = () => {
     <div>
         <div className='mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 pt-8'>
             <div className='text-center'>
-                <p className='font-semibold text-center text-md md:text-lg lg:text-xl xl:text-2xl pb-4'>{t('team')}</p>
-                <p className='text-[#5A5C62] w-[80%] lg:w-[50%] mx-auto'>
+                <motion.p className='font-semibold text-center text-md md:text-lg lg:text-xl xl:text-2xl pb-4' initial={{ opacity: 0, y: 50 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.2 }}
+                    viewport={{ once: true }}
+                >
+                    {t('team')}
+                </motion.p>
+                <motion.p className='text-[#5A5C62] w-[80%] lg:w-[50%] mx-auto' initial={{ opacity: 0, y: 50 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    viewport={{ once: true }}
+                >
                    {t('team.des')}
-                </p>
-                <div
+                </motion.p>
+                <motion.div
                     onClick={() => navigate("/Services")}
-                    className="pt-4 md:pt-5 flex items-center justify-center gap-2 cursor-pointer relative group text-[#5A5C62]"
+                    className="pt-4 md:pt-5 flex items-center justify-center gap-2 cursor-pointer relative group text-[#5A5C62]" initial={{ opacity: 0, y: 50 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 1, delay: 0.2 }}
+                    viewport={{ once: true }}
                 >
                     <p className="text-center">
                         {t('team.contact')}
@@ -67,12 +81,16 @@ const BoardManage: React.FC = () => {
                         className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-[2px] bg-[#00A9DC] transition-all duration-500 group-hover:w-[32%] md:group-hover:w-[17%] lg:group-hover:w-[12%] xl:group-hover:w-[10%]"
                     >
                     </span>
-                </div>
+                </motion.div>
             </div>
             <div className="pt-10 md:pt-20">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 justify-items-center rounded-xl">
                     {team.map((data) => (
-                        <div>
+                        <motion.div initial={{ opacity: 0, y: 50 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 1, delay: 0.2 }}
+                            viewport={{ once: true }}
+                        >
                             <div key={data.id} className="w-full max-w-xs relative">
                                 <img
                                 src={data.image}
@@ -94,7 +112,7 @@ const BoardManage: React.FC = () => {
                                     <FaFacebookF className="hover:text-[#00A9DC] cursor-pointer" />
                                 </div>
                             </div>
-                        </div>
+                        </motion.div>
                     ))}
                 </div>
             </div>

@@ -4,7 +4,9 @@ import Slider from "react-slick";
 import { ArrowRight } from "lucide-react";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from "react-i18next";
+import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 
 import lenovo from "../assets/images/lenovo.webp";
 import hp from "../assets/images/hp.jpg";
@@ -77,7 +79,7 @@ const products: Product[] = [
   },
 ];
 
-// Flèches personnalisées du carrousel
+// Flèches personnalisées
 const NextArrow = (props: any) => {
   const { onClick } = props;
   return (
@@ -109,34 +111,35 @@ export default function Nouveautes() {
 
   const filteredProducts = products.filter((p) => p.category === activeTab);
 
-  const settings = {
-    dots: false,
-    infinite: filteredProducts.length > 3,
-    speed: 500,
-    slidesToShow: 3,
-    slidesToScroll: 1,
-    centerMode: true,
-    centerPadding: "60px", 
-    nextArrow: <NextArrow />,
-    prevArrow: <PrevArrow />,
-    responsive: [
-      {
-        breakpoint: 1024,
-        settings: { slidesToShow: 2, centerPadding: "50px" },
-      },
-      {
-        breakpoint: 640,
-        settings: { slidesToShow: 1, centerPadding: "40px" },
-      },
-    ],
+  const settings = { dots: false, infinite: filteredProducts.length > 3, speed: 500, slidesToShow: 3, slidesToScroll: 1, centerMode: true, centerPadding: "60px", nextArrow: <NextArrow />, prevArrow: <PrevArrow />, responsive: [ { breakpoint: 1024, settings: { slidesToShow: 2, centerPadding: "50px" }, }, { breakpoint: 640, settings: { slidesToShow: 1, centerPadding: "40px" }, }, ], };
+
+  const containerVariants: Variants = {
+    hidden: { opacity: 0, y: 80 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.7, ease: "easeOut" },
+    },
   };
 
   return (
-    <div className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 flex flex-col items-center py-10 bg-white">
-      <h2 className="text-3xl font-bold mb-6 text-gray-900">{t('new')}</h2>
+    <div
+      className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 flex flex-col items-center py-10 bg-white"
+    >
+      <motion.h2 className="text-3xl font-bold mb-6 text-gray-900"
+        variants={containerVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.5 }}
+      >{t("new")}</motion.h2>
 
       {/* Onglets */}
-      <div className="flex space-x-2 md:space-x-6 mb-5 md:mb-10">
+      <motion.div className="flex space-x-2 md:space-x-6 mb-5 md:mb-10"
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.6 }}
+      >
         {(["Notebooks", "Desktops", "Iphone"] as const).map((tab) => (
           <button
             key={tab}
@@ -150,14 +153,18 @@ export default function Nouveautes() {
             {tab}
           </button>
         ))}
-      </div>
+      </motion.div>
 
       {/* Carrousel Slick */}
       <div className="relative w-full mb-5 md:mb-10">
         <Slider {...settings}>
           {filteredProducts.map((p) => (
             <div key={p.id} className="px-1 md:px-3">
-              <div className="relative bg-white shadow-md rounded-2xl my-5 p-4 flex flex-col justify-between items-start gap-5 md:gap-8 hover:shadow-lg transition-shadow h-[500px] md:h-auto">
+              <motion.div  variants={containerVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.8 }}
+                className="relative bg-white shadow-md rounded-2xl my-5 p-4 flex flex-col justify-between items-start gap-5 md:gap-8 hover:shadow-lg transition-shadow h-[500px] md:h-auto">
                 <img
                   src={p.image}
                   alt={p.name}
@@ -181,19 +188,23 @@ export default function Nouveautes() {
                 <div className="mt-2 md:mt-4 bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl text-sm font-medium w-full text-center">
                   État: {p.state}
                 </div>
-              </div>
+              </motion.div>
             </div>
           ))}
         </Slider>
       </div>
 
       {/* Bouton */}
-      <button
+      <motion.button
         onClick={() => navigate("/Produits")}
         className="bg-[#00A9DC] text-white px-3 md:px-6 py-2 md:py-3 rounded-2xl font-semibold hover:bg-sky-600 transition-colors mt-5 md:mt-10"
+        variants={containerVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.5 }}
       >
-        {t('pdt')}
-      </button>
+        {t("pdt")}
+      </motion.button>
     </div>
   );
 }

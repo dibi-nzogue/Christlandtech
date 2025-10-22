@@ -3,30 +3,57 @@ import hero4 from '../assets/images/hero4.png';
 import hero5 from '../assets/images/hero5.png';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 
 const HeroAbout: React.FC = () => {
 
     const navigate = useNavigate();
     const { t } = useTranslation();
 
+    const containerVariants: Variants = {
+        hidden: { opacity: 0, y: 80 },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.8, ease: "easeOut" },
+        },
+      };
+
   return (
     <div className='mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 pt-8 md:pt-28 lg:pt-32'>
         <div className=''>
-            <h1 className='font-extrabold text-[13px] sm:text-sm md:text-xl lg:text-2xl xl:text-4xl'>
+            <motion.h1 className='font-extrabold text-[13px] sm:text-sm md:text-xl lg:text-2xl xl:text-4xl' variants={containerVariants} initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.6 }}>
                 {t('A_propos')} CHRISTLAND <span className="text-[#00A8E8]">TECH.</span>
-            </h1>
-            <p className='pt-4 md:pt-10 font-semibold text-sm md:text-lg lg:text-xl'>
+            </motion.h1>
+            <motion.p className='pt-4 md:pt-10 font-semibold text-sm md:text-lg lg:text-xl' variants={containerVariants} initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.8 }}>
                 {t('highlighted1')}: <br /> {t('highlighted2')}
-            </p>
+            </motion.p>
         </div>
         <div className="flex justify-center items-center relative">
             {/* Image de gauche */}
-            <div className="w-1/3 hidden lg:block">
-                <img src={hero4} alt="" />
-            </div>
+            <motion.div
+                className="w-1/3 hidden lg:block"
+                initial={{ x: -150, opacity: 0 }}
+                whileInView={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                viewport={{ once: true }}
+            >
+                <img src={hero4} alt="hero left" className="rounded-xl" />
+            </motion.div>
 
             {/* Image de droite avec texte superposé */}
-            <div className="w-full lg:w-2/3 relative">
+            <motion.div
+                className="w-full lg:w-2/3 relative"
+                initial={{ x: 150, opacity: 0 }}
+                whileInView={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                viewport={{ once: true }}
+            >
                 <img src={hero5} alt="" className=" object-cover hidden lg:block" />
 
                 {/* Texte positionné par-dessus l’image */}
@@ -44,7 +71,7 @@ const HeroAbout: React.FC = () => {
                         {t('service.button')}
                     </button>
                 </div>
-            </div>
+            </motion.div>
         </div>
     </div>
   )
