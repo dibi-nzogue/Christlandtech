@@ -3,6 +3,8 @@ import CountUp from "react-countup";
 import { useInView } from "react-intersection-observer";
 import { FaUsers, FaGlobe, FaShoppingCart } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
+import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 
 const StatsSection: React.FC = () => {
   const stats = [
@@ -36,6 +38,15 @@ const StatsSection: React.FC = () => {
 
   const { t } = useTranslation();
 
+  const itemVariants: Variants = {
+      hidden: { opacity: 0, x: -100 },
+      visible: {
+        opacity: 1,
+        x: 0,
+        transition: { duration: 0.6, ease: "easeOut" },
+      },
+    };
+
   return (
     <div
       ref={ref}
@@ -43,9 +54,12 @@ const StatsSection: React.FC = () => {
     >
       <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 text-center">
         {stats.map((item) => (
-          <div
+          <motion.div
             key={item.id}
             className="flex flex-col items-center gap-3 bg-gray-50 rounded-2xl p-8 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+            variants={itemVariants}
+            initial="hidden"
+            whileInView="visible"
           >
             <div className="p-4 bg-[#E5F7FF] rounded-full">{item.icon}</div>
 
@@ -64,7 +78,7 @@ const StatsSection: React.FC = () => {
             </h3>
 
             <p className="text-gray-700 text-lg font-semibold">{t(item.label)}</p>
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>

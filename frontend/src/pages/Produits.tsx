@@ -30,11 +30,9 @@ const Produits: React.FC = () => {
     <>
       <Navbar />
       <main className="pt-1 md:pt-10">
-        {/* On passe le callback au listing */}
         <Presentation onOrder={handleOrder} />
-        {/* Section achat recevant le produit sélectionné et la ref pour le scroll */}
         <AchatProduit produit={selectedProduct} refEl={achatRef} />
-        <ContactSection />
+        <ContactSection id="contact"/>
         <ScrollToTopButton />
         <Footer />
       </main>

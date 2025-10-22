@@ -14,7 +14,7 @@ const About: React.FC = () => {
         <HeroAbout />
         <BoardManage />
         <StatsSection />
-        <ContactSection />
+        <ContactSection id="contact"/>
         <Footer />
         <ScrollToTopButton />
     </div>
