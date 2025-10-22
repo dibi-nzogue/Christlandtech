@@ -14,7 +14,7 @@ const Assistance: React.FC = () => {
       <Navbar />
       <AssistanceHero />
       <PostsSection />
-      <ContactSection />
+      <ContactSection  id="contact"/>
       <Footer />
       <ScrollToTopButton />
     </div>
