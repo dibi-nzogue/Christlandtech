@@ -1,72 +1,21 @@
 // src/components/PostsSection.tsx
 import React from "react";
-
-import img1 from "../assets/images/achat/Businesswoman.webp";
-import img2 from "../assets/images/achat/Abandon.webp";
-import img3 from "../assets/images/achat/Mâle.webp";
-import img4 from "../assets/images/achat/Femme.webp";
+import { useBlogPosts } from "../hooks/useFetchQuery";
 
 type Post = {
   id: number | string;
   image: string;
-  title: string;
-  excerpt: string;
+  title: string;   // <- affichera "extrait"
+  excerpt: string; // <- affichera "contenu"
 };
 
-/* --- 4 cartes du haut (layout horizontal dès md) --- */
-const POSTS_TOP: Post[] = [
-  {
-    id: 1,
-    image: img1 as unknown as string,
-    title: "COMMENT CHOISIR [PRODUIT] SELON VOTRE BUDGET (50–150K FCFA)",
-    excerpt:
-      "Un guide clair qui segmente les options par tranches de prix (<50k, ~100k, ~150k FCFA), en listant pour chacune les fonctions essentielles à exiger, les concessions possibles, et deux recommandations “meilleur rapport qualité/prix” & “valeur sûre”, avec liens directs vers les fiches et disponibilité.",
-  },
-  {
-    id: 2,
-    image: img2 as unknown as string,
-    title: "COMPARATIFS & TOPS",
-    excerpt:
-      "Top 10 des [catégorie] en 2025 (prix, autonomie, garantie) — classement à jour avec fourchette de prix, points clés en 1 ligne, note d’autonomie et durée/conditions de garantie ; parfait pour repérer en 2 minutes les références qui valent le détour.",
-  },
-  {
-    id: 3,
-    image: img3 as unknown as string,
-    title: "UTILISATION & ENTRETIEN",
-    excerpt:
-      "Prolonger la durée de vie de votre [catégorie] : check-list mensuelle — entretien en 10 minutes : nettoyage adapté, mises à jour, contrôle batterie/consommables, rangement/transport, et signaux d’alerte ; un petit rituel pour éviter les pannes et préserver la valeur.",
-  },
-  {
-    id: 4,
-    image: img4 as unknown as string,
-    title: "INSPIRATION / CADEAUX",
-    excerpt:
-      "Idées cadeaux à moins de 30 000 FCFA (ou événement) — une sélection utile et sympa (petit high-tech, accessoires pratiques, déco, bien-être) avec un “pour qui/pourquoi” par idée ; options d’emballage et livraison express pour ne jamais être en retard.",
-  },
-];
+// fallback très léger si l’API ne renvoie pas d’image
+const FALLBACK_IMG =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='16'%3EImage%20indisponible%3C/text%3E%3C/svg%3E";
 
-/* --- 2 cartes du bas --- */
-const POSTS_BOTTOM: Post[] = [
-  {
-    id: 5,
-    image: img2 as unknown as string,
-    title: "NOUVEAUTÉS & PROMOS",
-    excerpt:
-      "Sécuriser vos achats en ligne : bonnes pratiques — vérifier l’URL/avis/mentions légales, activer 3-D Secure/MFA, éviter le Wi-Fi public, repérer les arnaques et sauvegarder vos preuves d’achat ; la base pour acheter l’esprit tranquille.",
-  },
-  {
-    id: 6,
-    image: img3 as unknown as string,
-    title: "CONFIANCE & LOGISTIQUE",
-    excerpt:
-      "Paiements acceptés : MTN MoMo, Orange Money, carte. Étapes simples et sécurisées pour chaque mode, limites/notifications, reçus, remboursement et support en cas d’erreur ; transparence totale pour payer serein.",
-  },
-];
-
-/* --- Carte TOP : horizontale dès md, tailles responsives --- */
+/* --- Carte TOP : horizontale dès md --- */
 const CardTop: React.FC<{ post: Post }> = ({ post }) => (
   <div className="flex flex-col md:flex-row gap-4 sm:gap-5 p-3 rounded-xl bg-white transition h-full">
-    {/* Image : pleine largeur en mobile, tailles fixes par breakpoint */}
     <div
       className="
         relative w-full aspect-[16/9]
@@ -85,7 +34,6 @@ const CardTop: React.FC<{ post: Post }> = ({ post }) => (
       />
     </div>
 
-    {/* Texte : tailles de police adaptatives */}
     <div className="flex-1 min-w-0">
       <h3
         className="
@@ -157,6 +105,32 @@ const CardBottom: React.FC<{ post: Post }> = ({ post }) => (
 );
 
 const PostsSection: React.FC = () => {
+  const { data, loading, error } = useBlogPosts();
+
+  // mapping EXACT demandé :
+  // image  <- image (image_couverture côté API)
+  // title  <- extrait
+  // excerpt<- contenu
+  const postsTop: Post[] = React.useMemo(() => {
+    const items = data?.top ?? [];
+    return items.map((a) => ({
+      id: a.id,
+      image: a.image || FALLBACK_IMG,
+      title: a.excerpt || "",
+      excerpt: a.content || "",
+    }));
+  }, [data?.top]);
+
+  const postsBottom: Post[] = React.useMemo(() => {
+    const items = data?.bottom ?? [];
+    return items.map((a) => ({
+      id: a.id,
+      image: a.image || FALLBACK_IMG,
+      title: a.excerpt || "",
+      excerpt: a.content || "",
+    }));
+  }, [data?.bottom]);
+
   return (
     <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 -mt-14">
       <h2
@@ -168,16 +142,18 @@ const PostsSection: React.FC = () => {
         Nos poste
       </h2>
 
+      {error && <div className="mt-3 text-sm text-red-600">Impossible de charger les posts.</div>}
+
       {/* 4 du haut */}
       <div className="mt-5 space-y-6">
-        {POSTS_TOP.map((post) => (
+        {(loading && postsTop.length === 0 ? [] : postsTop).map((post) => (
           <CardTop key={post.id} post={post} />
         ))}
       </div>
 
       {/* 2 du bas */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {POSTS_BOTTOM.map((post) => (
+        {(loading && postsBottom.length === 0 ? [] : postsBottom).map((post) => (
           <CardBottom key={post.id} post={post} />
         ))}
       </div>
