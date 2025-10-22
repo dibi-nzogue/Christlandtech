@@ -243,7 +243,7 @@ class CategorieAttribut(models.Model):
 class SpecProduit(models.Model):
     produit = models.ForeignKey(Produits, on_delete=models.CASCADE, related_name="specs")
     attribut = models.ForeignKey(Attribut, on_delete=models.CASCADE, related_name="specs_produit")
-    valeur_text = models.CharField(max_length=255, blank=True)
+    valeur_text = models.CharField(max_length=255, blank=True, null=True)
     valeur_int = models.IntegerField(null=True, blank=True)
     valeur_dec = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     valeur_choice = models.ForeignKey(ValeurAttribut, null=True, blank=True, on_delete=models.SET_NULL)
@@ -257,7 +257,7 @@ class SpecProduit(models.Model):
 class SpecVariante(models.Model):
     variante = models.ForeignKey(VariantesProduits, on_delete=models.CASCADE, related_name="specs")
     attribut = models.ForeignKey(Attribut, on_delete=models.CASCADE, related_name="specs_variante")
-    valeur_text = models.CharField(max_length=255, blank=True)
+    valeur_text = models.CharField(max_length=255, blank=True, null=True)
     valeur_int = models.IntegerField(null=True, blank=True)
     valeur_dec = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     valeur_choice = models.ForeignKey(ValeurAttribut, null=True, blank=True, on_delete=models.SET_NULL)
@@ -473,11 +473,11 @@ class BandeauxMarketing(models.Model):
 # ===== Blog / Contenu =========================================================
 
 class ArticlesBlog(models.Model):
-    titre = models.CharField(max_length=255, blank=True)
-    slug = models.CharField(max_length=255, blank=True)
-    extrait = models.CharField(max_length=255, blank=True)
-    contenu = models.CharField(max_length=255, blank=True)
-    image_couverture =  models.CharField(max_length=255, blank=True)
+    titre = models.CharField(max_length=1000, blank=True, null=True)
+    slug = models.CharField(max_length=1000, blank=True, null=True)
+    extrait = models.CharField(max_length=1000, blank=True, null=True)
+    contenu = models.CharField(max_length=1000, blank=True, null=True)
+    image_couverture =  models.CharField(max_length=255, blank=True, null=True)
     publie_le = models.DateTimeField(null=True, blank=True)
     cree_le = models.DateTimeField(null=True, blank=True)
     modifie_le = models.DateTimeField(null=True, blank=True)
@@ -493,9 +493,9 @@ class ArticlesBlog(models.Model):
 
 class CommentairesBlog(models.Model):
     article = models.ForeignKey(ArticlesBlog, on_delete=models.CASCADE, related_name='commentaires', null=True, blank=True)
-    contenu = models.CharField(max_length=255, blank=True)
-    statut = models.CharField(max_length=255, blank=True)
-    valide = models.BooleanField(default=False)
+    contenu = models.CharField(max_length=255, blank=True, null=True)
+    statut = models.CharField(max_length=255, blank=True, null=True)
+    valide = models.BooleanField(default=False, null=True)
     cree_le = models.DateTimeField(null=True, blank=True)
     approuve_le = models.DateTimeField(null=True, blank=True)
     utilisateur = models.ForeignKey(Utilisateurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='commentaires_blog')

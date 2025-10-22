@@ -117,7 +117,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'christland',          # 🔁 remplace par le nom de ta base
         'USER': 'postgres',
-        'PASSWORD': 'Admin1234',  # 🔁 ton nouveau mot de passe
+        'PASSWORD': 'Franckchristy1',  # 🔁 ton nouveau mot de passe
         'HOST': 'localhost',
         'PORT': '5432',
     }}
