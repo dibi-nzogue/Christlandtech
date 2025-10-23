@@ -2,7 +2,7 @@ from collections import defaultdict
 from decimal import Decimal
 from typing import Iterable
 from django.db.models import Count
-from rest_framework import status
+from rest_framework import status, generics
 from django.db.models import Q, Min, Max
 from django.db.models.functions import Coalesce  # ✅ pour annoter min/max prix
 from django.shortcuts import get_object_or_404
@@ -20,7 +20,7 @@ from .models import (
     Marques, Couleurs,
     Attribut, ValeurAttribut, SpecProduit, SpecVariante, ArticlesBlog
 )
-from .serializers import ProduitCardSerializer
+from .serializers import ProduitCardSerializer, ProduitsSerializer
 
 
 # -----------------------------
@@ -359,6 +359,7 @@ class CategoryFilters(APIView):
             "attributes": attrs_list,
         }
         return Response(payload)
+        
 class CategoryListView(APIView):
     """
     GET /christland/api/catalog/categories/?level=1
@@ -492,3 +493,20 @@ class BlogPostsView(APIView):
             "bottom": [_serialize_article(a, request) for a in bottom_items],
         }
         return Response(data)
+
+# -----------------------------
+# ESPACE ADMINISTRATEUR
+# -----------------------------
+
+class ProduitsListCreateView(generics.ListCreateAPIView):
+    queryset = Produits.objects.all().order_by('-cree_le')
+    serializer_class = ProduitsSerializer
+    pagination_class = SmallPagination
+
+    def get_queryset(self):
+        return Produits.objects.filter(est_actif=True).order_by('-cree_le').distinct()
+
+
+class ProduitsDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Produits.objects.all()
+    serializer_class = ProduitsSerializer

@@ -108,13 +108,14 @@ class Produits(models.Model):
     description_courte = models.CharField(max_length=255, blank=True)
     description_long = models.CharField(max_length=255, blank=True)
     garantie_mois = models.IntegerField(null=True, blank=True)
+    quantite = models.IntegerField(null=True, blank=True)
     poids_grammes = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     est_actif = models.BooleanField(default=False)
     visible = models.IntegerField(null=True, blank=True)
     prix_reference_avant = models.IntegerField(null=True, blank=True)
     cree_le = models.DateTimeField(null=True, blank=True)
     dimensions = models.CharField(max_length=255, blank=True)
-    ETATS = [("neuf", "Neuf"), ("occasion", "Occasion"), ("reconditionne", "Reconditionné")]
+    ETATS = [("neuf", "Neuf"), ("occasion", "Occasion"), ("reconditionné", "Reconditionné")]
     etat = models.CharField(max_length=20, choices=ETATS, blank=True)
 
     # clés de rattachement usuelles (si présentes dans ton schéma relationnel)
