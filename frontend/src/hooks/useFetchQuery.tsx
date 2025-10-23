@@ -60,7 +60,7 @@ export type ApiPage<T> = {
 };
 
 /* =========================================================
-   Hook générique useFetchQuery
+   Hook générique useFetchQuery (+ refreshMs, focus/online refetch)
 ========================================================= */
 type FetcherInit = RequestInit & { timeoutMs?: number };
 
@@ -82,6 +82,13 @@ export type UseFetchOptions<T> = {
   /** Callbacks */
   onSuccess?: (data: T) => void;
   onError?: (message: string) => void;
+
+  /** ⏱ re-fetch automatique toutes les X ms (ex: 30000) */
+  refreshMs?: number;
+  /** 🔁 Refetch quand l’onglet revient au premier plan (par défaut: true) */
+  refetchOnWindowFocus?: boolean;
+  /** 🌐 Refetch quand on repasse en ligne (par défaut: true) */
+  refetchOnReconnect?: boolean;
 };
 
 type State<T> = { data: T | null; loading: boolean; error: string | null };
@@ -140,6 +147,9 @@ export function useFetchQuery<T = any>(url: string, opts: UseFetchOptions<T> = {
     enabled = true,
     onSuccess,
     onError,
+    refreshMs,
+    refetchOnWindowFocus = true,
+    refetchOnReconnect = true,
   } = opts;
 
   const key = useMemo(() => url + toQueryString(params), [url, params]);
@@ -152,6 +162,7 @@ export function useFetchQuery<T = any>(url: string, opts: UseFetchOptions<T> = {
 
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<number | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
   const run = useCallback(async () => {
     if (!enabled || !url) return;
@@ -196,22 +207,46 @@ export function useFetchQuery<T = any>(url: string, opts: UseFetchOptions<T> = {
     if (!enabled || !url) {
       abortRef.current?.abort();
       if (timerRef.current) window.clearTimeout(timerRef.current);
+      if (intervalRef.current) window.clearInterval(intervalRef.current);
       setState((s) => ({ ...s, loading: false }));
       return;
     }
 
+    // premier fetch (debounce éventuel)
     if (debounceMs > 0) {
       if (timerRef.current) window.clearTimeout(timerRef.current);
       timerRef.current = window.setTimeout(run, debounceMs);
     } else {
       run();
     }
+
+    // 🔁 re-fetch périodique
+    if (intervalRef.current) window.clearInterval(intervalRef.current);
+    if (refreshMs && refreshMs > 0) {
+      intervalRef.current = window.setInterval(() => {
+        run(); // garde data précédente, évite le flash
+      }, refreshMs);
+    }
+
+    // ♻️ refetch au retour de focus / reconnection
+    const onVisibility = () => {
+      if (refetchOnWindowFocus && document.visibilityState === "visible") run();
+    };
+    const onOnline = () => {
+      if (refetchOnReconnect && navigator.onLine) run();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("online", onOnline);
+
     return () => {
       abortRef.current?.abort();
       if (timerRef.current) window.clearTimeout(timerRef.current);
+      if (intervalRef.current) window.clearInterval(intervalRef.current);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("online", onOnline);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, enabled, url, ...deps]);
+  }, [key, enabled, url, refreshMs, refetchOnWindowFocus, refetchOnReconnect, ...deps]);
 
   return { ...state, refetch };
 }
@@ -219,13 +254,11 @@ export function useFetchQuery<T = any>(url: string, opts: UseFetchOptions<T> = {
 /* =========================================================
    Fonctions API simples (pas de token)
 ========================================================= */
-
 export async function getTopCategories(params: { level?: number } = {}) {
   const url = api("/api/catalog/categories/") + toQueryString(params);
   const res = await fetch(url, withJsonAccept());
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const raw = await parseJsonSafe(res);
-  // Normalise: toujours un tableau
   return Array.isArray(raw) ? (raw as ApiCategory[]) : (raw?.results ?? []);
 }
 
@@ -246,44 +279,32 @@ export async function getProducts(params: Record<string, unknown>) {
 /* =========================================================
    Hooks “clé en main” pour tes composants
 ========================================================= */
-
 export function useTopCategories(params: { level?: number } = {}) {
-  return useFetchQuery<ApiCategory[]>(
-    api("/api/catalog/categories/"),
-    {
-      params,
-      keepPreviousData: true,
-      // Normalise (tableau direct même si {results:[]})
-      select: (raw: any) => (Array.isArray(raw) ? raw : raw?.results ?? []),
-    }
-  );
+  return useFetchQuery<ApiCategory[]>(api("/api/catalog/categories/"), {
+    params,
+    keepPreviousData: true,
+    select: (raw: any) => (Array.isArray(raw) ? raw : raw?.results ?? []),
+  });
 }
 
 export function useFilters(params: { category?: string; subcategory?: string }) {
-  return useFetchQuery<FiltersPayload>(
-    api("/api/catalog/filters/"),
-    {
-      params,
-      keepPreviousData: true,
-      debounceMs: 120,
-    }
-  );
+  return useFetchQuery<FiltersPayload>(api("/api/catalog/filters/"), {
+    params,
+    keepPreviousData: true,
+    debounceMs: 120,
+  });
 }
 
 export function useProducts(params: Record<string, unknown>) {
-  return useFetchQuery<ApiPage<ApiProduct>>(
-    api("/api/catalog/products/"),
-    {
-      params,
-      keepPreviousData: true,
-      debounceMs: 120,
-    }
-  );
+  return useFetchQuery<ApiPage<ApiProduct>>(api("/api/catalog/products/"), {
+    params,
+    keepPreviousData: true,
+    debounceMs: 120,
+  });
 }
 
 // --- Blog: types ---
 export type BlogHero = { title: string; slug: string };
-
 export type BlogPost = {
   id: number;
   slug: string;
@@ -292,24 +313,81 @@ export type BlogPost = {
   content: string;
   image?: string | null;
 };
-
-export type BlogPostsPayload = {
-  top: BlogPost[];
-  bottom: BlogPost[];
-};
+export type BlogPostsPayload = { top: BlogPost[]; bottom: BlogPost[] };
 
 // --- Blog: hooks ---
 export function useBlogHero() {
-  return useFetchQuery<BlogHero>(
-    api("/api/blog/hero/"),
-    { keepPreviousData: true }
-  );
+  return useFetchQuery<BlogHero>(api("/api/blog/hero/"), { keepPreviousData: true });
+}
+export function useBlogPosts() {
+  return useFetchQuery<BlogPostsPayload>(api("/api/blog/posts/"), { keepPreviousData: true });
 }
 
-export function useBlogPosts() {
-  return useFetchQuery<BlogPostsPayload>(
-    api("/api/blog/posts/"),
-    { keepPreviousData: true }
+
+/* =========================================================
+   Nouveautés (les 10 derniers produits)
+========================================================= */
+export type LatestProduct = {
+  id: number;
+  slug: string;
+  name: string;
+  brand?: { slug?: string | null; nom?: string | null } | null;
+  image?: string | null;
+  specs?: string;
+  price?: string | null; // Decimal string
+  state?: string | null;
+};
+
+export function useLatestProducts(opts?: {
+  refreshMs?: number;
+  refetchOnWindowFocus?: boolean;
+  refetchOnReconnect?: boolean;
+}) {
+  return useFetchQuery<LatestProduct[]>(api("/api/catalog/products/latest/"), {
+    keepPreviousData: true,
+    refreshMs: opts?.refreshMs ?? 30000, // 30s par défaut
+    refetchOnWindowFocus: opts?.refetchOnWindowFocus ?? true,
+    refetchOnReconnect: opts?.refetchOnReconnect ?? true,
+  });
+}
+// --- Contact: types ---
+export type ContactPayload = {
+  nom: string;
+  email: string;
+  telephone?: string;
+  sujet: string;
+  message: string;
+};
+
+export type ContactMessage = {
+  id: number;
+  nom: string;
+  email: string;
+  telephone?: string;
+  sujet: string;
+  message: string;
+  cree_le: string;
+};
+
+// --- Contact: API helpers ---
+export async function sendContactMessage(payload: ContactPayload) {
+  const res = await fetch(api("/api/contact/messages/"), {
+    method: "POST",
+    headers: { "Accept": "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const raw = await res.json().catch(() => ({}));
+    const msg = raw?.detail || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return parseJsonSafe(res);
+}
+
+export function useContactMessages(limit = 50) {
+  return useFetchQuery<ContactMessage[]>(
+    api("/api/contact/messages/"),
+    { params: { limit }, keepPreviousData: true }
   );
 }
 

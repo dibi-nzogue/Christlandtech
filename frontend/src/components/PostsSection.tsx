@@ -1,6 +1,8 @@
 // src/components/PostsSection.tsx
 import React from "react";
 import { useBlogPosts } from "../hooks/useFetchQuery";
+import { motion } from "framer-motion";
+import type { Variants, Transition } from "framer-motion";
 
 type Post = {
   id: number | string;
@@ -13,9 +15,29 @@ type Post = {
 const FALLBACK_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='16'%3EImage%20indisponible%3C/text%3E%3C/svg%3E";
 
+// Transitions/variants
+const TWEEN_SLOW: Transition = { type: "tween", duration: 0.7, ease: [0.22, 1, 0.36, 1] };
+
+const pageEnter: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  show:   { opacity: 1, y: 0, transition: TWEEN_SLOW },
+};
+
+const cardFadeUpOnView: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },
+};
+
 /* --- Carte TOP : horizontale dès md --- */
 const CardTop: React.FC<{ post: Post }> = ({ post }) => (
-  <div className="flex flex-col md:flex-row gap-4 sm:gap-5 p-3 rounded-xl bg-white transition h-full">
+  <motion.div
+    variants={cardFadeUpOnView}
+    initial="hidden"
+    whileInView="show"
+    viewport={{ once: true, amount: 0.25 }}
+    className="flex flex-col md:flex-row gap-4 sm:gap-5 p-3 rounded-xl bg-white transition h-full"
+  >
+    {/* DIV image = zone de hover-zoom (seulement l'image) */}
     <div
       className="
         relative w-full aspect-[16/9]
@@ -24,12 +46,21 @@ const CardTop: React.FC<{ post: Post }> = ({ post }) => (
         lg:w-[260px] lg:min-w-[260px] lg:h-[160px]
         xl:w-[300px] xl:min-w-[300px] xl:h-[180px]
         overflow-hidden rounded-xl border border-gray-100
+        group
       "
+      // (optionnel) rôle pour accessibilité
+      role="img"
+      aria-label={post.title}
+      title={post.title}
     >
       <img
         src={post.image}
         alt={post.title}
-        className="absolute inset-0 h-full w-full object-cover"
+        className="
+          absolute inset-0 h-full w-full object-cover
+          transform transition-transform duration-500 will-change-transform
+          group-hover:scale-110
+        "
         loading="lazy"
       />
     </div>
@@ -58,27 +89,43 @@ const CardTop: React.FC<{ post: Post }> = ({ post }) => (
         {post.excerpt}
       </p>
     </div>
-  </div>
+  </motion.div>
 );
 
 /* --- Carte BOTTOM : verticale jusqu’à lg, horizontale à partir de lg --- */
 const CardBottom: React.FC<{ post: Post }> = ({ post }) => (
-  <div className="flex flex-col lg:flex-row gap-4 sm:gap-5 p-3 rounded-xl bg-white transition h-full">
+  <motion.div
+    variants={cardFadeUpOnView}
+    initial="hidden"
+    whileInView="show"
+    viewport={{ once: true, amount: 0.25 }}
+    className="flex flex-col lg:flex-row gap-4 sm:gap-5 p-3 rounded-xl bg-white transition h-full"
+  >
+    {/* DIV image = zone de hover-zoom (seulement l'image) */}
     <div
       className="
         relative w-full aspect-[16/9]
         lg:w-[260px] lg:min-w-[260px] lg:h-[160px] lg:aspect-auto
         xl:w-[300px] xl:min-w-[300px] xl:h-[180px]
         overflow-hidden rounded-xl border border-gray-100
+        group
       "
+      role="img"
+      aria-label={post.title}
+      title={post.title}
     >
       <img
         src={post.image}
         alt={post.title}
-        className="absolute inset-0 h-full w-full object-cover"
+        className="
+          absolute inset-0 h-full w-full object-cover
+          transform transition-transform duration-500 will-change-transform
+          group-hover:scale-110
+        "
         loading="lazy"
       />
     </div>
+
     <div className="flex-1 min-w-0">
       <h3
         className="
@@ -101,7 +148,7 @@ const CardBottom: React.FC<{ post: Post }> = ({ post }) => (
         {post.excerpt}
       </p>
     </div>
-  </div>
+  </motion.div>
 );
 
 const PostsSection: React.FC = () => {
@@ -132,7 +179,12 @@ const PostsSection: React.FC = () => {
   }, [data?.bottom]);
 
   return (
-    <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 -mt-14">
+    <motion.section
+      className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 -mt-14"
+      variants={pageEnter}
+      initial="hidden"
+      animate="show"
+    >
       <h2
         className="
           font-semibold tracking-wider text-[#0086c9] uppercase
@@ -157,7 +209,7 @@ const PostsSection: React.FC = () => {
           <CardBottom key={post.id} post={post} />
         ))}
       </div>
-    </section>
+    </motion.section>
   );
 };
 
