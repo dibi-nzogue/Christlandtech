@@ -164,6 +164,27 @@ USE_I18N = True
 USE_TZ = True
 
 
+# # settings.py
+# DEFAULT_FROM_EMAIL = "nzogue.dibiye@gmail.com"
+# CONTACT_RECIPIENTS = ["nzogue.dibiye@gmail.com"]  # liste de destinataires
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# # configure aussi ton SMTP (HOST, PORT, USER, PASSWORD, TLS/SSL) selon ton provider
+
+# Qui reçoit les messages
+CONTACT_INBOX = "nzogue.dibiye@gmail.com"
+
+# SMTP technique (ne change pas selon l’utilisateur)
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = "nzogue.dibiye@gmail.com"              # ton compte émetteur
+EMAIL_HOST_PASSWORD = "VOTRE_APP_PASSWORD_16_CHIFFRES"   # mot de passe d’application Gmail
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER                      # expéditeur “technique”
+EMAIL_TIMEOUT = 20
+
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 

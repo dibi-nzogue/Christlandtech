@@ -49,6 +49,7 @@ const resources = {
       "message.input": "Message",
       "password.input": "Password",
       "confirm.input": "Password confirm",
+      "subject.input": "subject",
       "form.description": "Leave your message",
 
       // Products page / bar
@@ -205,6 +206,7 @@ const resources = {
       "phone.input": "Téléphone",
       "message.input": "Message",
       "password.input": "Mot de passe",
+       "subject.input": "sujet",
       "confirm.input": "Confirmation mot de passe",
       "form.description": "Laissez votre message",
 

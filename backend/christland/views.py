@@ -14,15 +14,16 @@ from django.db.models import QuerySet
 from django.views.decorators.http import require_GET
 from django.http import JsonResponse
 from django.conf import settings
-
+from django.core.mail import EmailMessage
+from django.utils import timezone
 from .models import (
     Categories, Produits, VariantesProduits, ImagesProduits,
     Marques, Couleurs,
-    Attribut, ValeurAttribut, SpecProduit, SpecVariante, ArticlesBlog
+    Attribut, ValeurAttribut, SpecProduit, SpecVariante, ArticlesBlog, MessagesContact
 )
 from .serializers import ProduitCardSerializer
-
-
+from django.core.mail import send_mail
+from rest_framework.permissions import AllowAny
 # -----------------------------
 # Helpers
 # -----------------------------
@@ -371,13 +372,22 @@ class CategoryListView(APIView):
         if str(level) == "1":
             qs = qs.filter(parent__isnull=True)
 
+        def abs_media(path: str | None) -> str | None:
+            if not path:
+                return None
+            p = str(path).strip()
+            if p.lower().startswith(("http://", "https://", "data:")):
+                return p
+            base = request.build_absolute_uri(settings.MEDIA_URL)
+            return f"{base.rstrip('/')}/{p.lstrip('/')}"
+
         data = [
             {
                 "id": c.id,
                 "nom": c.nom,
                 "slug": c.slug,
                 "parent": c.parent_id,
-                "image_url": getattr(c, "image_url", None),
+                "image_url": abs_media(getattr(c, "image_url", None)),  # <= URL absolue
                 "position": getattr(c, "position", None),
             }
             for c in qs.order_by("nom")
@@ -492,3 +502,213 @@ class BlogPostsView(APIView):
             "bottom": [_serialize_article(a, request) for a in bottom_items],
         }
         return Response(data)
+    
+
+
+# --- helpers pour image absolue et specs/prix ---
+
+from typing import Optional
+
+# utils URL
+from urllib.parse import urljoin
+from django.conf import settings
+
+def _abs_media(request, path: str | None) -> str | None:
+    """
+    Transforme un chemin du modèle (souvent relatif) en URL absolue.
+    - Si déjà absolue (http/https/data:), on renvoie tel quel.
+    - Sinon on préfixe avec MEDIA_URL puis on absolutise.
+    Exemples:
+      path = "uploads/p1.jpg"  -> http://host/media/uploads/p1.jpg
+      path = "/media/p1.jpg"   -> http://host/media/p1.jpg
+      path = "http://..."      -> (inchangé)
+    """
+    if not path:
+        return None
+    p = str(path).strip()
+    if p.lower().startswith(("http://", "https://", "data:")):
+        return p
+
+    # S’assure qu’on a bien MEDIA_URL devant
+    media_base = settings.MEDIA_URL or "/media/"
+    # urljoin gère proprement les "/" manquants
+    full_media_path = urljoin(media_base if media_base.endswith("/") else media_base + "/", p.lstrip("/"))
+    return request.build_absolute_uri(full_media_path)
+
+
+def _product_main_image_url(request, prod: Produits) -> str | None:
+    img = (
+        prod.images.filter(principale=True).first()
+        or prod.images.order_by("position", "id").first()
+    )
+    return _abs_media(request, img.url if img else None)
+
+
+def _product_min_price(prod: Produits) -> Optional[Decimal]:
+    prices: list[Decimal] = []
+    for v in prod.variantes.all():
+        if v.prix_promo is not None:
+            prices.append(Decimal(v.prix_promo))
+        elif v.prix is not None:
+            prices.append(Decimal(v.prix))
+    return min(prices) if prices else None
+
+def _product_specs_summary(prod: Produits, max_items: int = 5) -> str:
+    """
+    Construit un résumé texte court à partir des specs produit/variantes.
+    Ex: "i5 10e gen | 16 Go RAM | 256 Go SSD | 13.3'' FHD"
+    Adapte selon tes modèles si besoin.
+    """
+    lines: list[str] = []
+
+    # Specs au niveau produit
+    for sp in getattr(prod, "specs", []).all() if hasattr(prod, "specs") else []:
+        label = getattr(sp.attribut, "libelle", "") or getattr(sp.attribut, "code", "")
+        val = None
+        if getattr(sp, "valeur_text", None):
+            val = sp.valeur_text
+        elif getattr(sp, "valeur_choice", None):
+            val = sp.valeur_choice.valeur
+        elif getattr(sp, "valeur_int", None) is not None:
+            val = str(sp.valeur_int)
+        elif getattr(sp, "valeur_dec", None) is not None:
+            val = str(sp.valeur_dec)
+        if label and val:
+            lines.append(f"{val}")
+
+    # Si rien côté produit, essaie une variante pour enrichir
+    if not lines:
+        var = prod.variantes.first()
+        if var and hasattr(var, "specs"):
+            for sv in var.specs.all():
+                val = None
+                if getattr(sv, "valeur_text", None):
+                    val = sv.valeur_text
+                elif getattr(sv, "valeur_choice", None):
+                    val = sv.valeur_choice.valeur
+                elif getattr(sv, "valeur_int", None) is not None:
+                    val = str(sv.valeur_int)
+                elif getattr(sv, "valeur_dec", None) is not None:
+                    val = str(sv.valeur_dec)
+                if val:
+                    lines.append(f"{val}")
+
+    # Limite et joint
+    if not lines:
+        return ""
+    return " | ".join(lines[:max_items])
+
+class LatestProductsView(APIView):
+    """
+    GET /christland/api/catalog/products/latest/
+    -> Les 10 derniers produits (cree_le desc), avec: id, slug, nom, marque, image, specs, prix, etat
+    """
+    def get(self, request):
+        qs = (
+            Produits.objects
+            .filter(est_actif=True, visible=1)
+            .select_related("marque", "categorie")
+            .prefetch_related("images", "variantes", "specs", "variantes__specs", "specs__attribut", "variantes__specs__attribut")
+            .order_by("-cree_le", "-id")[:10]
+        )
+
+        data = []
+        for p in qs:
+            data.append({
+                "id": p.id,
+                "slug": p.slug,
+                "name": p.nom,
+                "brand": {"slug": getattr(p.marque, "slug", None), "nom": getattr(p.marque, "nom", None)} if p.marque_id else None,
+                "image": _product_main_image_url(request, p),
+                "specs": _product_specs_summary(p, max_items=5),
+                "price": str(_product_min_price(p)) if _product_min_price(p) is not None else None,
+                "state": p.etat or None,
+                # optionnels:
+                # "created_at": p.cree_le,
+                # "category": {"slug": p.categorie.slug, "nom": p.categorie.nom} if p.categorie_id else None,
+            })
+
+        return Response(data)
+
+
+from .models import MessagesContact
+
+def _serialize_contact(m: MessagesContact) -> dict:
+    return {
+        "id": m.id,
+        "nom": m.nom or "",
+        "email": m.email or "",
+        "telephone": m.telephone or "",
+        "sujet": m.sujet or "",
+        "message": m.message or "",
+        "cree_le": m.cree_le,
+    }
+
+class ContactMessageView(APIView):
+    """
+    POST /christland/api/contact/messages/
+      body: {nom?, email?, telephone?, sujet, message}
+      -> enregistre + envoie un email (FROM = DEFAULT_FROM_EMAIL, REPLY-TO = email utilisateur si fourni)
+
+    GET  /christland/api/contact/messages/?limit=50
+      -> derniers messages
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        nom = (request.data.get("nom") or "").strip()
+        email = (request.data.get("email") or "").strip()         # optionnel
+        telephone = (request.data.get("telephone") or "").strip() # optionnel
+        sujet = (request.data.get("sujet") or "").strip()
+        message = (request.data.get("message") or "").strip()
+
+        if not sujet or not message:
+            return Response(
+                {"detail": "sujet et message sont requis."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 1) Enregistrer en BD
+        mc = MessagesContact.objects.create(
+            nom=nom,
+            email=email,
+            telephone=telephone,
+            sujet=sujet,
+            message=message,
+            cree_le=timezone.now(),
+        )
+
+        # 2) Envoyer l’e-mail
+        to_addr = getattr(settings, "CONTACT_INBOX", None)
+        from_addr = getattr(settings, "DEFAULT_FROM_EMAIL", None)
+
+        if to_addr and from_addr:
+            # On utilise EmailMessage pour injecter Reply-To proprement
+            body = (
+                f"Nom: {nom or '-'}\n"
+                f"Email: {email or '-'}\n"
+                f"Téléphone: {telephone or '-'}\n\n"
+                f"Message:\n{message}"
+            )
+            mail = EmailMessage(
+                subject=f"[Contact] {sujet}",
+                body=body,
+                from_email=from_addr,
+                to=[to_addr],
+                headers={"Reply-To": email} if email else None,
+            )
+            # On n’échoue pas la requête si l’envoi mail tombe (logguez si besoin)
+            try:
+                mail.send(fail_silently=True)
+            except Exception:
+                pass
+
+        return Response({"ok": True, "message": "Message enregistré et envoyé."}, status=201)
+
+    def get(self, request):
+        try:
+            limit = int(request.query_params.get("limit") or "50")
+        except ValueError:
+            limit = 50
+        qs = MessagesContact.objects.all().order_by("-cree_le", "-id")[: max(1, limit)]
+        return Response([_serialize_contact(m) for m in qs])
