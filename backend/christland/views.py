@@ -626,6 +626,12 @@ class LatestProductsView(APIView):
                 # optionnels:
                 # "created_at": p.cree_le,
                 # "category": {"slug": p.categorie.slug, "nom": p.categorie.nom} if p.categorie_id else None,
+                "category": {
+                "id": p.categorie.id if p.categorie_id else None,
+                "slug": p.categorie.slug if p.categorie_id else None,
+                "nom": p.categorie.nom if p.categorie_id else None,
+            } if p.categorie_id else None,
+
             })
 
         return Response(data)

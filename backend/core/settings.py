@@ -171,14 +171,14 @@ USE_TZ = True
 # # configure aussi ton SMTP (HOST, PORT, USER, PASSWORD, TLS/SSL) selon ton provider
 
 # Qui reçoit les messages
-CONTACT_INBOX = "nzogue.dibiye@gmail.com"
+CONTACT_INBOX = "rachelnzogue9@gmail.com"
 
 # SMTP technique (ne change pas selon l’utilisateur)
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "nzogue.dibiye@gmail.com"              # ton compte émetteur
+EMAIL_HOST_USER = "rachelnzogue9@gmail.com"              # ton compte émetteur
 EMAIL_HOST_PASSWORD = "VOTRE_APP_PASSWORD_16_CHIFFRES"   # mot de passe d’application Gmail
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER                      # expéditeur “technique”
 EMAIL_TIMEOUT = 20

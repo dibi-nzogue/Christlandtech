@@ -334,7 +334,11 @@ export type LatestProduct = {
   specs?: string;
   price?: string | null; // Decimal string
   state?: string | null;
+  // 👇 ajout pour corriger ton erreur
+  category?: { id?: number; nom?: string; slug?: string } | null;
+  categorie?: { id?: number; nom?: string; slug?: string } | null;
 };
+
 
 export function useLatestProducts(opts?: {
   refreshMs?: number;
