@@ -7,12 +7,12 @@ import RightPanel from '../components/RightPanel'
 
 const Dashboard: React.FC = () => {
   return (
-    <div className='mx-auto w-full px-6 sm:px-10 lg:px-20 pt-10 bg-[#F4F5F8] h-full md:h-[100vh] overflow-hidden'>
+    <div className='mx-auto w-full px-6 sm:px-10 lg:px-20 py-10 bg-[#F4F5F8] h-full md:h-[100vh] overflow-hidden'>
         <div className='flex justify-between md:gap-10'>
-            <div>
+            <div className='md:fixed'>
                 <Sidebar />
             </div>
-            <div className='w-full'>
+            <div className='w-full md:pl-32'>
                 <Header />
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-4 mt-4">
                     <StatCard icon="users" label="Total Utilisateurs" value="350K" />

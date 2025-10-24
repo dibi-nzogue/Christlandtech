@@ -2,7 +2,7 @@ from collections import defaultdict
 from decimal import Decimal
 from typing import Iterable
 from django.db.models import Count
-from rest_framework import status
+from rest_framework import status, generics
 from django.db.models import Q, Min, Max
 from django.db.models.functions import Coalesce  # ✅ pour annoter min/max prix
 from django.shortcuts import get_object_or_404
@@ -21,9 +21,15 @@ from .models import (
     Marques, Couleurs,
     Attribut, ValeurAttribut, SpecProduit, SpecVariante, ArticlesBlog, MessagesContact
 )
+<<<<<<< HEAD
+from .serializers import ProduitCardSerializer, ProduitsSerializer
+
+
+=======
 from .serializers import ProduitCardSerializer
 from django.core.mail import send_mail
 from rest_framework.permissions import AllowAny
+>>>>>>> 6012b0c940eaf006d6f21f57060dada9e7c6a5f3
 # -----------------------------
 # Helpers
 # -----------------------------
@@ -360,6 +366,7 @@ class CategoryFilters(APIView):
             "attributes": attrs_list,
         }
         return Response(payload)
+        
 class CategoryListView(APIView):
     """
     GET /christland/api/catalog/categories/?level=1
@@ -502,6 +509,25 @@ class BlogPostsView(APIView):
             "bottom": [_serialize_article(a, request) for a in bottom_items],
         }
         return Response(data)
+<<<<<<< HEAD
+
+# -----------------------------
+# ESPACE ADMINISTRATEUR
+# -----------------------------
+
+class ProduitsListCreateView(generics.ListCreateAPIView):
+    queryset = Produits.objects.all().order_by('-cree_le')
+    serializer_class = ProduitsSerializer
+    pagination_class = SmallPagination
+
+    def get_queryset(self):
+        return Produits.objects.filter(est_actif=True).order_by('-cree_le').distinct()
+
+
+class ProduitsDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Produits.objects.all()
+    serializer_class = ProduitsSerializer
+=======
     
 
 
@@ -718,3 +744,4 @@ class ContactMessageView(APIView):
             limit = 50
         qs = MessagesContact.objects.all().order_by("-cree_le", "-id")[: max(1, limit)]
         return Response([_serialize_contact(m) for m in qs])
+>>>>>>> 6012b0c940eaf006d6f21f57060dada9e7c6a5f3

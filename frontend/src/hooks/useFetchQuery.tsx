@@ -43,6 +43,7 @@ export type FiltersPayload = {
 export type ApiProduct = {
   id: number;
   nom: string;
+  quantite: number;
   slug: string;
   description_courte?: string;
   prix_reference_avant?: number | null;
@@ -322,6 +323,7 @@ export function useBlogPosts() {
   return useFetchQuery<BlogPostsPayload>(api("/api/blog/posts/"), { keepPreviousData: true });
 }
 
+
 /* =========================================================
    Nouveautés (les 10 derniers produits)
 ========================================================= */
@@ -393,3 +395,73 @@ export function useContactMessages(limit = 50) {
   );
 }
 
+
+
+
+
+
+
+
+
+
+/* =========================================================
+   🧭 ADMIN / DASHBOARD 
+========================================================= */
+
+export async function getDashboardProducts(params: Record<string, unknown> = {}) {
+  const url = api("/api/dashboard/produits/") + toQueryString(params);
+  const res = await fetch(url, withJsonAccept());
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await parseJsonSafe(res)) as ApiPage<ApiProduct>;
+}
+
+export async function getDashboardProduct(id: number) {
+  const url = api(`/api/dashboard/produits/${id}/`);
+  const res = await fetch(url, withJsonAccept());
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await parseJsonSafe(res)) as ApiProduct;
+}
+
+export async function createDashboardProduct(payload: Partial<ApiProduct>) {
+  const url = api("/api/dashboard/produits/");
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await parseJsonSafe(res)) as ApiProduct;
+}
+
+export async function updateDashboardProduct(id: number, payload: Partial<ApiProduct>) {
+  const url = api(`/api/dashboard/produits/${id}/`);
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await parseJsonSafe(res)) as ApiProduct;
+}
+
+export async function deleteDashboardProduct(id: number) {
+  const url = api(`/api/dashboard/produits/${id}/`);
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return true;
+}
+
+export function useDashboardProducts(params: Record<string, unknown> = {}) {
+  return useFetchQuery<ApiPage<ApiProduct>>(api("/api/dashboard/produits/"), {
+    params,
+    keepPreviousData: true,
+    debounceMs: 100,
+  });
+}
+
+export function useDashboardProduct(id?: number) {
+  return useFetchQuery<ApiProduct>(
+    id ? api(`/api/dashboard/produits/${id}/`) : "",
+    { enabled: !!id }
+  );
+}

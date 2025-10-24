@@ -101,3 +101,8 @@ class ProduitCardSerializer(serializers.ModelSerializer):
         for v in obj.variantes.all():
             prices.append(v.prix_promo or v.prix)
         return min(prices) if prices else None
+
+class ProduitsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Produits
+        fields = '__all__'
