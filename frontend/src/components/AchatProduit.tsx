@@ -258,27 +258,40 @@ Image du produit : ${mini.image ? mini.image : "Non disponible"}`
                 gap-6 md:gap-8 items-start"
               >
                 {/* GAUCHE : image + infos */}
-                <div className="flex flex-col">
-                  <div className="relative w-full overflow-hidden rounded-xl border border-sky-100 bg-white">
-                    <div className="pt-[100%] sm:pt-[75%] lg:pt-[56.25%]" />
-                    <img
-                      src={imgSrc}
-                      alt={mini.nom}
-                      className="absolute inset-0 h-full w-full object-contain p-2 md:p-3"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
-                      }}
-                    />
-                  </div>
+<div className="flex flex-col">
+  <div className="relative w-full overflow-hidden rounded-xl bg-transparent">
+    {/* ratio d’affichage */}
+    <div className="pt-[100%] sm:pt-[75%] lg:pt-[56.25%]" />
 
-                  <div className="mt-3 leading-tight pt-4">
-                    <h3 className="text-[18px] md:text-[20px] font-semibold text-gray-900">{mini.nom}</h3>
-                    <p className="text-[12px] md:text-[13px] text-gray-500 pt-3">
-                      {t("com.ref")}
-                      {mini.ref}
-                    </p>
-                  </div>
-                </div>
+    {/* arrière-plan flou qui remplit toute la zone */}
+    <img
+      src={imgSrc}
+      alt=""
+      aria-hidden="true"
+      className="absolute inset-0 h-full w-full object-cover scale-110 blur-md opacity-40"
+      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+    />
+
+    {/* image nette par-dessus, non rognée */}
+    <img
+      src={imgSrc}
+      alt={mini.nom}
+      className="absolute inset-0 h-full w-full object-contain p-2 md:p-3 drop-shadow-sm"
+      onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG; }}
+    />
+
+    {/* optionnel : léger cadre interne très discret */}
+    <div className="pointer-events-none absolute inset-0 ring-1 ring-black/5 rounded-xl" />
+  </div>
+
+  <div className="mt-3 leading-tight pt-4">
+    <h3 className="text-[18px] md:text-[20px] font-semibold text-gray-900">{mini.nom}</h3>
+    <p className="text-[12px] md:text-[13px] text-gray-500 pt-3">
+      {t("com.ref")}{mini.ref}
+    </p>
+  </div>
+</div>
+
 
                 {/* DROITE : titre + bouton + FORM */}
                 <div className="relative flex flex-col gap-3 md:gap-4 sm:pl-4 md:pl-6">

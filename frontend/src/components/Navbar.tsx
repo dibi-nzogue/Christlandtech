@@ -1,6 +1,5 @@
-// src/components/Navbar.tsx
 import { useEffect, useState } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { FiMenu } from "react-icons/fi";
 import { MdClose } from "react-icons/md";
 import { FaSearch, FaGlobe, FaChevronDown } from "react-icons/fa";
@@ -22,6 +21,32 @@ const Navbar = () => {
   const [langOpen, setLangOpen] = useState(false);
   const { pathname } = useLocation();
   const { t, i18n } = useTranslation();
+
+  const navigate = useNavigate();
+  const [urlSearchParams] = useSearchParams();
+
+  // champ de recherche (desktop + mobile)
+  const [q, setQ] = useState("");
+
+  // si on est sur /produits, synchroniser l’input avec ?q présent dans l’URL
+  useEffect(() => {
+    if (pathname.startsWith("/produits")) {
+      setQ((urlSearchParams.get("q") || "").trim());
+    } else {
+      setQ(""); // hors de /produits on ne garde pas le terme
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, urlSearchParams]);
+
+  const submitSearch = () => {
+    const term = q.trim();
+    if (!term) {
+      // si vide: on nettoie l’URL de la recherche et reste/va sur /produits
+      navigate("/produits", { replace: false });
+      return;
+    }
+    navigate(`/produits?q=${encodeURIComponent(term)}&page=1`);
+  };
 
   const isActive = (to: string) =>
     pathname === to || (to !== "/" && pathname.startsWith(to));
@@ -64,26 +89,49 @@ const Navbar = () => {
             {/* Recherche (≥ md) */}
             <div className="hidden md:block justify-self-start">
               <div className="relative w-[min(360px,46vw)] lg:w-[400px] xl:w-[520px]">
-                <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <FaSearch
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+                />
                 <input
                   type="search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      submitSearch();
+                    }
+                  }}
                   placeholder={t("Rechercher")}
                   className="w-full rounded-full bg-white py-2.5 pl-11 pr-4 text-sm md:text-[15px] text-gray-900 placeholder-gray-500 shadow-[0_10px_28px_rgba(0,0,0,0.10)] focus:outline-none"
                 />
+                {/* bouton clair visible si q non vide */}
+                {q && (
+                  <button
+                    type="button"
+                    aria-label="Effacer la recherche"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm"
+                    onClick={() => {
+                      setQ("");
+                      navigate("/produits");
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             </div>
 
             {/* Actions droites (desktop) */}
             <div className="hidden md:flex items-center justify-end gap-3 sm:gap-4">
-
-              <div className="relative text-sm md:text-[15px] cursor-pointer" onClick={() => {
-                const contactSection = document.getElementById("contact");
-                contactSection?.scrollIntoView({ behavior: "smooth" });
+              <div
+                className="relative text-sm md:text-[15px] cursor-pointer"
+                onClick={() => {
+                  const contactSection = document.getElementById("contact");
+                  contactSection?.scrollIntoView({ behavior: "smooth" });
                 }}
               >
                 <span>{t("Contact")}</span>
-
-
                 <span className="absolute left-0 -bottom-2 block h-[4px] w-full bg-[#00A9DC]" />
               </div>
 
@@ -233,10 +281,42 @@ const Navbar = () => {
                   <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="search"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        submitSearch();
+                        setOpen(false);
+                      }
+                    }}
                     placeholder={t("Rechercher")}
                     className="w-full rounded-full bg-white py-2.5 pl-11 pr-4 text-sm text-gray-900 placeholder-gray-500"
                     autoFocus
                   />
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    className="flex-1 rounded-md bg-white text-neutral-900 px-3 py-2 text-sm"
+                    onClick={() => {
+                      submitSearch();
+                      setOpen(false);
+                    }}
+                  >
+                    Rechercher
+                  </button>
+                  {q && (
+                    <button
+                      className="rounded-md px-3 py-2 text-sm bg-white/10 text-white"
+                      onClick={() => {
+                        setQ("");
+                        navigate("/produits");
+                        setOpen(false);
+                      }}
+                    >
+                      Effacer
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -259,17 +339,15 @@ const Navbar = () => {
             </ul>
 
             {/* Contact + langue */}
-            <div className="px-4 py-3 border-t border-white/10 mt-1 flex items-center justify-between" onClick={() => {
-                  const contactSection = document.getElementById("contact");
-                  contactSection?.scrollIntoView({ behavior: "smooth" });
-                  }}
+            <div
+              className="px-4 py-3 border-t border-white/10 mt-1 flex items-center justify-between"
+              onClick={() => {
+                const contactSection = document.getElementById("contact");
+                contactSection?.scrollIntoView({ behavior: "smooth" });
+              }}
             >
-
               <div onClick={() => setOpen(false)} className="relative text-[15px]">
-                <span 
-                >{t("Contact")}</span>
-
-
+                <span>{t("Contact")}</span>
                 <span className="absolute left-0 -bottom-1 block h-[2px] w-full bg-[#00A9DC] rounded-full" />
               </div>
 

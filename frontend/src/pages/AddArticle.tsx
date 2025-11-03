@@ -2,8 +2,8 @@ import React from 'react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import Banner from '../components/Banner'
-import ProductForm from '../components/ProductForm'
-import RightPanel1 from '../components/RightPanel1'
+import ArticleForm from '../components/ArticleForm'
+import RightPanel2 from '../components/RightPanel2'
 
 const AddArticle: React.FC = () => {
   return (
@@ -16,8 +16,8 @@ const AddArticle: React.FC = () => {
                 <Header />
                 <Banner label='Ajouter un article'/>
                 <div className='flex flex-col md:flex-row justify-between gap-10 pt-8'>
-                    <ProductForm />
-                    <RightPanel1 />
+                    <ArticleForm />
+                    <RightPanel2 />
                 </div>
             </div>
         </div>

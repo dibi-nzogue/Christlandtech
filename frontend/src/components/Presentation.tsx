@@ -7,12 +7,13 @@ import { useTranslation } from "react-i18next";
 // + ajoute le type
 import { motion } from "framer-motion";
 import type { Variants, Transition } from "framer-motion";
-
+import { useSearchParams } from "react-router-dom";
 import {
   useTopCategories,
   useFilters,
   useProducts,
   type ApiProduct,
+  recordProductClick,
 } from "../hooks/useFetchQuery";
 
 import type { ProduitMini } from "../pages/Produits";
@@ -163,29 +164,38 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, code, options, selecte
 
 const fmt = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
 
+
+
+
 const ProductCard: React.FC<{
   name: string;
   price?: number | null;
   oldPrice?: number | null;
   img?: string;
   desc?: string;
+  promoNow?: boolean;
+  promoFin?: string | null;
   onOrder?: () => void;
-}> = ({ name, price, oldPrice, img, desc, onOrder }) => (
+}> = ({ name, price, oldPrice, img, desc, promoNow, promoFin, onOrder }) => (
+
   <article className="group rounded-2xl border border-gray-200 bg-white p-4 shadow transition-shadow hover:shadow-lg">
     <div className="relative w-full bg-white border border-gray-100 rounded-xl">
-      <div className="pt-[100%] md:pt-[75%]" />
-      <img
-        src={img}
-        alt={name}
-        loading="lazy"
-        width={800}
-        height={600}
-        className="absolute inset-0 h-full w-full object-contain p-3 transform-gpu transition-transform duration-300 ease-out group-hover:scale-[1.02]"
-        onError={(e) => {
-          (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
-        }}
-      />
-    </div>
+     {promoNow && (
+  <span
+    className="absolute top-2 left-2 z-20 bg-red-600 text-white text-[11px] font-semibold px-2 py-1 rounded-md shadow-lg ring-1 ring-red-500/30  pointer-events-none select-none">
+    PROMO
+  </span>
+)}
+<div className="pt-[100%] md:pt-[75%]" />
+  <img
+  src={img}
+  alt={name}
+  loading="lazy"
+  width={800}
+  height={600}
+   className="absolute inset-0 h-full w-full object-cover rounded-xl transition-transform duration-300 ease-out group-hover:scale-[1.02]"
+  onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG; }}/>
+</div>
 
     <h3 className="mt-3 text-[15px] sm:text-base font-semibold text-gray-900">{name}</h3>
     {desc ? <p className="mt-1 line-clamp-2 text-sm text-gray-500">{desc}</p> : null}
@@ -202,6 +212,12 @@ const ProductCard: React.FC<{
         </span>
       )}
     </div>
+    {promoNow && promoFin && (
+  <p className="mt-1 text-xs text-gray-500">
+    🔔 Offre valable jusqu’au{" "}
+    {new Date(promoFin).toLocaleDateString("fr-FR")}
+  </p>
+)}
 
     <div className="mt-3 flex items-center">
       <button
@@ -221,6 +237,8 @@ type PresentationProps = {
 /* ==================== Page ==================== */
 const Presentation: React.FC<PresentationProps> = ({ onOrder }) => {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const q = (searchParams.get("q") || "").trim();
 
   /** Carrousel catégories — md+ */
   const trackRef = React.useRef<HTMLDivElement>(null);
@@ -287,6 +305,10 @@ const Presentation: React.FC<PresentationProps> = ({ onOrder }) => {
   /** Pagination */
   const PAGE_SIZE = 24;
   const [page, setPage] = React.useState(1);
+  React.useEffect(() => {
+    setPage(1);
+  }, [q]);
+
   React.useEffect(() => {
     setPage(1);
   }, [categorySlug, subSlug, selected]);
@@ -376,6 +398,7 @@ const Presentation: React.FC<PresentationProps> = ({ onOrder }) => {
       page,
       page_size: PAGE_SIZE,
     };
+    if (q) qp.q = q; 
     Object.entries(selected).forEach(([k, v]) => {
       if (v) qp[k] = v;
     });
@@ -419,11 +442,35 @@ const Presentation: React.FC<PresentationProps> = ({ onOrder }) => {
   // Afficher les flèches aussi pendant le chargement initial
 const showArrows = scrollable || catsLoading || cats.length > 0;
 
+const orderAndTrack = async (prod: ApiProduct, img: string) => {
+  try {
+    await recordProductClick(prod.id); // 🔐 POST /api/catalog/products/:id/click/
+  } catch {
+    // on ignore les erreurs pour ne pas bloquer l'UX
+  }
+  onOrder({
+    id: prod.id,
+    slug: prod.slug,
+    nom: prod.nom,
+    ref: prod.slug?.toUpperCase() ?? "",
+    image: img,
+  });
+};
+
 
   return (
     <>
    {/* ===== ENTÊTE ===== */}
 <motion.div className="w-full bg-gray-100" variants={headerEnter} initial="hidden" animate="show">
+  {/* Optionnel: bandeau “Résultats pour” quand q est présent */}
+      {q && (
+        <div className="container mx-auto px-5 mt-4">
+          <div className="rounded-lg border border-[#00A8E8]/40 bg-[#00A8E8]/5 px-3 py-2 text-sm text-gray-700">
+            Résultats pour <span className="font-semibold">“{q}”</span>
+          </div>
+        </div>
+      )}
+
   <div className="container mx-auto px-5">
     <div className="flex items-center justify-between h-40 md:h-40 lg:h-48 ">
       <div className="min-w-0 mt-6">
@@ -639,23 +686,23 @@ const showArrows = scrollable || catsLoading || cats.length > 0;
                 {products.map((p) => {
                   const img = firstImageUrl(p) || FALLBACK_IMG;
                   return (
-                    <ProductCard
-                      key={p.id}
-                      name={p.nom}
-                      price={p.prix_reference_avant ?? null}
-                      oldPrice={null}
-                      img={img}
-                      desc={p.description_courte}
-                      onOrder={() =>
-                        onOrder({
-                          id: p.id,
-                          slug: p.slug,
-                          nom: p.nom,
-                          ref: p.slug?.toUpperCase() ?? "",
-                          image: img,
-                        })
-                      }
-                    />
+                  <ProductCard
+                    key={p.id}
+                    name={p.nom}
+                    // prix courant envoyé par l’API (peut être string -> Number)
+                    price={p?.prix_from != null ? Number(p.prix_from as any) : null}
+                    // ancien prix barré : UNIQUEMENT si la promo est active MAINTENANT
+                    oldPrice={
+                     p?.promo_now && p?.old_price_from != null
+                      ? Number(p.old_price_from as any)
+                      : null
+                    }
+                    img={img}
+                    desc={p.description_courte}
+                    promoNow={p.promo_now}             // ✅ nouveau
+                    promoFin={p.promo_fin ?? null} 
+                    onOrder={() => orderAndTrack(p, img)}
+                  />
                   );
                 })}
               </div>

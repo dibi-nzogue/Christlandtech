@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 
+
 /* Conteneur des dots */
 .custom-dots {
   display: flex !important;

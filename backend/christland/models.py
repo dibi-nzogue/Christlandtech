@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.utils import timezone
 
 # ===== Référentiels ===========================================================
 
@@ -108,12 +108,12 @@ class Produits(models.Model):
     description_courte = models.CharField(max_length=255, blank=True)
     description_long = models.CharField(max_length=255, blank=True)
     garantie_mois = models.IntegerField(null=True, blank=True)
+    commande_count = models.PositiveIntegerField(default=0, db_index=True)
     quantite = models.IntegerField(null=True, blank=True)
     poids_grammes = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     est_actif = models.BooleanField(default=False)
     visible = models.IntegerField(null=True, blank=True)
-    prix_reference_avant = models.IntegerField(null=True, blank=True)
-    cree_le = models.DateTimeField(null=True, blank=True)
+    cree_le = models.DateTimeField(null=True,auto_now_add=True)
     dimensions = models.CharField(max_length=255, blank=True)
     ETATS = [("neuf", "Neuf"), ("occasion", "Occasion"), ("reconditionné", "Reconditionné")]
     etat = models.CharField(max_length=20, choices=ETATS, blank=True)
@@ -134,20 +134,54 @@ class VariantesProduits(models.Model):
     sku = models.CharField(max_length=255, blank=True)
     code_barres = models.CharField(max_length=255, blank=True)
     nom = models.CharField(max_length=255, blank=True)
-    prix = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True) 
+    prix = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     prix_promo = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    promo_active = models.BooleanField(default=False)
+    promo_debut = models.DateTimeField(null=True, blank=True)
+    promo_fin = models.DateTimeField(null=True, blank=True)
     stock = models.IntegerField(null=True, blank=True)
     couleur = models.ForeignKey(Couleurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='variantes')
     poids_grammes = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
-    cree_le = models.DateTimeField(null=True, blank=True)
+    cree_le = models.DateTimeField(null=True,auto_now_add=True)  # ou auto_now_add=True si tu veux l’auto
     prix_achat = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     est_actif = models.BooleanField(default=False)
+
     class Meta:
         db_table = 'variantes_produits'
+        # (Optionnel) Contrainte: si promo active et les deux prix sont renseignés,
+        # alors prix_promo < prix
+        constraints = [
+            models.CheckConstraint(
+                check=~models.Q(promo_active=True, prix_promo__isnull=False, prix__isnull=False) |
+                      models.Q(prix_promo__lt=models.F("prix")),
+                name="promo_inferieure_au_prix_normal_si_active",
+            ),
+        ]
 
     def __str__(self):
         base = self.nom or self.sku
         return base or f'Variante#{self.id}'
+
+    def prix_actuel(self):
+        """
+        Prix à afficher/facturer:
+        - prix_promo si promo_active et dans la fenêtre de dates (si définie)
+        - sinon prix normal
+        """
+        from django.utils import timezone
+        now = timezone.now()
+        if self.promo_active and self.prix_promo is not None:
+            if (self.promo_debut is None or self.promo_debut <= now) and (self.promo_fin is None or now <= self.promo_fin):
+                return self.prix_promo
+        return self.prix
+
+    def save(self, *args, **kwargs):
+        from django.utils import timezone
+        # Active la date de début automatiquement si promo cochée et pas encore de début
+        if self.promo_active and self.prix_promo is not None and self.promo_debut is None:
+            self.promo_debut = timezone.now()
+        super().save(*args, **kwargs)
+
 
 
 class ImagesProduits(models.Model):
@@ -479,7 +513,7 @@ class ArticlesBlog(models.Model):
     extrait = models.CharField(max_length=1000, blank=True, null=True)
     contenu = models.CharField(max_length=1000, blank=True, null=True)
     image_couverture =  models.CharField(max_length=255, blank=True, null=True)
-    publie_le = models.DateTimeField(null=True, blank=True)
+    publie_le = models.DateTimeField(null=True, blank=True, default=timezone.now)
     cree_le = models.DateTimeField(null=True, blank=True)
     modifie_le = models.DateTimeField(null=True, blank=True)
     categorie = models.ForeignKey(Categories, on_delete=models.SET_NULL, null=True, blank=True, related_name='articles')

@@ -10,7 +10,8 @@ import Connexion from "./pages/Connexion";
 import Dashboard from "./pages/Dashboard";
 import AddProduct from "./pages/AddProduct";
 import AddArticle from "./pages/AddArticle";
-import Update from "./pages/Update";
+import UpdateProduct from "./pages/UpdateProduct";
+import UpdateArticle from "./pages/UpdateArticle";
 // import Assistance from "./pages/Assistance";
 // import Contact from "./pages/Contact";
 
@@ -28,7 +29,8 @@ const App: React.FC = () => {
         <Route path="/Dashboard" element={<Dashboard />} />
         <Route path="/Dashboard/Ajouter_produit" element={<AddProduct />} />
         <Route path="/Dashboard/Ajouter_article" element={<AddArticle />} />
-        <Route path="/Dashboard/Modifier" element={<Update />} />
+        <Route path="/Dashboard/Modifier/:id" element={<UpdateProduct />} />
+        <Route path="/Dashboard/Articles/:id/edit" element={<UpdateArticle />} />
         {/* <Route path="/assistance" element={<Assistance />} />
         <Route path="/contact" element={<Contact />} /> */}
       </Routes>
