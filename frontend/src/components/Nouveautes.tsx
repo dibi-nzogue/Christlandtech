@@ -1,5 +1,5 @@
 // src/components/Nouveautes.tsx
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Slider from "react-slick";
 import { ArrowRight } from "lucide-react";
@@ -10,7 +10,8 @@ import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { useLatestProducts } from "../hooks/useFetchQuery";
 
-/* 🧰 Image de secours si manquante */
+/* Image de secours */
+const ALL_KEY = "__ALL__";
 const FALLBACK_SVG =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(`
@@ -28,86 +29,112 @@ const FALLBACK_SVG =
   </g>
 </svg>`);
 
-/* Flèches du carrousel */
+/* Flèches (affichées quand on a ≥2 cartes visibles) */
 const NextArrow = (props: any) => {
   const { onClick } = props;
   return (
     <div
-      className="absolute top-1/2 -right-5 -translate-y-1/2 z-10 bg-white shadow-md rounded-full p-3 md:p-5 cursor-pointer hover:bg-gray-100 transition"
       onClick={onClick}
       aria-label="Next"
+      className="flex absolute top-1/2 -translate-y-1/2 right-2 sm:-right-4
+                 z-10 bg-white shadow-md rounded-full p-2 sm:p-3 md:p-5
+                 cursor-pointer hover:bg-gray-100 transition"
+    >
+      <ArrowRight size={18} className="text-gray-700" />
+    </div>
+  );
+};
+const PrevArrow = (props: any) => {
+  const { onClick } = props;
+  return (
+    <div
+      onClick={onClick}
+      aria-label="Previous"
+      className="flex absolute top-1/2 -translate-y-1/2 left-2 sm:-left-4
+                 z-10 bg-white shadow-md rounded-full p-2 sm:p-3 md:p-5
+                 cursor-pointer hover:bg-gray-100 transition rotate-180"
     >
       <ArrowRight size={18} className="text-gray-700" />
     </div>
   );
 };
 
-const PrevArrow = (props: any) => {
-  const { onClick } = props;
-  return (
-    <div
-      className="absolute top-1/2 -left-5 -translate-y-1/2 z-10 bg-white shadow-md rounded-full p-3 md:p-5 cursor-pointer hover:bg-gray-100 transition rotate-180"
-      onClick={onClick}
-      aria-label="Previous"
-    >
-      <ArrowRight size={18} className="text-gray-700" />
-    </div>
-  );
-};
+/** Hook: 1 / 2 / 3 colonnes selon la largeur */
+function useVisibleSlides() {
+  const compute = () => {
+    const w = typeof window !== "undefined" ? window.innerWidth : 0;
+    if (w >= 1024) return 3; // desktop
+    if (w >= 640) return 2;  // tablettes
+    return 1;                // mobile
+  };
+  const [n, setN] = useState<number>(compute);
+
+  useEffect(() => {
+    const onResize = () => setN(compute());
+    window.addEventListener("resize", onResize);
+    const id = setTimeout(onResize, 0); // kick initial
+    return () => {
+      clearTimeout(id);
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
+
+  return n;
+}
 
 export default function Nouveautes() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  /* ⚡ Récupération des 10 derniers produits */
   const { data: latest, loading, error } = useLatestProducts();
 
-  /* 🧭 Onglet actif */
-  const [activeTab, setActiveTab] = useState<string>("Tous");
-
-  /* 📌 Catégories uniques extraites des 10 produits */
+  /* Onglets */
+  const [activeTab, setActiveTab] = useState<string>(ALL_KEY);
   const tabs = useMemo(() => {
-    if (!latest?.length) return ["Tous"];
-    const uniqueCats = Array.from(
-      new Set(
-        latest
-          .map((p) =>p.category?.nom)
-          .filter((c): c is string => !!c)
-      )
+    if (!latest?.length) return [ALL_KEY];
+    const unique = Array.from(
+      new Set(latest.map((p) => p.category?.nom).filter((c): c is string => !!c))
     );
-    return ["Tous", ...uniqueCats];
+    return [ALL_KEY, ...unique];
   }, [latest]);
 
-  /* 🧮 Filtrer les produits selon l’onglet actif */
+  /* Filtrage */
   const filtered = useMemo(() => {
     if (!latest) return [];
-    if (activeTab === "Tous") return latest;
-    return latest.filter(
-      (p) =>
-        p.category?.nom === activeTab || p.categorie?.nom === activeTab
-    );
+    if (activeTab === ALL_KEY) return latest;
+    return latest.filter((p) => p.category?.nom === activeTab || p.categorie?.nom === activeTab);
   }, [latest, activeTab]);
 
-  /* ⚙️ Paramètres Slick */
-  const settings = useMemo(
-    () => ({
-      dots: false,
-      infinite: (filtered?.length ?? 0) > 3,
-      speed: 500,
-      slidesToShow: 3,
-      slidesToScroll: 1,
-      centerMode: true,
-      centerPadding: "60px",
-      nextArrow: <NextArrow />,
-      prevArrow: <PrevArrow />,
-      responsive: [
-        { breakpoint: 1024, settings: { slidesToShow: 2, centerPadding: "50px" } },
-        { breakpoint: 640, settings: { slidesToShow: 1, centerPadding: "40px" } },
-      ],
-      swipeToSlide: true,
-    }),
-    [filtered?.length]
-  );
+  /* Pilotage robuste des colonnes */
+  const visibleSlides = useVisibleSlides();
+  const slidesToShow = Math.min(visibleSlides, Math.max(1, filtered?.length || 1));
+  const showArrows = visibleSlides >= 2 && (filtered?.length || 0) > 1;
+  const autoPlayMobile = visibleSlides === 1 && (filtered?.length || 0) > 1;
+
+  // re-init slick si nb de colonnes change
+  const sliderKey = `nv-${visibleSlides}-${filtered?.length || 0}`;
+
+  const settings = {
+    dots: false,
+    infinite: (filtered?.length ?? 0) > slidesToShow,
+    speed: 600,
+    swipeToSlide: true,
+    variableWidth: false,
+    centerMode: false,
+    centerPadding: "0px",
+
+    slidesToShow,
+    slidesToScroll: 1,
+
+    arrows: showArrows,
+    nextArrow: showArrows ? <NextArrow /> : undefined,
+    prevArrow: showArrows ? <PrevArrow /> : undefined,
+
+    autoplay: autoPlayMobile,
+    autoplaySpeed: 2500,
+    pauseOnHover: false,
+    pauseOnFocus: false,
+  } as const;
 
   const containerVariants: Variants = {
     hidden: { opacity: 0, y: 80 },
@@ -115,9 +142,9 @@ export default function Nouveautes() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 flex flex-col items-center py-10 bg-white">
+    <div className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-10 flex flex-col items-center py-10 bg-white">
       <motion.h2
-        className="text-3xl font-bold mb-6 text-gray-900"
+        className="text-2xl sm:text-3xl font-bold mb-6 text-gray-900 text-center"
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
@@ -126,7 +153,7 @@ export default function Nouveautes() {
         {t("new")}
       </motion.h2>
 
-      {/* 🔝 Onglets dynamiques */}
+      {/* Onglets */}
       <motion.div
         className="flex flex-wrap gap-2 md:gap-4 mb-6 justify-center"
         variants={containerVariants}
@@ -139,17 +166,15 @@ export default function Nouveautes() {
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-3 md:px-4 py-1.5 md:py-2 rounded-full text-sm md:text-base font-medium transition-all ${
-              activeTab === tab
-                ? "bg-gray-200 text-black"
-                : "text-gray-500 hover:text-black"
+              activeTab === tab ? "bg-gray-200 text-black" : "text-gray-500 hover:text-black"
             }`}
           >
-            {tab}
+            {tab === ALL_KEY ? t("see.all") : tab}
           </button>
         ))}
       </motion.div>
 
-      {/* 🧩 Gestion du chargement et erreurs */}
+      {/* Erreur / chargement */}
       {error && <p className="text-red-600 mb-4">{error}</p>}
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full mb-10">
@@ -164,57 +189,88 @@ export default function Nouveautes() {
         </div>
       )}
 
-      {/* 🎠 Carrousel produits */}
+      {/* Carrousel */}
       {!loading && (filtered?.length ?? 0) > 0 && (
         <div className="relative w-full mb-10">
-          <Slider {...settings}>
+          {/* Hauteurs homogènes sans toucher aux largeurs calculées par Slick */}
+          <style>{`
+            .nouveautes-slider .slick-track { align-items: stretch; }
+            .nouveautes-slider .slick-slide > div { height: 100%; }
+          `}</style>
+
+          <Slider key={sliderKey} className="nouveautes-slider" {...settings}>
             {filtered!.map((p) => (
-              <div key={p.id} className="px-1 md:px-3">
+              <div key={p.id} className="px-1 md:px-3 py-3">
                 <motion.div
                   variants={containerVariants}
                   initial="hidden"
                   whileInView="visible"
                   viewport={{ once: true, amount: 0.8 }}
-                  className="bg-white shadow-md rounded-2xl my-5 p-4 flex flex-col justify-between items-start gap-5 hover:shadow-lg transition-shadow"
+                  className="
+                    h-[520px] sm:h-[540px] md:h-[560px]
+                    bg-white shadow-md rounded-2xl p-4
+                    flex flex-col justify-between
+                    hover:shadow-lg transition-shadow
+                  "
                 >
-                  <div className="w-full rounded-2xl overflow-hidden">
-                  <div className="aspect-[16/10] md:aspect-[4/3]">
-                    <img
-                      src={p.image || FALLBACK_SVG}
-                      alt={p.name}
-                      className="w-full h-full object-cover object-center block" // <= remplit, peut rogner
-                      loading="lazy"
-                      onError={(e) => {
-                        const img = e.currentTarget as HTMLImageElement;
-                        if (img.src !== FALLBACK_SVG) img.src = FALLBACK_SVG;
-                      }}
-                    />
-                  </div>
-                </div>
+                  {/* --- Bloc haut : image + marque + titre/specs --- */}
+                  <div className="space-y-2">
+                    {/* Image (un peu plus grande pour mieux remplir) */}
+                    <div className="w-full rounded-2xl overflow-hidden">
+                      <div className="h-[190px] sm:h-[220px] md:h-[250px]">
+                        <img
+                          src={p.image || FALLBACK_SVG}
+                          alt={p.name}
+                          className="w-full h-full object-contain object-center block"
+                          loading="lazy"
+                          onError={(e) => {
+                            const img = e.currentTarget as HTMLImageElement;
+                            if (img.src !== FALLBACK_SVG) img.src = FALLBACK_SVG;
+                          }}
+                        />
+                      </div>
+                    </div>
 
-                  <h4 className="text-sm text-gray-500">{p.brand?.nom || ""}</h4>
-                  
-                  <div>
-                    <p className="font-semibold text-gray-800">{p.name}</p>
-                    {p.specs && (
-                      <p className="text-sm text-gray-600 mb-2">{p.specs}</p>
-                    )}
+                    {/* Marque */}
+                    <h4 className="text-xs sm:text-sm text-gray-500 text-center">
+                      {p.brand?.nom || ""}
+                    </h4>
+
+                    {/* Titre + specs (clamp) */}
+                    <div className="px-1">
+                      <p
+                        className="font-semibold text-gray-800 text-sm sm:text-base text-center
+                                   overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical] [WebkitLineClamp:2]"
+                        title={p.name}
+                      >
+                        {p.name}
+                      </p>
+                      {p.specs && (
+                        <p
+                          className="mt-1 text-xs sm:text-sm text-gray-600 text-center
+                                     overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical] [WebkitLineClamp:3]"
+                          title={p.specs}
+                        >
+                          {p.specs}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  {/* --- Prix (section centrale) --- */}
+                  <div className="mt-2 flex items-center justify-center">
                     {p.price ? (
-                      <span className="font-bold text-gray-900">
+                      <span className="font-bold text-gray-900 text-sm sm:text-base">
                         Fcfa {p.price}
                       </span>
                     ) : (
-                      <span className="text-gray-400 text-sm">
-                        Prix indisponible
-                      </span>
+                      <span className="text-gray-400 text-xs sm:text-sm">Prix indisponible</span>
                     )}
                   </div>
 
+                  {/* --- État (collé en bas) --- */}
                   {p.state && (
-                    <div className="mt-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl text-sm font-medium w-full text-center">
+                    <div className="mt-3 bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl text-xs sm:text-sm font-medium w-full text-center">
                       État&nbsp;: {p.state}
                     </div>
                   )}
@@ -225,7 +281,7 @@ export default function Nouveautes() {
         </div>
       )}
 
-      {/* 🔘 Bouton Voir plus */}
+      {/* Bouton Voir plus */}
       <motion.button
         onClick={() => navigate("/Produits")}
         className="bg-[#00A9DC] text-white px-6 py-2 md:py-3 rounded-2xl font-semibold hover:bg-sky-600 transition-colors mt-5"

@@ -30,7 +30,7 @@ const RightPanel1: React.FC = () => {
                 <img
                   src={p.image || FALLBACK}
                   alt={p.name}
-                  className="absolute inset-0 h-full w-full  object-cover rounded-xl transition-transform duration-300 ease-out group-hover:scale-[1.02]"
+                  className="absolute inset-0 h-full w-full  object-contain rounded-xl transition-transform duration-300 ease-out group-hover:scale-[1.02]"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).src = FALLBACK;
                   }}

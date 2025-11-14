@@ -1,11 +1,16 @@
 // src/hooks/useFetchQuery.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { auth } from "../auth";
+import { getUiLang } from "../i18nLang";
 
 /* =========================================================
    🔌 API helper SANS connexion (pas de token/interceptor)
 ========================================================= */
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? "/christland";
+// ✅ Active si ton API attend ?lang=fr|en dans l'URL
+const SEND_LANG_IN_QUERY = true;
+
 export const api = (p: string) => `${API_BASE}${API_PREFIX}${p}`;
 
 /* =========================================================
@@ -122,23 +127,40 @@ export type UseFetchOptions<T> = {
 
 type State<T> = { data: T | null; loading: boolean; error: string | null };
 
-export const toQueryString = (params?: Record<string, unknown>) => {
-  if (!params) return "";
+
+export const toQueryString = (params?: Record<string, unknown>, lang?: string) => {
   const sp = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) return;
-    if (Array.isArray(v)) sp.set(k, v.join(","));
-    else sp.set(k, String(v));
-  });
+  if (SEND_LANG_IN_QUERY) sp.set("lang", lang ?? getUiLang());
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) return;
+      if (Array.isArray(v)) sp.set(k, v.join(","));
+      else sp.set(k, String(v));
+    });
+  }
   const qs = sp.toString();
   return qs ? `?${qs}` : "";
 };
 
+
+
+// ✅ n'ajoute jamais un token expiré
 const withJsonAccept = (init?: RequestInit): RequestInit => {
   const headers = new Headers(init?.headers || {});
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
+
+  // Langue UI
+  const lang = getUiLang();
+  headers.set("Accept-Language", lang);
+
+  // Auth (si présent et valide)
+  const bearer = auth.bearerHeader();
+  if (bearer.Authorization && !headers.has("Authorization")) {
+    headers.set("Authorization", bearer.Authorization);
+  }
   return { ...init, headers };
 };
+// localStorage.setItem('i18n-lang','en')
 
 const parseJsonSafe = async (res: Response) => {
   if (res.status === 204) return null;
@@ -166,6 +188,7 @@ const fetchWithTimeout = async (input: RequestInfo | URL, init?: FetcherInit) =>
 const memoryCache = new Map<string, any>();
 
 export function useFetchQuery<T = any>(url: string, opts: UseFetchOptions<T> = {}) {
+  const uiLang = getUiLang(); // ✅ frais à chaque rendu
   const {
     params,
     deps = [],
@@ -181,7 +204,7 @@ export function useFetchQuery<T = any>(url: string, opts: UseFetchOptions<T> = {
     refetchOnReconnect = true,
   } = opts;
 
-  const key = useMemo(() => url + toQueryString(params), [url, params]);
+ const key = useMemo(() => url + toQueryString(params, uiLang), [url, params, uiLang]);
 
   const [state, setState] = useState<State<T>>({
     data: (keepPreviousData && memoryCache.get(key)) || null,
@@ -194,38 +217,52 @@ export function useFetchQuery<T = any>(url: string, opts: UseFetchOptions<T> = {
   const intervalRef = useRef<number | null>(null);
 
   const run = useCallback(async () => {
-    if (!enabled || !url) return;
+  if (!enabled || !url) return;
 
-    abortRef.current?.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
+  abortRef.current?.abort();
+  const ctrl = new AbortController();
+  abortRef.current = ctrl;
 
-    if (!keepPreviousData || !memoryCache.has(key)) {
-      setState((s) => ({ ...s, loading: true, error: null }));
+  if (!keepPreviousData || !memoryCache.has(key)) {
+    setState((s) => ({ ...s, loading: true, error: null }));
+  }
+
+  const qs = toQueryString(params, uiLang);     // ✅ même langue
+  const requestInit = withJsonAccept(fetchInit); // withJsonAccept lit déjà getUiLang() à chaud
+
+  try {
+    const res = await fetchWithTimeout(url + qs, { ...requestInit, signal: ctrl.signal });
+
+    // ➜ Token expiré / invalide : logout + stop
+    if (res.status === 401) {
+      auth.logout();
+      return;
     }
 
-    const qs = toQueryString(params);
-    const requestInit = withJsonAccept(fetchInit);
-
-    try {
-      const res = await fetchWithTimeout(url + qs, { ...requestInit, signal: ctrl.signal });
-      if (!res.ok) {
-        await parseJsonSafe(res); // lève avec snippet si pas JSON
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const raw = await parseJsonSafe(res);
-      const data = (select ? select(raw) : raw) as T;
-
-      memoryCache.set(key, data);
-      setState({ data, loading: false, error: null });
-      onSuccess?.(data);
-    } catch (e: any) {
-      if (e?.name === "AbortError") return;
-      const msg = e?.message ?? "Network error";
-      setState((s) => ({ ...s, loading: false, error: msg }));
-      onError?.(msg);
+    if (!res.ok) {
+      // essaie de parser du JSON pour remonter un message lisible
+      await parseJsonSafe(res);
+      throw new Error(`HTTP ${res.status}`);
     }
-  }, [enabled, key, url, params, keepPreviousData, select, fetchInit, onSuccess, onError]);
+
+    const raw = await parseJsonSafe(res);
+   const data = (select ? await (select as any)(raw) : raw) as T;
+
+
+    memoryCache.set(key, data);
+    setState({ data, loading: false, error: null });
+    onSuccess?.(data);
+  } catch (e: any) {
+    if (e?.name === "AbortError") return;
+    const msg = e?.message ?? "Network error";
+    setState((s) => ({ ...s, loading: false, error: msg }));
+    onError?.(msg);
+  }
+}, [enabled, url, params, keepPreviousData, select, fetchInit, onSuccess, onError, uiLang, key]);
+
+useEffect(() => {
+  memoryCache.clear();
+}, [uiLang]);
 
   const refetch = useCallback(() => {
     memoryCache.delete(key);
@@ -304,6 +341,49 @@ export async function getProducts(params: Record<string, unknown>) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await parseJsonSafe(res)) as ApiPage<ApiProduct>;
 }
+
+export async function authedFetch(input: string, init: RequestInit = {}) {
+  // 1) access courant (même s’il est expiré, on tente 1er appel)
+  const headers = new Headers(init.headers || {});
+  const bearer = auth.bearerHeader(); // ✅ si expiré: pas d'en-tête
+  if (bearer.Authorization) headers.set("Authorization", bearer.Authorization);
+  if (!(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  headers.set("Accept", "application/json");
+
+  let res = await fetch(input, { ...init, headers });
+  if (res.status !== 401) return res;
+
+  // 2) 401 -> tente le refresh UNE seule fois
+  if (!auth.refresh) return res;
+  try {
+    const refreshRes = await fetch(api("/api/dashboard/auth/refresh/"), {
+      method: "POST",
+      headers: { "Accept": "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: auth.refresh }),
+    });
+    const refreshBody = await refreshRes.json().catch(() => null);
+
+    if (!refreshRes.ok || !refreshBody?.access) {
+      auth.logout();
+      return res;
+    }
+
+    // 3) sauvegarde le nouvel access et rejoue
+    auth.access = refreshBody.access;
+
+    const retryHeaders = new Headers(init.headers || {});
+    const retryBearer = auth.bearerHeader();
+    if (retryBearer.Authorization) retryHeaders.set("Authorization", retryBearer.Authorization);
+    if (!(init.body instanceof FormData)) retryHeaders.set("Content-Type", "application/json");
+    retryHeaders.set("Accept", "application/json");
+
+    return await fetch(input, { ...init, headers: retryHeaders });
+  } catch {
+    auth.logout();
+    return res;
+  }
+}
+
 
 /* =========================================================
    Hooks “clé en main” pour tes composants
@@ -393,16 +473,13 @@ export function useMostDemandedProducts(limit = 2) {
 }
 
 
-
-
-
 /* =========================================================
    Nouveautés (les 10 derniers produits)
 ========================================================= */
 export type LatestProduct = {
   id: number;
   slug: string;
-  name: string;
+  nom: string;
   brand?: { slug?: string | null; nom?: string | null } | null;
   image?: string | null;
   specs?: string;
@@ -476,38 +553,35 @@ export function useContactMessages(limit = 50) {
 
 export async function getDashboardProducts(params: Record<string, unknown> = {}) {
   const url = api("/api/dashboard/produits/") + toQueryString(params);
-  const res = await fetch(url, withJsonAccept());
+   const res = await authedFetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await parseJsonSafe(res)) as ApiPage<ApiProduct>;
 }
 
 
-
 export async function createDashboardProduct(payload: Partial<ApiProduct>) {
   const url = api("/api/dashboard/produits/");
-  const res = await fetch(url, {
+  const res = await authedFetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await parseJsonSafe(res)) as ApiProduct;
+  return (await res.json()) as ApiProduct;
 }
 
 export async function updateDashboardProduct(id: number, payload: Partial<ApiProduct>) {
   const url = api(`/api/dashboard/produits/${id}/`);
-  const res = await fetch(url, {
+  const res = await authedFetch(url, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await parseJsonSafe(res)) as ApiProduct;
+  return (await res.json()) as ApiProduct;
 }
 
 export async function deleteDashboardProduct(id: number) {
   const url = api(`/api/dashboard/produits/${id}/`);
-  const res = await fetch(url, { method: "DELETE" });
+  const res = await authedFetch(url, { method: "DELETE" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return true;
 }
@@ -517,37 +591,41 @@ export function useDashboardProducts(params: Record<string, unknown> = {}) {
     params,
     keepPreviousData: true,
     debounceMs: 100,
+    enabled: auth.isLoggedIn(),                        // ✅
+    deps: [auth.access],
+    fetchInit: { headers: auth.bearerHeader() },       // ✅
   });
 }
+
+
 
 export function useDashboardProduct(id?: number) {
   return useFetchQuery<ApiProduct>(
     id ? api(`/api/dashboard/produits/${id}/`) : "",
-    { enabled: !!id }
+    { 
+      enabled: !!id && auth.isLoggedIn(),             // ✅
+      fetchInit: { headers: auth.bearerHeader() },    // au minimum le header correct
+    }
   );
 }
 
 export async function getDashboardProduct(id: number) {
-  // nouvelle route "edit" qui renvoie uniquement les champs REMPLIS
   const url = api(`/api/dashboard/produits/${id}/edit/`);
-  const res = await fetch(url, withJsonAccept());
+  const res = await authedFetch(url);                 // ✅
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await parseJsonSafe(res)) as any;
+  return (await res.json()) as any;
 }
 
-// hooks/useFetchQuery.tsx
 export async function updateDashboardProductDeep(id: number, payload: any) {
   const url = api(`/api/dashboard/produits/${id}/edit/`);
-  const res = await fetch(url, {
+  const res = await authedFetch(url, {               // ✅
     method: "PUT",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(payload),
   });
-  const body = await parseJsonSafe(res);
+  const body = await res.json().catch(() => null);
   if (!res.ok) throw new Error(body?.detail || `HTTP ${res.status}`);
   return body;
 }
-
 
 
 export type ApiArticle = {
@@ -562,46 +640,35 @@ export type ApiArticle = {
   modifie_le?: string | null;
 };
 
-type PagedResponse<T> = {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: T[];
-};
 
-export async function getDashboardArticles(params: { page?: number; page_size?: number; q?: string }): Promise<PagedResponse<ApiArticle>> {
+
+// getDashboardArticles
+export async function getDashboardArticles(params: { page?: number; page_size?: number; q?: string }) {
   const page = params.page ?? 1;
   const page_size = params.page_size ?? 23;
   const q = params.q ? `&q=${encodeURIComponent(params.q)}` : "";
-
-  // ✅ utilise la fonction api() pour inclure /christland/api/
-  const res = await fetch(api(`/api/dashboard/articles/?page=${page}&page_size=${page_size}${q}`), {
-    headers: { Accept: "application/json" },
-  });
+  const res = await authedFetch(api(`/api/dashboard/articles/?page=${page}&page_size=${page_size}${q}`));
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
-export async function deleteDashboardArticle(id: number): Promise<void> {
-  // ✅ même correction ici
-  const res = await fetch(api(`/api/dashboard/articles/${id}/`), { method: "DELETE" });
+// deleteDashboardArticle
+export async function deleteDashboardArticle(id: number) {
+  const res = await authedFetch(api(`/api/dashboard/articles/${id}/`), { method: "DELETE" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
-/// --- Article: fetch one (EDIT payload réduit) ---
-export async function getDashboardArticle(id: number): Promise<ApiArticle> {
-  const res = await fetch(api(`/api/dashboard/articles/${id}/edit/`), {
-    headers: { Accept: "application/json" },
-  });
+// getDashboardArticle (payload “edit”)
+export async function getDashboardArticle(id: number) {
+  const res = await authedFetch(api(`/api/dashboard/articles/${id}/edit/`));
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as ApiArticle; // contiendra: id, titre, slug, extrait, contenu, image, publie_le
+  return res.json();
 }
 
-// --- Article: update (PUT sur la ressource) ---
+// updateDashboardArticle
 export async function updateDashboardArticle(id: number, payload: Partial<ApiArticle>) {
-  const res = await fetch(api(`/api/dashboard/articles/${id}/`), {
+  const res = await authedFetch(api(`/api/dashboard/articles/${id}/`), {
     method: "PATCH",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => null);
@@ -609,26 +676,39 @@ export async function updateDashboardArticle(id: number, payload: Partial<ApiArt
   return body as ApiArticle;
 }
 
-// --- Derniers articles (2 par défaut)
+// createDashboardArticle
+export async function createDashboardArticle(payload: NewArticlePayload) {
+  const res = await authedFetch(api(`/api/dashboard/articles/`), {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.detail || `HTTP ${res.status}`);
+  return body;
+}
+
+// getLatestArticles (si c’est pour le dashboard/admin)
 export async function getLatestArticles(limit = 2) {
-  const res = await fetch(
-    api(`/api/dashboard/articles/?page=1&page_size=${limit}`),
-    { headers: { Accept: "application/json" } }
-  );
+  const res = await authedFetch(api(`/api/dashboard/articles/?page=1&page_size=${limit}`));
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = await res.json();
   return (body?.results ?? []) as ApiArticle[];
 }
 
+
 // --- Derniers articles (2 par défaut)
 
+// exemple
 export function useLatestArticles(limit = 2) {
   return useFetchQuery<ApiArticle[]>(api("/api/dashboard/articles/"), {
     params: { page: 1, page_size: limit },
     keepPreviousData: true,
     select: (raw: any) => (raw?.results ?? []) as ApiArticle[],
+    enabled: auth.isLoggedIn(),     // 👈 important
+    fetchInit: { headers: auth.bearerHeader() }, // optionnel (authedFetch est mieux si tu passes par fonctions ci-dessus)
   });
 }
+
 
 // --- Créer un article ---
 export type NewArticlePayload = {
@@ -638,16 +718,6 @@ export type NewArticlePayload = {
    // "YYYY-MM-DDTHH:mm" (optional)
 };
 
-export async function createDashboardArticle(payload: NewArticlePayload) {
-  const res = await fetch(api("/api/dashboard/articles/"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(body?.detail || `HTTP ${res.status}`);
-  return body;
-}
 
 // --- 2 derniers articles ---
 export type LatestArticle = {
@@ -825,10 +895,11 @@ export async function adminGlobalSearch(params: { q: string; page?: number; page
   const page = params.page ?? 1;
   const page_size = params.page_size ?? 10;
   const url = api("/api/dashboard/search/") + toQueryString({ q: params.q, page, page_size });
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const res = await authedFetch(url, { method: "GET" }); // ✅ auth
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as AdminSearchPage;
 }
+
 
 // ✅ Hook pratique (q + options)
 export function useAdminGlobalSearch(
@@ -859,9 +930,7 @@ export type DashboardStats = {
 
 // Fetch (one-shot)
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const res = await fetch(api(`/api/dashboard/stats/`), {
-    headers: { Accept: "application/json" },
-  });
+  const res = await authedFetch(api(`/api/dashboard/stats/`), { method: "GET" }); // ✅
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as DashboardStats;
 }
@@ -869,8 +938,60 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 // Hook
 export function useDashboardStats() {
   return useFetchQuery<DashboardStats>(api(`/api/dashboard/stats/`), {
-    enabled: true,
+    enabled: auth.isLoggedIn(),                 // ✅
     refetchOnWindowFocus: false,
-    
+    fetchInit: { headers: auth.bearerHeader() } // ✅
   });
 }
+
+
+export type AdminRegisterPayload = {
+  email: string;
+  password: string;
+  prenom?: string;
+  nom?: string;
+};
+
+export async function adminRegisterRequest(payload: { email: string; password: string; prenom?: string; nom?: string }) {
+  
+const res = await fetch(api("/api/dashboard/auth/register/"), {
+
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...auth.bearerHeader(), // ⬅️ IMPORTANT (Bearer majuscule)
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const msg = data?.detail || data?.error || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+export type LoginResponse = {
+  access: string;
+  refresh: string;
+  user: { id: number; email: string; prenom?: string; nom?: string; role?: string };
+};
+
+// useFetchQuery.tsx
+export async function loginRequest(email: string, password: string): Promise<LoginResponse> {
+  const res = await fetch(api("/api/dashboard/auth/login/"), {
+    method: "POST",
+    headers: { "Accept": "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.detail || `HTTP ${res.status}`);
+
+  // 🔧 Le backend renvoie { token, user }
+  const access = body.access || body.token;          // <= récupère le token
+  const refresh = body.refresh || body.refresh_token || null;
+
+  return { access, refresh, user: body.user } as LoginResponse;
+}
+
+

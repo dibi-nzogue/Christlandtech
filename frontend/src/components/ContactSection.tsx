@@ -74,7 +74,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
         {/* gauche : infos */}
         <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-6">
           <p className="text-gray-700 leading-relaxed max-w-sm">
-            { "Laissez-nous un message et nous vous répondrons rapidement."}
+          {t("com.con")  || "Laissez-nous un message et nous vous répondrons rapidement."}
           </p>
 
           <img
@@ -172,7 +172,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
               disabled={submitting}
               className={`bg-[#00A9DC] hover:bg-sky-600 text-white font-medium px-6 py-2 rounded-full shadow transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed`}
             >
-              {submitting ? (t("form.sending") || "Envoi…") : (t("form.button") || "Envoyer")}
+              {submitting ? (t("form.button") || "Envoi…") : (t("form.button") || "Envoyer")}
             </button>
           </form>
         </div>

@@ -193,7 +193,7 @@ const ProductCard: React.FC<{
   loading="lazy"
   width={800}
   height={600}
-   className="absolute inset-0 h-full w-full object-cover rounded-xl transition-transform duration-300 ease-out group-hover:scale-[1.02]"
+   className="absolute inset-0 h-full w-full object-contain rounded-xl transition-transform duration-300 ease-out group-hover:scale-[1.02]"
   onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG; }}/>
 </div>
 
@@ -462,15 +462,6 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
     <>
    {/* ===== ENTÊTE ===== */}
 <motion.div className="w-full bg-gray-100" variants={headerEnter} initial="hidden" animate="show">
-  {/* Optionnel: bandeau “Résultats pour” quand q est présent */}
-      {q && (
-        <div className="container mx-auto px-5 mt-4">
-          <div className="rounded-lg border border-[#00A8E8]/40 bg-[#00A8E8]/5 px-3 py-2 text-sm text-gray-700">
-            Résultats pour <span className="font-semibold">“{q}”</span>
-          </div>
-        </div>
-      )}
-
   <div className="container mx-auto px-5">
     <div className="flex items-center justify-between h-40 md:h-40 lg:h-48 ">
       <div className="min-w-0 mt-6">
@@ -493,38 +484,34 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
         </motion.h1>
       </div>
 
-     <motion.div
-  className="sm:block pt-6"
-  variants={phonePop}
-  initial="hidden"
-  animate="show"
->
-  {/* wrapper: NO overflow-hidden, allow overflow to be visible while rotating */}
-  <div
-    className="h-20 md:h-24 lg:h-28 xl:h-32 w-auto rounded-xl"
-    style={{ perspective: 1000, overflow: "visible" }} // <- key to avoid clipping + 3D depth
-  >
-    <motion.img
-      src={iphone}
-      alt="Produit vedette"
-      // 3D left→right rotation forever
-      animate={{ rotateY: 360, scale: 0.92 }}       // <- small scale to keep margins while spinning
-      transition={{ duration: 12, ease: "linear", repeat: Infinity }}
-      style={{
-        transformOrigin: "50% 50%",                  // spin around center
-        transformStyle: "preserve-3d",               // proper 3D
-      }}
-      className="h-full w-auto object-contain select-none will-change-transform"
-      loading="lazy"
-    />
-  </div>
-</motion.div>
-
-
-
+      <motion.div
+        className="sm:block pt-6"
+        variants={phonePop}
+        initial="hidden"
+        animate="show"
+      >
+        <div
+          className="h-20 md:h-24 lg:h-28 xl:h-32 w-auto rounded-xl"
+          style={{ perspective: 1000, overflow: "visible" }}
+        >
+          <motion.img
+            src={iphone}
+            alt="Produit vedette"
+            animate={{ rotateY: 360, scale: 0.92 }}
+            transition={{ duration: 12, ease: "linear", repeat: Infinity }}
+            style={{
+              transformOrigin: "50% 50%",
+              transformStyle: "preserve-3d",
+            }}
+            className="h-full w-auto object-contain select-none will-change-transform"
+            loading="lazy"
+          />
+        </div>
+      </motion.div>
     </div>
   </div>
 </motion.div>
+
 
 
 
@@ -535,7 +522,7 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
         </div>
 
         {/* Mobile actions */}
-        <div className="flex items-center gap-3 md:hidden">
+        <div className="flex items-center gap-3 lg:hidden mb-3 md:mb-4">
           <button
             type="button"
             onClick={() => setMobileCatsOpen(true)}
@@ -641,6 +628,17 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
 
         {catsError && <div className="mt-2 text-sm text-red-600">Impossible de charger les catégories.</div>}
       </div>
+
+
+  {/* Bandeau Résultats pour ... */}
+      {q && (
+        <div className="max-w-screen-4xl mx-auto px-5 mt-6">
+          <div className="rounded-lg border border-[#00A8E8]/40 bg-[#E5F7FF] px-4 py-3 text-sm md:text-[15px] text-gray-800 shadow-sm">
+            <span className="font-medium">Résultats pour&nbsp;</span>
+            <span className="font-semibold text-[#00A8E8]">“{q}”</span>
+          </div>
+        </div>
+      )}
 
       {/* ===== CONTENU (Sidebar + Grille) ===== */}
       <div className="bg-white">

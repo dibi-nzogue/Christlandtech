@@ -11,7 +11,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-
+from dotenv import load_dotenv
+import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,7 +26,7 @@ SECRET_KEY = 'django-insecure-$zz0ih&=(@xu^omym6s^vr(_g64vgilne!9_(%y091*m6@gmy1
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS =  ["testserver", "localhost", "127.0.0.1"]
 
 
 
@@ -179,12 +180,12 @@ EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "rachelnzogue9@gmail.com"              # ton compte émetteur
-EMAIL_HOST_PASSWORD = "VOTRE_APP_PASSWORD_16_CHIFFRES"   # mot de passe d’application Gmail
+EMAIL_HOST_PASSWORD = "nqfgoakcuiwvrwbz"   # mot de passe d’application Gmail
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER                      # expéditeur “technique”
 EMAIL_TIMEOUT = 20
 
 
-
+load_dotenv(BASE_DIR / ".env")
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
@@ -198,4 +199,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "christland.auth_jwt.JWTAuthentication",  # ← ton auth
+    ),
 }
+
+
+

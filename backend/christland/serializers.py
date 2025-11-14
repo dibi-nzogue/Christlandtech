@@ -8,13 +8,65 @@ from .models import (
 )
 from django.utils import timezone
 
-class CouleurMiniSerializer(serializers.ModelSerializer):
+from .serializers_i18n import I18nTranslateMixin
+# helper générique pour traduire un champ d'instance selon la langue de la requête
+from christland.services.i18n_translate import translate_field_for_instance
+
+def _req_lang_from_context(context) -> str:
+    req = context.get("request") if context else None
+    if req:
+        q = (req.query_params.get("lang") or "").strip().lower()
+        if q:
+            return q.split(",")[0].split("-")[0]
+        raw = (req.headers.get("Accept-Language") or "fr").lower()
+        primary = raw.split(",")[0].strip()
+        return primary.split("-")[0] if primary else "fr"
+    return "fr"
+
+def _tr_from_context(ctx, instance, field_name: str, value: str):
+    """
+    Version robuste : essaie à la fois model_name (lower) ET NomDeClasse.
+    Évite l'appel si langue 'fr' ou value vide.
+    """
+    if not isinstance(value, str) or not value:
+        return value
+
+    lang = _req_lang_from_context(ctx)
+    if lang in ("fr", "", None):
+        return value
+
+    meta = getattr(instance, "_meta", None)
+    if not meta:
+        return value
+
+    app_label = getattr(meta, "app_label", "christland")
+    model_keys = [
+        getattr(meta, "model_name", instance.__class__.__name__).lower(),  # ex: "produits"
+        instance.__class__.__name__,                                       # ex: "Produits"
+    ]
+    obj_id = getattr(instance, "pk", None)
+    if obj_id is None:
+        return value
+
+    # Essaie d'abord la clé "standard" (lower), puis la clé "NomDeClasse"
+    for mk in model_keys:
+        t = translate_field_for_instance(app_label, mk, str(obj_id), field_name, value, lang)
+        if t != value:
+            return t
+    return value
+
+
+
+class CouleurMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+    i18n_fields = ["nom"]
     class Meta:
         model = Couleurs
         fields = ("nom", "slug", "code_hex")
 
 
-class ImageProduitSerializer(serializers.ModelSerializer):
+class ImageProduitSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+    # + traduire l'alt_text (s’il existe)
+    i18n_fields = ["alt_text"]
     url = serializers.SerializerMethodField()
 
     class Meta:
@@ -50,11 +102,27 @@ class ImageProduitSerializer(serializers.ModelSerializer):
 
 
 
-class VarianteSerializer(serializers.ModelSerializer):
+class VarianteSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+    # + traduire le nom de la variante et la couleur imbriquée
+    i18n_fields = ["nom"]
+    i18n_nested = { "couleur": ["nom"] }
+    
     couleur = CouleurMiniSerializer()
     prix_affiche = serializers.SerializerMethodField()
     promo_now = serializers.SerializerMethodField()
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        ctx = self.context
+        data["nom"] = _tr_from_context(ctx, instance, "nom", data.get("nom"))
 
+        # Couleur.nom (imbriqué)
+        if data.get("couleur") and instance.couleur_id:
+            data["couleur"]["nom"] = _tr_from_context(
+                ctx, instance.couleur, "nom", data["couleur"].get("nom")
+            )
+        return data
+    
     class Meta:
         model = VariantesProduits
         fields = (
@@ -79,13 +147,17 @@ class VarianteSerializer(serializers.ModelSerializer):
         return True
 
 
-class MarqueMiniSerializer(serializers.ModelSerializer):
+class MarqueMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+    # + traduire le nom de la marque
+    i18n_fields = ["nom"]
     class Meta:
         model = Marques
         fields = ("nom", "slug", "logo_url")
 
 
-class CategorieMiniSerializer(serializers.ModelSerializer):
+class CategorieMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+    # + traduire le nom de catégorie
+    i18n_fields = ["nom","slug"]
     parent_slug = serializers.CharField(source="parent.slug", read_only=True)
 
     class Meta:
@@ -93,20 +165,23 @@ class CategorieMiniSerializer(serializers.ModelSerializer):
         fields = ("nom", "slug", "parent_slug")
 
 
+
 class ProduitCardSerializer(serializers.ModelSerializer):
+    # Données embarquées
     images = ImageProduitSerializer(many=True, read_only=True)
     variantes = VarianteSerializer(many=True, read_only=True)
     marque = MarqueMiniSerializer(read_only=True)
     categorie = CategorieMiniSerializer(read_only=True)
 
+    # Champs calculés
     prix_from = serializers.SerializerMethodField()
     old_price_from = serializers.SerializerMethodField()
     promo_now = serializers.SerializerMethodField()
     promo_fin = serializers.SerializerMethodField()
 
-    # 👇 ajout des quantités
-    quantite = serializers.IntegerField(read_only=True)  # champ du modèle Produits
-    stock_total = serializers.SerializerMethodField()    # somme des stocks des variantes
+    # Champs stock
+    quantite = serializers.IntegerField(read_only=True)   # si présent sur Produits
+    stock_total = serializers.SerializerMethodField()     # somme des stocks des variantes
 
     class Meta:
         model = Produits
@@ -116,12 +191,92 @@ class ProduitCardSerializer(serializers.ModelSerializer):
             "categorie", "marque",
             "images", "variantes",
             "prix_from", "old_price_from", "promo_now", "promo_fin",
-            # 👇 nouveaux champs exposés
             "quantite", "stock_total",
         )
 
+    # --------------------------
+    # Traductions centralisées
+    # --------------------------
+    def to_representation(self, instance):
+        """
+        Point unique pour appliquer les traductions i18n,
+        afin que CategoryProductList (qui renvoie un queryset) bénéficie de la même logique
+        que tes autres vues qui appellent tr_product_card.
+        """
+        data = super().to_representation(instance)
+        ctx = self.context
+
+        # Produit.nom
+        # Produit.nom
+        data["nom"] = _tr_from_context(ctx, instance, "nom", data.get("nom"))
+        if data["nom"] == instance.nom:
+            # 🩹 fallback : on force le lookup avec modèle explicite
+            lang = _req_lang_from_context(ctx)
+            data["nom"] = translate_field_for_instance(
+                "christland",    # app_label
+                "produits",      # modèle lowercase exact de ta table
+                str(instance.id),
+                "nom",
+                data["nom"],
+                lang,
+            )
+
+
+        # Produit.description_courte
+        if "description_courte" in data:
+            data["description_courte"] = _tr_from_context(
+                ctx, instance, "description_courte", data.get("description_courte")
+            )
+
+        # Catégorie.nom
+        if data.get("categorie") and instance.categorie_id:
+            data["categorie"]["nom"] = _tr_from_context(
+                ctx, instance.categorie, "nom", data["categorie"].get("nom")
+            )
+
+        # Marque.nom
+        if data.get("marque") and instance.marque_id:
+            data["marque"]["nom"] = _tr_from_context(
+                ctx, instance.marque, "nom", data["marque"].get("nom")
+            )
+
+        # Variantes[].nom (on traduit via id de la variante)
+        lang = _req_lang_from_context(ctx)
+        for v in (data.get("variantes") or []):
+            vid = v.get("id")
+            if not vid:
+                continue
+            v["nom"] = translate_field_for_instance(
+                instance._meta.app_label,           # "christland"
+                "variantesproduits",                # modèle en bdd (lowercase)
+                str(vid),
+                "nom",
+                v.get("nom") or "",
+                lang,
+            )
+
+        # Images[].alt_text (si ImageProduitSerializer expose "id")
+        for im in (data.get("images") or []):
+            iid = im.get("id")
+            if not iid:
+                # si pas d'id exposé, on laisse tel quel
+                continue
+            im["alt_text"] = translate_field_for_instance(
+                instance._meta.app_label,
+                "imagesproduits",
+                str(iid),
+                "alt_text",
+                im.get("alt_text") or "",
+                lang,
+            )
+
+        return data
+
+    # --------------------------
+    # Méthodes de calcul
+    # --------------------------
     def get_stock_total(self, obj):
-        # somme des stocks de toutes les variantes (None traité comme 0)
+        # Somme des stocks de toutes les variantes (None -> 0)
         return sum((v.stock or 0) for v in obj.variantes.all())
 
     def get_prix_from(self, obj):
@@ -133,7 +288,6 @@ class ProduitCardSerializer(serializers.ModelSerializer):
         return min(prices) if prices else None
 
     def get_old_price_from(self, obj):
-        from django.utils import timezone
         now = timezone.now()
         normals = []
         for v in obj.variantes.all():
@@ -148,7 +302,6 @@ class ProduitCardSerializer(serializers.ModelSerializer):
         return min(normals) if normals else None
 
     def get_promo_now(self, obj):
-        from django.utils import timezone
         now = timezone.now()
         for v in obj.variantes.all():
             if v.promo_active and v.prix_promo is not None:
@@ -157,7 +310,6 @@ class ProduitCardSerializer(serializers.ModelSerializer):
         return False
 
     def get_promo_fin(self, obj):
-        from django.utils import timezone
         now = timezone.now()
         fins = []
         for v in obj.variantes.all():
@@ -166,12 +318,19 @@ class ProduitCardSerializer(serializers.ModelSerializer):
                     if v.promo_fin:
                         fins.append(v.promo_fin)
         return min(fins).isoformat() if fins else None
+   
+   
 
 
-# serializers.py
-from rest_framework import serializers
-
-class ProduitsSerializer(serializers.ModelSerializer):
+class ProduitsSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+    # + traduire les champs textuels principaux
+    i18n_fields = ["nom", "description_courte"]
+    # + traductions imbriquées
+    i18n_nested = {
+        "categorie": ["nom"],
+        "marque": ["nom"],
+        "images": ["alt_text"],
+    }
     variants_stock = serializers.SerializerMethodField() 
     images = ImageProduitSerializer(many=True, read_only=True)
     class Meta:
@@ -205,7 +364,9 @@ def _abs_media(request, path: str | None) -> str | None:
     base = request.build_absolute_uri(settings.MEDIA_URL)
     return f"{base.rstrip('/')}/{p.lstrip('/')}"
 
-class ArticleDashboardSerializer(serializers.ModelSerializer):
+class ArticleDashboardSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+    # + traduire les champs de texte du blog
+    i18n_fields = ["titre", "slug", "extrait", "contenu"]
     image = serializers.SerializerMethodField()
 
     class Meta:
@@ -238,7 +399,9 @@ def _abs_media(request, path: str | None) -> str | None:
     base = request.build_absolute_uri(settings.MEDIA_URL)
     return f"{base.rstrip('/')}/{p.lstrip('/')}"
 
-class ArticleEditSerializer(serializers.ModelSerializer):
+class ArticleEditSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+    # + traduire aussi en mode “edit” (lecture)
+    i18n_fields = ["titre","slug", "extrait", "contenu"]
     # on expose "image" en lisant image_couverture
     image = serializers.SerializerMethodField()
 
@@ -263,7 +426,9 @@ class ArticleEditSerializer(serializers.ModelSerializer):
                 clean[k] = v
         return clean
     
-class ArticleCreateSerializer(serializers.ModelSerializer):
+class ArticleCreateSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+    # + pour la réponse (to_representation) après création
+    i18n_fields = ["titre", "slug", "extrait", "contenu"]
     image = serializers.CharField(allow_blank=True, allow_null=True, required=False)
 
     class Meta:

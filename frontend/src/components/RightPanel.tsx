@@ -31,7 +31,7 @@ const RightPanel: React.FC = () => {
             <img
               src={p.image || FALLBACK}
               alt={p.nom}
-              className="w-[100%] h-24 lg:h-44 rounded-lg object-cover"
+              className="w-[100%] h-24 lg:h-44 rounded-lg object-contain"
               onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK; }}
             />
             <div className="flex items-center justify-between">

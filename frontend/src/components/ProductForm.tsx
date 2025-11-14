@@ -584,7 +584,9 @@ const renderAttrInput = (
 
 
   return (
-    <div className="bg-gray-50 mb-10 rounded-xl shadow-lg w-full lg:w-4/5">
+     <div
+    className="
+      bg-gray-50 rounded-xl shadow-lg w-full lg:w-5/5 h-[calc(100vh-220px)] overflow-y-auto pr-2 mb-6">
       {toast && <Toast kind={toast.kind} msg={toast.msg} onClose={() => setToast(null)} />}
 
       <form onSubmit={handleSubmit} className="rounded-2xl p-6 space-y-6">

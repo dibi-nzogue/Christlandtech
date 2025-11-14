@@ -7,7 +7,7 @@ import RightPanel1 from '../components/RightPanel1'
 
 const AddProduct: React.FC = () => {
   return (
-    <div className="mx-auto w-full px-6 sm:px-10 lg:px-20 pt-10 bg-[#F4F5F8] min-h-screen overflow-y-auto">
+    <div className="mx-auto w-full px-6 sm:px-10 lg:px-20 pt-10 bg-[#F4F5F8] min-h-screen overflow-hidden">
       <div className="flex justify-between md:gap-10">
         <div>
           <Sidebar />
@@ -15,8 +15,10 @@ const AddProduct: React.FC = () => {
         <div className="w-full">
           <Header />
           <Banner label="Ajouter un produit" />
-          <div className="flex flex-col md:flex-row justify-between gap-10 pt-8">
-            <ProductForm />
+          <div className="flex flex-col md:flex-row justify-between gap-10 pt-8 min-h-0">
+            <div className="flex-1 min-h-0">
+              <ProductForm />
+            </div>
             <RightPanel1 />
           </div>
         </div>

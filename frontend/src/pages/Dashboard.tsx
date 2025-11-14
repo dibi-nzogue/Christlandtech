@@ -5,47 +5,38 @@ import Header from "../components/Header";
 import StatCard from "../components/StatCard";
 import ProductTable from "../components/ProductTable";
 import RightPanel from "../components/RightPanel";
+import TopToast from "../components/TopToast";
 import { useDashboardStats } from "../hooks/useFetchQuery";
 
 const Dashboard: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // flash
+  // Flash message après inscription
   const [flash, setFlash] = React.useState<string | null>(() => {
     const s = (location.state as any)?.flash as string | undefined;
     return s ?? null;
   });
+
   React.useEffect(() => {
     if ((location.state as any)?.flash) {
       navigate(location.pathname, { replace: true, state: null });
     }
   }, [location.pathname, location.state, navigate]);
 
-  // 📊 Stats
+  // Stats
   const { data: stats, loading: statsLoading, error: statsError } = useDashboardStats();
-
-  const fmt = (n?: number) =>
-    typeof n === "number" ? n.toLocaleString("fr-FR") : "—";
+  const fmt = (n?: number) => (typeof n === "number" ? n.toLocaleString("fr-FR") : "—");
 
   return (
     <div className="mx-auto w-full px-6 sm:px-10 lg:px-20 py-10 bg-[#F4F5F8] h-full md:h-[100vh] overflow-hidden">
+      {/* ✅ Popup animé */}
       {flash && (
-        <div
-          role="status"
-          className="fixed top-4 right-4 z-[9999] rounded-xl shadow-lg px-4 py-3 text-white bg-emerald-600 flex items-start gap-3"
-        >
-          <span className="font-semibold">Succès</span>
-          <span className="opacity-90">{flash}</span>
-          <button
-            type="button"
-            onClick={() => setFlash(null)}
-            className="ml-3 text-white/90 hover:text-white"
-            aria-label="Fermer"
-          >
-            ×
-          </button>
-        </div>
+        <TopToast
+          kind="success"
+          message={flash}
+          onClose={() => setFlash(null)}
+        />
       )}
 
       <div className="flex justify-between md:gap-10">
@@ -55,7 +46,7 @@ const Dashboard: React.FC = () => {
         <div className="w-full md:pl-32">
           <Header />
 
-          {/* Cartes KPI */}
+          {/* Statistiques */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-4 mt-4">
             <StatCard
               icon="users"

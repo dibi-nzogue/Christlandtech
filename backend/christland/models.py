@@ -5,6 +5,54 @@ from django.utils import timezone
 
 from django.db import models
 
+class Traduction(models.Model):
+    # clé logique du champ à traduire
+    app_label = models.CharField(max_length=80)
+    model = models.CharField(max_length=80)
+    object_id = models.CharField(max_length=64)          # pk produit etc.
+    field = models.CharField(max_length=80)
+    lang = models.CharField(max_length=8)
+
+    # hash du texte source pour invalider si le FR change
+    src_hash = models.CharField(max_length=64, db_index=True)
+
+    # valeur traduite (peut être vide si NOOP)
+    value = models.TextField(blank=True, null=True)
+
+    # statut
+    PENDING = "PENDING"
+    DONE    = "DONE"
+    NOOP    = "NOOP"     # le provider a renvoyé identique (ou vide)
+    ERROR   = "ERROR"
+    STATUS_CHOICES = [(PENDING, "Pending"), (DONE, "Done"), (NOOP, "Noop"), (ERROR, "Error")]
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
+
+    # debug/observabilité
+    provider = models.CharField(max_length=40, blank=True, null=True)
+    error_message = models.TextField(blank=True, null=True)
+
+    # housekeeping
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)    
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["app_label", "model", "object_id", "field", "lang", "src_hash"],
+                name="uniq_tr_key_src_hash",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["app_label", "model", "object_id", "field", "lang"]),
+            models.Index(fields=["status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.app_label}.{self.model}[{self.object_id}].{self.field}.{self.lang} ({self.status})"
+
+
+
+#
 class Categories(models.Model):
     nom = models.CharField(max_length=255, blank=True)
     slug = models.CharField(max_length=255, blank=True)
@@ -80,7 +128,14 @@ class Utilisateurs(models.Model):
     def __str__(self):
         base = f'{self.prenom} {self.nom}'.strip()
         return base or self.email or f'User#{self.id}'
+    @property
+    def is_authenticated(self) -> bool:
+        return True
 
+    @property
+    def is_anonymous(self) -> bool:
+        return False
+    
 
 class FavorisClasseur(models.Model):
     nom = models.CharField(max_length=255, blank=True)
@@ -99,6 +154,19 @@ class Favoris(models.Model):
     class Meta:
         db_table = 'favoris'
 
+class TranslationEntry(models.Model):
+    app_label  = models.CharField(max_length=80, db_index=True)
+    model_name = models.CharField(max_length=120, db_index=True)
+    object_id  = models.CharField(max_length=64, db_index=True)
+    field_name = models.CharField(max_length=120, db_index=True)
+    lang       = models.CharField(max_length=10, db_index=True)  # "en", "en-US", ...
+    text       = models.TextField(blank=True, default="")
+    source_hash = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("app_label","model_name","object_id","field_name","lang")
 
 # ===== Catalogue ==============================================================
 

@@ -1,6 +1,7 @@
 from collections import defaultdict
 from decimal import Decimal
 from typing import Iterable
+from urllib import request
 from django.db.models import Count
 from rest_framework import status, generics
 from django.db.models import Q, Min, Max
@@ -16,6 +17,10 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.core.mail import EmailMessage
 from django.utils import timezone
+from rest_framework.decorators import api_view
+import requests
+from django.http import JsonResponse, HttpResponseBadRequest
+from django.core.cache import cache
 from .models import (
     Categories, Produits, VariantesProduits, ImagesProduits,
     Marques, Couleurs, CategorieAttribut,
@@ -23,6 +28,14 @@ from .models import (
     Couleurs, ArticlesBlog,Utilisateurs,
 
 )
+from django.utils.cache import _generate_cache_key  # optionnel
+from django.views.decorators.vary import vary_on_headers
+from django.utils.decorators import method_decorator
+from django.core.cache import cache
+from christland.services.i18n_translate import translate_field_for_instance
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from .auth_jwt import JWTAuthentication, make_access_token, make_refresh_token, decode_jwt_raw
+import jwt
 from django.db.models import Sum
 from django.utils.text import slugify
 from django.db.models import Subquery, OuterRef
@@ -30,7 +43,6 @@ from .serializers import ProduitCardSerializer, ProduitsSerializer, ArticleDashb
 from datetime import datetime
 from rest_framework.pagination import PageNumberPagination
 from django.core.mail import send_mail
-from rest_framework.permissions import AllowAny
 import json
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.text import slugify
@@ -39,22 +51,329 @@ from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.core.files.storage import default_storage
-import os
+from django.core import signing
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.utils.text import slugify
-import os, uuid
+import os, uuid,hashlib
 from django.db import IntegrityError, transaction
 from django.db.models import F
-from rest_framework.permissions import AllowAny
+from rest_framework import status, permissions
+from django.contrib.auth.hashers import check_password, make_password
+
+
+# ============================================
+# i18n unified helpers (rapide & robuste)
+# ============================================
 
 # -----------------------------
 # Helpers
 # -----------------------------
+# --- i18n helpers (en haut du fichier, après _tr)
+DISPLAY_LANG_SLUG = False  # True si tu veux aussi traduire visuellement les slugs
 
-class SmallPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = "page_size"
-    max_page_size = 100
+def tr_field(request, obj, name, raw):
+    return _tr(request, obj, name, raw or "")
+
+def tr_display_slug(request, obj, raw):
+    return tr_field(request, obj, "slug", raw or "") if DISPLAY_LANG_SLUG else (raw or "")
+
+class I18nSerializerMixin:
+    def tr_cat(self, request, c):
+        return {
+            "id": c.id,
+            "nom": tr_field(request, c, "nom", c.nom),
+            "slug": tr_display_slug(request, c, c.slug),
+            "parent": c.parent_id,
+        }
+
+    def tr_brand(self, request, m):
+        return {
+            "id": m.id,
+            "nom": tr_field(request, m, "nom", m.nom),
+            "slug": tr_display_slug(request, m, m.slug),
+            "logo_url": m.logo_url,
+        }
+
+    def tr_color(self, request, c):
+        return {
+            "id": c.id,
+            "nom": tr_field(request, c, "nom", c.nom),
+            "slug": tr_display_slug(request, c, c.slug),
+            "code_hex": c.code_hex,
+            "est_active": getattr(c, "est_active", True),
+        }
+
+    def tr_product_card(self, request, p, image_url=None, specs=None, price=None, state=None, category=None):
+        return {
+            "id": p.id,
+            "slug": tr_display_slug(request, p, p.slug),
+            "nom": tr_field(request, p, "nom", p.nom),  # ✅ traduit
+            "brand": (
+                {
+                    "slug": getattr(p.marque, "slug", None),
+                    "nom": getattr(p.marque, "nom", None),  # ❌ pas de tr_field ici
+                } if p.marque_id else None
+            ),
+            "image": image_url,
+            "specs": specs,
+            "price": price,
+            "state": state,
+            "category": (
+                {
+                    "id": category.id,
+                    "slug": category.slug,
+                    "nom": tr_field(request, category, "nom", category.nom),  # ✅ traduit
+                } if category else None
+            ),
+        }
+ 
+
+
+# cache global (clé: (model, lang))
+_TRANSLATION_BULK_CACHE = {}
+
+ 
+ # --- i18n helpers ----------------------------------------------------
+from django.core.cache import cache  # tu l'as déjà importé plus haut, c’est ok
+
+BASE_LANG = "fr"
+DISPLAY_LANG_SLUG = False
+
+TRANSLATION_TTL = 86400  # 24h, tu peux augmenter si tu veux
+
+def _req_lang(request):
+    q = (request.query_params.get("lang") or "").strip().lower()
+    if q:
+        return q.split(",")[0].split("-")[0]
+    raw = (request.headers.get("Accept-Language") or BASE_LANG).lower()
+    primary = raw.split(",")[0].strip()
+    return primary.split("-")[0] if primary else BASE_LANG
+
+
+def _tr(request, instance, field_name: str, value: str) -> str:
+    """
+    Traduction avec :
+      - early return pour la langue de base
+      - cache par requête (request._tr_cache)
+      - cache global (django cache) pour toutes les requêtes suivantes
+    """
+    lang = _req_lang(request)
+
+    # rien à faire si pas de texte ou langue de base
+    if not isinstance(value, str) or not value or lang == BASE_LANG:
+        return value
+
+    # cache par requête
+    cache_dict = getattr(request, "_tr_cache", None)
+    if cache_dict is None:
+        cache_dict = {}
+        setattr(request, "_tr_cache", cache_dict)
+
+    meta = getattr(instance, "_meta", None)
+    if meta is None:
+        return value
+
+    app_label = getattr(meta, "app_label", "christland")
+    model_name = getattr(meta, "model_name", instance.__class__.__name__).lower()
+    class_name = instance.__class__.__name__
+
+    # variantes de nom de modèle possibles
+    singular = {
+        "produits": "produit",
+        "categories": "categorie",
+        "marques": "marque",
+        "couleurs": "couleur",
+    }.get(model_name, model_name.rstrip("s"))
+
+    model_keys = [
+        model_name,             # "produits"
+        class_name,             # "Produits"
+        singular,               # "produit"
+        class_name.rstrip("s"), # "Produit"
+    ]
+
+    obj_id = getattr(instance, "pk", None)
+    if obj_id is None:
+        return value
+
+    for model_key in model_keys:
+        if not model_key:
+            continue
+
+        # clé pour le cache par requête
+        local_ck = (app_label, model_key, obj_id, field_name, lang)
+        if local_ck in cache_dict:
+            t = cache_dict[local_ck]
+            if t != value:
+                return t
+            continue  # même valeur => on tente éventuellement un autre model_key
+
+        # clé pour le cache global Django
+        global_ck = f"tr:{app_label}:{model_key}:{obj_id}:{field_name}:{lang}"
+
+        # 1) on essaye d'abord le cache global
+        t = cache.get(global_ck, None)
+        if t is not None:
+            cache_dict[local_ck] = t
+            if t != value:
+                return t
+            continue
+
+        # 2) sinon on calcule réellement la traduction
+        t = translate_field_for_instance(
+            app_label,
+            model_key,
+            str(obj_id),
+            field_name,
+            value,
+            lang,
+        )
+
+        # 3) on met en cache (local + global)
+        cache_dict[local_ck] = t
+        cache.set(global_ck, t, TRANSLATION_TTL)
+
+        if t != value:
+            return t
+
+    return value
+
+
+def tr_field(request, obj, name, raw):
+    return _tr(request, obj, name, raw or "")
+
+def tr_display_slug(request, obj, raw):
+    return tr_field(request, obj, "slug", raw or "") if DISPLAY_LANG_SLUG else (raw or "")
+# ---------------------------------------------------------------------
+
+
+
+
+
+
+# b) traduire les specs (valeurs/libellés)
+def _specs_to_filled_list_i18n(request, specs_qs):
+    items = []
+    for sp in specs_qs.select_related("attribut", "valeur_choice"):
+        attr = sp.attribut
+        if not attr or not attr.actif:
+            continue
+        # libellé de l’attribut
+        lib = _tr(request, attr, "libelle", attr.libelle or attr.code)
+        # valeur (selon le type)
+        if sp.valeur_choice:
+            val = _tr(request, sp.valeur_choice, "valeur", sp.valeur_choice.valeur)
+        elif sp.valeur_text is not None:
+            # bool en texte → traduisible aussi
+            val = _tr(request, sp, "valeur_text", sp.valeur_text)
+        elif sp.valeur_int is not None:
+            val = str(sp.valeur_int)
+        elif sp.valeur_dec is not None:
+            val = str(sp.valeur_dec)
+        else:
+            val = None
+        if val not in (None, ""):
+            items.append(f"{val}")
+    return " | ".join(items[:5])
+
+
+# --- helper pour normaliser le texte de recherche vers la langue de base ----
+try:
+    # à TOI d'ajouter cette fonction dans christland.services.i18n_translate
+    from christland.services.i18n_translate import translate_free_text_to_base
+except ImportError:
+    translate_free_text_to_base = None
+
+
+# Petit dictionnaire de secours pour quelques mots anglais fréquents
+EN_FR_KEYWORDS: dict[str, str] = {
+    "laptop": "ordinateur portable",
+    "computer": "ordinateur",
+    "pc": "ordinateur",
+    "desktop": "ordinateur",
+    "monitor": "écran",
+    "screen": "écran",
+    "keyboard": "clavier",
+    "mouse": "souris",
+    "headphones": "casque",
+    "earphones": "écouteurs",
+    "earbuds": "écouteurs",
+    "phone": "téléphone",
+    "smartphone": "téléphone",
+    "tablet": "tablette",
+    "tv": "télévision",
+    "television": "télévision",
+    "camera": "caméra",
+}
+
+
+
+
+def _normalize_search_query(request, q: str) -> str:
+    """
+    On veut toujours chercher dans la langue de base (fr),
+    même si l'utilisateur tape en anglais (ou autre).
+    - 1) On tente la traduction automatique (free text)
+    - 2) Si ça ne donne rien, on regarde dans EN_FR_KEYWORDS
+    - 3) Sinon, on renvoie le texte brut
+    """
+    q = (q or "").strip()
+    if not q:
+        return ""
+
+    lang = _req_lang(request)
+    if lang == BASE_LANG:
+        # déjà en français → on cherche tel quel
+        return q
+
+    low = q.lower()
+
+    # 1️⃣ Traduction automatique vers la langue de base (fr)
+    if translate_free_text_to_base:
+        try:
+            translated = translate_free_text_to_base(
+                q,
+                source_lang=lang,
+                target_lang=BASE_LANG,
+            )
+            if translated:
+                translated = translated.strip()
+                # si la traduction a vraiment changé le mot, on l'utilise
+                if translated and translated.lower() != low:
+                    return translated
+        except Exception:
+            # en cas d'erreur, on continue vers les fallbacks
+            pass
+
+    # 2️⃣ Fallback : dictionnaire pour quelques mots très fréquents
+    if low in EN_FR_KEYWORDS:
+        return EN_FR_KEYWORDS[low]
+
+    # 3️⃣ Dernier recours : on garde le texte original
+    return q
+
+
+
+
+# class SmallPagination(PageNumberPagination):
+#     page_size = 10
+#     page_size_query_param = "page_size"
+#     max_page_size = 100
+
+# def _req_lang(request):
+#     q = (request.query_params.get("lang") or "").strip().lower()
+#     if q:
+#         return q.split(",")[0].split("-")[0]
+#     # 👇 ajoute ceci
+#     x = (request.headers.get("X-Lang") or "").strip().lower()
+#     if x:
+#         return x.split(",")[0].split("-")[0]
+#     raw = (request.headers.get("Accept-Language") or BASE_LANG).lower()
+#     primary = raw.split(",")[0].strip()
+#     return primary.split("-")[0] if primary else BASE_LANG
+
+
+
+
 
 
 def _descendants_ids(cat: Categories) -> list[int]:
@@ -193,25 +512,22 @@ class SmallPagination(PageNumberPagination):
 # 1) Liste produits (query params)
 # -----------------------------
 
-class CategoryProductList(ListAPIView):
-    """
-    GET /api/catalog/products/?category=tous|<slug_cat>&subcategory=<slug_sub>&page=&page_size=&sort=&q=
-    Facettes en query:
-      brand=canon,nikon
-      color=black,white
-      price_min=10000&price_max=300000
-      attr_*=...
-      sort=price_asc|price_desc|new
-      q=<texte>   # 👈 recherche par nom (icontains)
-    """
+from rest_framework.response import Response
+
+class CategoryProductList(I18nSerializerMixin, ListAPIView):
     serializer_class = ProduitCardSerializer
     pagination_class = SmallPagination
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
 
     def get_queryset(self):
         cat_slug = (self.request.query_params.get("category") or "tous").strip().lower()
         sub_slug = (self.request.query_params.get("subcategory") or "").strip().lower()
 
-        # Périmètre catégorie
+        # périmètre catégorie
         if sub_slug:
             sub = get_object_or_404(Categories, slug=sub_slug, est_actif=True)
             cat_ids = [sub.id]
@@ -221,27 +537,30 @@ class CategoryProductList(ListAPIView):
         else:
             cat_ids = list(Categories.objects.filter(est_actif=True).values_list("id", flat=True))
 
-        img_accessor = _image_accessor_name()
+        img_sq = ImagesProduits.objects.filter(
+            produit_id=OuterRef("pk")
+        ).order_by("-principale", "position", "id").values("url")[:1]
+
         qs = (
             Produits.objects.filter(est_actif=True, visible=1, categorie_id__in=cat_ids)
             .select_related("categorie", "marque")
-            .prefetch_related(img_accessor, "variantes", "variantes__couleur")
+            .annotate(
+                _min_price=Coalesce(Min("variantes__prix_promo"), Min("variantes__prix")),
+                _max_price=Coalesce(Max("variantes__prix_promo"), Max("variantes__prix")),
+                _main_img=Subquery(img_sq),
+            )
+            .only("id", "slug", "nom", "etat", "categorie__id", "categorie__slug", "categorie__nom",
+                  "marque__id", "marque__slug", "marque__nom")
             .distinct()
         )
 
-        # 👇 Recherche sur le nom
-        q = (self.request.query_params.get("q") or "").strip()
-        if q:
-            qs = qs.filter(nom__icontains=q)
-
-        # Facettes existantes
+        # 💥 ICI il manquait l’application des filtres facettés
         qs = _apply_faceted_filters(qs, self.request.query_params, cat_ids)
 
-        # Tri (avec annotations prix)
-        qs = qs.annotate(
-            _min_price=Coalesce(Min("variantes__prix_promo"), Min("variantes__prix")),
-            _max_price=Coalesce(Max("variantes__prix_promo"), Max("variantes__prix")),
-        )
+        q = (self.request.query_params.get("q") or "").strip()
+        if q:
+            q_norm = _normalize_search_query(self.request, q)
+            qs = qs.filter(nom__icontains=q_norm)
 
         sort = self.request.query_params.get("sort")
         if sort == "price_asc":
@@ -252,8 +571,76 @@ class CategoryProductList(ListAPIView):
             qs = qs.order_by("-cree_le", "-id")
         else:
             qs = qs.order_by("-id")
-
         return qs
+
+
+    @method_decorator(vary_on_headers("Accept-Language", "X-Lang"))
+    def list(self, request, *args, **kwargs):
+        # langue pour la clé de cache
+        lang = (
+            request.query_params.get("lang")
+            or request.headers.get("X-Lang")
+            or request.headers.get("Accept-Language")
+            or "fr"
+        ).split(",")[0].split("-")[0]
+
+        cache_key = f"products_v2:{lang}:{request.get_full_path()}"
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
+        # -------- 1) Récupérer le queryset + pagination ----------
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        items = page if page is not None else queryset
+
+        # -------- 2) Sérialisation de base ----------
+        serializer = self.get_serializer(items, many=True)
+        data = [dict(obj) for obj in serializer.data]
+
+        # -------- 3) i18n + champs dérivés ----------
+        for i, prod in enumerate(items):
+            try:
+                # nom traduit
+                data[i]["nom"] = tr_field(request, prod, "nom", prod.nom)
+
+                # image principale (annotation _main_img ou champ image)
+                if not data[i].get("image"):
+                    url = getattr(prod, "_main_img", "") or ""
+                    if url and not url.lower().startswith(("http://", "https://", "data:")):
+                        url = request.build_absolute_uri(
+                            f"{settings.MEDIA_URL.rstrip('/')}/{url.lstrip('/')}"
+                        )
+                    data[i]["image"] = url or ""
+
+                # prix min (annotation)
+                if "_min_price" in prod.__dict__:
+                    val = prod.__dict__["_min_price"]
+                    data[i]["price"] = str(val) if val is not None else None
+
+                # état (libellé traduit)
+                data[i]["state"] = tr_field(request, prod, "etat", prod.etat or "") or None
+
+                # catégorie (libellé traduit, slug technique inchangé)
+                if prod.categorie_id:
+                    data[i]["category"] = {
+                        "id": prod.categorie_id,
+                        "slug": prod.categorie.slug,
+                        "nom": tr_field(request, prod.categorie, "nom", prod.categorie.nom),
+                    }
+            except Exception:
+                # on évite de crasher pour une seule ligne
+                pass
+
+        # -------- 4) Construction du payload + cache ----------
+        if page is not None:
+            payload = self.get_paginated_response(data).data
+        else:
+            payload = data
+
+        cache.set(cache_key, payload, 180)  # TTL 3 min
+        return Response(payload)
+
 # -----------------------------
 # 2) Facettes/filters (query params)
 # -----------------------------
@@ -263,6 +650,11 @@ class CategoryFilters(APIView):
     GET /api/catalog/filters/?category=tous|<slug_cat>&subcategory=<slug_sub>
     -> renvoie les filtres disponibles (options) selon le périmètre.
     """
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+
     def get(self, request):
         cat_slug = (request.query_params.get("category") or "tous").strip().lower()
         sub_slug = (request.query_params.get("subcategory") or "").strip().lower()
@@ -280,22 +672,63 @@ class CategoryFilters(APIView):
             cat_ids = list(Categories.objects.filter(est_actif=True).values_list("id", flat=True))
 
         base = Produits.objects.filter(est_actif=True, visible=1, categorie_id__in=cat_ids)
+        # États présents dans le périmètre
+        states_qs = (
+            base.exclude(etat__isnull=True)
+                .exclude(etat__exact="")
+                .values_list("etat", flat=True)
+                .distinct()
+        )
+
+        # on mappe chaque état vers un exemple de produit (pour avoir un PK)
+        first_prod_by_state = {
+            v: base.filter(etat=v).values_list("id", flat=True).first()
+            for v in states_qs
+        }
+
+        states = []
+        for v in states_qs:
+            # libellé "brut" (ex: via choices) pour fallback
+            raw_label = dict(Produits.ETATS).get(v, v.title())
+            pid = first_prod_by_state.get(v)
+            if pid:
+                # on hydrate un faux objet juste pour l’ID et la meta
+                dummy = Produits(id=pid)
+                label_tr = tr_field(request, dummy, "etat", raw_label)
+            else:
+                label_tr = raw_label  # aucun produit trouvé pour ce state: fallback
+
+            states.append({"value": v, "label": label_tr})
 
         # Marques
-        marques = (
+       # Marques
+        marques_qs = (
             Marques.objects.filter(produits__in=base)
-            .distinct()
-            .values("nom", "slug", "logo_url")
-            .order_by("nom")
+            .distinct().order_by("nom")
         )
-
-        # Couleurs
-        couleurs = (
+        marques = [{
+           "nom": m.nom,
+            "slug": m.slug,           # slug technique
+            "logo_url": m.logo_url,
+        } for m in marques_qs]
+       # Couleurs
+        couleurs_qs = (
             Couleurs.objects.filter(variantes__produit__in=base)
-            .distinct()
-            .values("nom", "slug", "code_hex")
-            .order_by("nom")
+            .distinct().order_by("nom")
         )
+        couleurs = [{
+            "nom": tr_field(request, c, "nom", c.nom),
+            "slug": c.slug,           # slug technique
+            "code_hex": c.code_hex,
+        } for c in couleurs_qs]
+
+        # Fallback couleurs globales (idem)
+        if not couleurs:
+            couleurs = [{
+                "nom": tr_field(request, c, "nom", c.nom),
+                "slug": c.slug,
+                "code_hex": c.code_hex,
+            } for c in Couleurs.objects.filter(est_active=True).order_by("nom")]
 
         # Prix min/max
         prix_aggr = VariantesProduits.objects.filter(produit__in=base).aggregate(
@@ -312,7 +745,7 @@ class CategoryFilters(APIView):
                 .values_list("etat", flat=True)
                 .distinct()
         )
-        states = [{"value": v, "label": dict(Produits.ETATS).get(v, v.title())} for v in states_qs]
+     
 
         # Fallback Couleurs : si aucune couleur trouvée dans la catégorie courante,
         # on montre les couleurs globales actives (optionnel mais demandé pour toujours afficher le filtre)
@@ -376,7 +809,7 @@ class CategoryFilters(APIView):
             (attributes_variant if is_variant_attr(meta["code"]) else attributes_product).append(meta)
 
         payload = {
-            "category": ({"nom": cat.nom, "slug": cat.slug} if cat else None),
+           "category": ({"nom": tr_field(request, cat, "nom", cat.nom), "slug": cat.slug} if cat else None),
             "brands": list(marques),
             "colors": list(couleurs),
             "price": {"min": price_min, "max": price_max},
@@ -387,39 +820,47 @@ class CategoryFilters(APIView):
         }
         return Response(payload)
                 
-class CategoryListView(APIView):
-    """
-    GET /christland/api/catalog/categories/?level=1
-    - level=1 : catégories racines (parent is null)
-    - sinon : toutes les catégories actives
-    """
+
+
+class CategoryListBase(APIView):
+    
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    # pas de permissions ici
     def get(self, request):
         level = (request.query_params.get("level") or "1").strip()
         qs = Categories.objects.filter(est_actif=True)
         if str(level) == "1":
             qs = qs.filter(parent__isnull=True)
 
-        def abs_media(path: str | None) -> str | None:
-            if not path:
-                return None
+        def abs_media(path):
+            if not path: return None
             p = str(path).strip()
-            if p.lower().startswith(("http://", "https://", "data:")):
+            if p.lower().startswith(("http://","https://","data:")):
                 return p
             base = request.build_absolute_uri(settings.MEDIA_URL)
             return f"{base.rstrip('/')}/{p.lstrip('/')}"
+        
+        data = [{
+            "id": c.id,
+            "nom": tr_field(request, c, "nom", c.nom),
+            "slug": tr_display_slug(request, c, c.slug),
+            "parent": c.parent_id,
+            "image_url": abs_media(getattr(c, "image_url", None)),
+            "position": getattr(c, "position", None),
+        } for c in qs.order_by("nom")]
 
-        data = [
-            {
-                "id": c.id,
-                "nom": c.nom,
-                "slug": c.slug,
-                "parent": c.parent_id,
-                "image_url": abs_media(getattr(c, "image_url", None)),  # <= URL absolue
-                "position": getattr(c, "position", None),
-            }
-            for c in qs.order_by("nom")
-        ]
         return Response(data)
+
+class CategoryListPublic(CategoryListBase):
+    permission_classes = [AllowAny]  # ✅ public
+    authentication_classes = []
+class CategoryListDashboard(CategoryListBase):
+    permission_classes = [IsAuthenticated]          # ✅ protégé
+    authentication_classes = [JWTAuthentication]
+
     
     
 class ProductMiniView(APIView):
@@ -429,6 +870,11 @@ class ProductMiniView(APIView):
     - ref : premier SKU de variante si dispo, sinon slug produit
     - image : image principale (ou première) du produit
     """
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
     def get(self, request, pk_or_slug: str):
         qs = (Produits.objects
               .filter(est_actif=True, visible=1)
@@ -454,11 +900,12 @@ class ProductMiniView(APIView):
 
         payload = {
             "id": prod.id,
-            "slug": prod.slug,
-            "nom": prod.nom,
-            "ref": sku or prod.slug,
+            "slug": tr_display_slug(request, prod, prod.slug),
+            "nom": tr_field(request, prod, "nom", prod.nom),
+            "ref": sku or prod.slug,  # ref reste technique
             "image": img_url,
         }
+
         return Response(payload)    
     
 
@@ -479,16 +926,17 @@ def _abs_media(request, path: str | None) -> str | None:
 
 def _serialize_article(a: ArticlesBlog, request):
     return {
-        "id": a.id,
-        "slug": a.slug or "",
-        "title": a.titre or "",
-        "excerpt": a.extrait or "",
-        "content": a.contenu or "",
+       "id": a.id,
+        "slug": _tr(request, a, "slug",   a.slug   or ""),
+        "title": _tr(request, a, "titre",   a.titre   or ""),
+        "excerpt": _tr(request, a, "extrait", a.extrait or ""),
+        "content": _tr(request, a, "contenu", a.contenu or ""),
         "image": _abs_media(request, getattr(a, "image_couverture", None)),
         # Tu peux exposer autres champs si besoin :
         # "published_at": a.publie_le,
         # "created_at": a.cree_le,
     }
+
 
 class BlogHeroView(APIView):
     """
@@ -497,12 +945,20 @@ class BlogHeroView(APIView):
     Règle : on prend le plus ancien (id ASC). Si tu préfères
     "dernier publié", remplace order_by("id") par order_by("-publie_le", "-id")
     """
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
     def get(self, request):
         qs: QuerySet[ArticlesBlog] = ArticlesBlog.objects.all().order_by("id")
         a = qs.first()
         if not a:
-            return Response({"title": "", "slug": ""})
-        return Response({"title": a.titre or "", "slug": a.slug or ""})
+               return Response({"title": "", "slug": ""})
+        title = _tr(request, a, "titre", a.titre or "")
+        slug = _tr(request, a, "slug", a.slug or "")
+        return Response({"title": title, "slug": slug})
+
 
 class BlogPostsView(APIView):
     """
@@ -510,6 +966,11 @@ class BlogPostsView(APIView):
     -> { "top": [...tous sauf les 2 derniers...], "bottom": [...2 derniers...] }
     L’ordre est chronologique (id ASC) pour que "les 2 derniers" restent en bas.
     """
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
     def get(self, request):
         qs: QuerySet[ArticlesBlog] = ArticlesBlog.objects.all().order_by("id")
         items = list(qs)
@@ -578,9 +1039,17 @@ def _specs_to_filled_list(specs_qs):
 # views.py
 # views.py
 class ProduitsListCreateView(generics.ListCreateAPIView):
+    
     serializer_class = ProduitsSerializer
     pagination_class = SmallPagination
-
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
     def get_queryset(self):
         qs = (
             Produits.objects
@@ -592,15 +1061,21 @@ class ProduitsListCreateView(generics.ListCreateAPIView):
         )
         q = (self.request.query_params.get("q") or "").strip()
         if q:
-            qs = qs.filter(nom__icontains=q)   # ✅ uniquement le nom
+            q_norm = _normalize_search_query(self.request, q)
+            qs = qs.filter(nom__icontains=q_norm)   # ✅ uniquement le nom
+
         return qs
 
 
 class ProduitsDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Produits.objects.all()
     serializer_class = ProduitsSerializer
-
-
+    permission_classes = [permissions.IsAuthenticated]          # ✅
+    authentication_classes = [JWTAuthentication]  
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx 
 
 # --- helpers pour image absolue et specs/prix ---
 
@@ -609,28 +1084,6 @@ from typing import Optional
 # utils URL
 from urllib.parse import urljoin
 from django.conf import settings
-
-def _abs_media(request, path: str | None) -> str | None:
-    """
-    Transforme un chemin du modèle (souvent relatif) en URL absolue.
-    - Si déjà absolue (http/https/data:), on renvoie tel quel.
-    - Sinon on préfixe avec MEDIA_URL puis on absolutise.
-    Exemples:
-      path = "uploads/p1.jpg"  -> http://host/media/uploads/p1.jpg
-      path = "/media/p1.jpg"   -> http://host/media/p1.jpg
-      path = "http://..."      -> (inchangé)
-    """
-    if not path:
-        return None
-    p = str(path).strip()
-    if p.lower().startswith(("http://", "https://", "data:")):
-        return p
-
-    # S’assure qu’on a bien MEDIA_URL devant
-    media_base = settings.MEDIA_URL or "/media/"
-    # urljoin gère proprement les "/" manquants
-    full_media_path = urljoin(media_base if media_base.endswith("/") else media_base + "/", p.lstrip("/"))
-    return request.build_absolute_uri(full_media_path)
 
 
 def _product_main_image_url(request, prod: Produits) -> str | None:
@@ -699,8 +1152,14 @@ def _product_specs_summary(prod: Produits, max_items: int = 5) -> str:
 class DashboardArticlesListCreateView(generics.ListCreateAPIView):
     serializer_class = ArticleDashboardSerializer
     pagination_class = SmallPagination
-    permission_classes = [AllowAny]
-
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
     def get_queryset(self):
         q = (self.request.query_params.get("q") or "").strip()
         qs = (
@@ -723,8 +1182,12 @@ class DashboardArticleDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     queryset = ArticlesBlog.objects.all().order_by("-id")
     serializer_class = ArticleDashboardSerializer
-    permission_classes = [AllowAny]
-    
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx 
 class DashboardArticleEditView(generics.RetrieveAPIView):
     """
     ✅ GET /christland/api/dashboard/articles/<id>/edit/
@@ -732,8 +1195,12 @@ class DashboardArticleEditView(generics.RetrieveAPIView):
     """
     queryset = ArticlesBlog.objects.all()
     serializer_class = ArticleEditSerializer
-    permission_classes = [AllowAny]
-
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
 
 # views.py
 class BlogLatestView(APIView):
@@ -742,7 +1209,11 @@ class BlogLatestView(APIView):
     -> [{ id, slug, title, excerpt, image }]
     """
     permission_classes = [AllowAny]
-
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
     def get(self, request):
         try:
             limit = int(request.query_params.get("limit") or "2")
@@ -750,61 +1221,101 @@ class BlogLatestView(APIView):
             limit = 2
 
         qs = ArticlesBlog.objects.all().order_by("-cree_le", "-id")[: max(1, limit)]
-        def _abs_media(path):
-            if not path:
-                return None
-            p = str(path).strip()
-            if p.lower().startswith(("http://","https://","data:")):
-                return p
-            base = request.build_absolute_uri(settings.MEDIA_URL)
-            return f"{base.rstrip('/')}/{p.lstrip('/')}"
         data = [{
             "id": a.id,
-            "slug": a.slug or "",
-            "title": a.titre or "",
-            "excerpt": a.extrait or "",
-            "image": _abs_media(getattr(a, "image_couverture", None)),
+            "slug":  _tr(request, a, "slug",   a.slug   or ""),
+            "title": _tr(request, a, "titre",   a.titre   or ""),
+            "excerpt": _tr(request, a, "extrait", a.extrait or ""),
+            "image": _abs_media(request, getattr(a, "image_couverture", None)),
         } for a in qs]
         return Response(data, status=200)
 
 
-class LatestProductsView(APIView):
+
+from django.utils.decorators import method_decorator
+from django.views.decorators.vary import vary_on_headers
+
+
+def _etat_label_i18n(request, prod: Produits) -> str | None:
     """
-    GET /christland/api/catalog/products/latest/
-    -> Les 10 derniers produits (cree_le desc), avec: id, slug, nom, marque, image, specs, prix, etat
+    Retourne l'état traduit de façon fiable :
+    - on part du libellé issu des choices (Produits.ETATS)
+    - on le passe dans tr_field pour avoir 'New / Used / Refurbished' en anglais
     """
+    code = (prod.etat or "").strip()
+    if not code:
+        return None
+
+    # libellé "humain" à partir des choices
+    raw_label = dict(Produits.ETATS).get(code, code.title())
+    # on traduit ce libellé, pas le code brut "neuf"
+    return tr_field(request, prod, "etat", raw_label) or raw_label
+
+
+
+
+class LatestProductsView(I18nSerializerMixin, APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [AllowAny]
+
+    @method_decorator(vary_on_headers("Accept-Language", "X-Lang"))
     def get(self, request):
+        # langue pour la clé de cache
+        lang = (
+            request.query_params.get("lang")
+            or request.headers.get("X-Lang")
+            or request.headers.get("Accept-Language")
+            or "fr"
+        ).split(",")[0].split("-")[0]
+
+        cache_key = f"latest:{lang}"
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
+        # ✅ on garde tes prefetch pour les specs (i18n inclus)
         qs = (
             Produits.objects
             .filter(est_actif=True, visible=1)
             .select_related("marque", "categorie")
-            .prefetch_related("images", "variantes", "specs", "variantes__specs", "specs__attribut", "variantes__specs__attribut")
+            .prefetch_related(
+                "images", "variantes", "specs",
+                "variantes__specs",
+                "specs__attribut", "variantes__specs__attribut",
+                "specs__valeur_choice", "variantes__specs__valeur_choice"
+            )
             .order_by("-cree_le", "-id")[:10]
         )
 
-        data = []
-        for p in qs:
-            data.append({
-                "id": p.id,
-                "slug": p.slug,
-                "name": p.nom,
-                "brand": {"slug": getattr(p.marque, "slug", None), "nom": getattr(p.marque, "nom", None)} if p.marque_id else None,
-                "image": _product_main_image_url(request, p),
-                "specs": _product_specs_summary(p, max_items=5),
-                "price": str(_product_min_price(p)) if _product_min_price(p) is not None else None,
-                "state": p.etat or None,
-                # optionnels:
-                # "created_at": p.cree_le,
-                # "category": {"slug": p.categorie.slug, "nom": p.categorie.nom} if p.categorie_id else None,
-                "category": {
-                "id": p.categorie.id if p.categorie_id else None,
-                "slug": p.categorie.slug if p.categorie_id else None,
-                "nom": p.categorie.nom if p.categorie_id else None,
-            } if p.categorie_id else None,
+        def build_specs(prod):
+            s = _specs_to_filled_list_i18n(request, prod.specs.all())
+            if s:
+                return s
+            v = prod.variantes.first()
+            if v and hasattr(v, "specs"):
+                return _specs_to_filled_list_i18n(request, v.specs.all()) or ""
+            return ""
 
-            })
+        data = [
+            self.tr_product_card(
+                request, p,
+                image_url=_product_main_image_url(request, p),
+                specs=build_specs(p),
+                price=(str(_product_min_price(p)) if _product_min_price(p) is not None else None),
+                # 🔁 AVANT
+                # state=tr_field(request, p, "etat", p.etat or "") or None,
+                # ✅ APRES
+                state=_etat_label_i18n(request, p),
+                category=(p.categorie if p.categorie_id else None),
+            )
+            for p in qs
+        ]
 
+        # cache 3 minutes (ajuste à ton besoin)
+        cache.set(cache_key, data, 180)
         return Response(data)
+
+
 
 
 from .models import MessagesContact
@@ -830,7 +1341,11 @@ class ContactMessageView(APIView):
       -> derniers messages
     """
     permission_classes = [AllowAny]
-
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
     def post(self, request):
         nom = (request.data.get("nom") or "").strip()
         email = (request.data.get("email") or "").strip()         # optionnel
@@ -867,7 +1382,7 @@ class ContactMessageView(APIView):
                 f"Message:\n{message}"
             )
             mail = EmailMessage(
-                subject=f"[Contact] {sujet}",
+                subject=f"CHRISTLAND TECH {sujet}",
                 body=body,
                 from_email=from_addr,
                 to=[to_addr],
@@ -891,42 +1406,6 @@ class ContactMessageView(APIView):
 from rest_framework.permissions import IsAuthenticated  # si besoin
 
 
-
-# --- helper: transforme des Spec* en liste compacte uniquement pour les valeurs REMPLIES
-def _specs_to_filled_list(spec_qs):
-    """
-    spec_qs: QuerySet[SpecProduit|SpecVariante] avec prefetch 'attribut' et 'valeur_choice'
-    -> [{"code": "...", "type": "...", "libelle": "...", "unite": "...", "value": "..."}]
-    """
-    out = []
-    for s in (spec_qs or []):
-        attr = getattr(s, "attribut", None)
-        if not attr or not attr.actif:
-            continue
-
-        value = None
-        if getattr(s, "valeur_choice", None):
-            value = s.valeur_choice.valeur
-        elif getattr(s, "valeur_text", None):
-            value = s.valeur_text
-        elif getattr(s, "valeur_int", None) is not None:
-            value = s.valeur_int
-        elif getattr(s, "valeur_dec", None) is not None:
-            value = s.valeur_dec
-
-        if value in (None, "", []):
-            continue
-
-        out.append({
-            "code": attr.code,
-            "type": attr.type,
-            "libelle": getattr(attr, "libelle", attr.code),
-            "unite": getattr(attr, "unite", "") or "",
-            "value": value,
-        })
-    return out
-
-
 class DashboardProductEditDataView(APIView):
     """
     GET  /christland/api/dashboard/produits/<id>/edit/
@@ -946,11 +1425,17 @@ class DashboardProductEditDataView(APIView):
     
     
     """
-    
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     
     # permission_classes = [IsAuthenticated]
 
     # ---------- READ (rempli uniquement) ----------
+    
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
     def get(self, request, pk: int):
         qs = (
             Produits.objects
@@ -1147,6 +1632,14 @@ class MarquesListView(APIView):
     GET /christland/api/catalog/marques/?q=&active_only=1
     -> [{id, nom, slug, logo_url}]
     """
+   
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [AllowAny]  # on laisse AllowAny, on gère la logique dedans
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
     def get(self, request):
         q = (request.query_params.get("q") or "").strip()
         active_only = (request.query_params.get("active_only") or "").lower() in ("1","true","yes")
@@ -1158,9 +1651,10 @@ class MarquesListView(APIView):
             qs = qs.filter(Q(nom__icontains=q) | Q(slug__icontains=q))
 
         data = [
-            {"id": m.id, "nom": m.nom, "slug": m.slug, "logo_url": m.logo_url}
+            {"id": m.id, "nom": tr_field(request, m, "nom", m.nom), "slug": m.slug, "logo_url": m.logo_url}
             for m in qs
         ]
+
         return Response(data)
 
 
@@ -1169,6 +1663,13 @@ class CouleursListView(APIView):
     GET /christland/api/catalog/couleurs/?q=&active_only=1
     -> [{id, nom, slug, code_hex, est_active}]
     """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [AllowAny]  # on laisse AllowAny, on gère la logique dedans
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
     def get(self, request):
         q = (request.query_params.get("q") or "").strip()
         active_only = (request.query_params.get("active_only") or "").lower() in ("1","true","yes")
@@ -1180,9 +1681,10 @@ class CouleursListView(APIView):
             qs = qs.filter(Q(nom__icontains=q) | Q(slug__icontains=q))
 
         data = [
-            {"id": c.id, "nom": c.nom, "slug": c.slug, "code_hex": c.code_hex, "est_active": c.est_active}
+            {"id": c.id, "nom": tr_field(request, c, "nom", c.nom), "slug": c.slug, "code_hex": c.code_hex, "est_active": c.est_active}
             for c in qs
         ]
+
         return Response(data)
 
 
@@ -1334,6 +1836,9 @@ class UploadProductImageView(APIView):
       - alt_text: (optionnel)
     -> { url, alt_text }
     """
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request, *args, **kwargs):
@@ -1510,7 +2015,14 @@ def _validate_required_attributes(categorie: Categories | None, product_attrs: l
 # ---------- Création produit + variante + images ----------
 # ---------- Création produit + variante + images ----------
 @method_decorator(csrf_exempt, name="dispatch")
-class AddProductWithVariantView(View):
+class AddProductWithVariantView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
     def post(self, request, *args, **kwargs):
         try:
             payload = json.loads(request.body.decode("utf-8"))
@@ -1725,21 +2237,29 @@ class ProductClickView(APIView):
     Incrémente le compteur quand un utilisateur clique sur "Commander".
     """
     permission_classes = [AllowAny]
-
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx 
+    
     def post(self, request, pk: int):
         prod = get_object_or_404(Produits.objects.all(), pk=pk)
         Produits.objects.filter(pk=prod.pk).update(commande_count=F('commande_count') + 1)
         prod.refresh_from_db(fields=['commande_count'])
         return Response({"ok": True, "count": prod.commande_count}, status=200)
 
-
-class MostDemandedProductsView(APIView):
+class MostDemandedProductsView(I18nSerializerMixin, APIView):
     """
     GET /christland/api/catalog/products/most-demanded/?limit=2
     -> [ {id, slug, nom, image, price, count}, ... ]
     """
-    permission_classes = [AllowAny]
-
+    permission_classes = [AllowAny]          # ← rendu public
+    authentication_classes = []   
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx 
+    
     def get(self, request):
         try:
             limit = int(request.query_params.get("limit") or "2")
@@ -1756,15 +2276,17 @@ class MostDemandedProductsView(APIView):
 
         data = []
         for p in qs:
-            data.append({
-                "id": p.id,
-                "slug": p.slug,
-                "nom": p.nom,
-                "image": _product_main_image_url(request, p),  # peut être None
-                "price": str(_product_min_price(p)) if _product_min_price(p) is not None else None,
-                "count": p.commande_count,
-            })
-        return Response(data, status=200)        
+              data.append(self.tr_product_card(
+            request, p,
+            image_url=_product_main_image_url(request, p),
+            specs=None,
+            price=str(_product_min_price(p)) if _product_min_price(p) is not None else None,
+            state=p.etat or None,   # <- passe l’état brut
+            category=(p.categorie if p.categorie_id else None),
+        ))
+
+
+        return Response(data, status=200)       
     
 
 
@@ -1795,8 +2317,14 @@ class AdminGlobalSearchView(APIView):
     - Articles: filtre SUR 'extrait' OU 'contenu' uniquement
     - Les autres champs sont juste renvoyés (affichage)
     """
-    permission_classes = [AllowAny]
-
+    
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
     def get(self, request):
         q = (request.query_params.get("q") or "").strip()
         if not q:
@@ -1861,7 +2389,7 @@ class AdminGlobalSearchView(APIView):
         items = prod_items + article_items
 
         def _key(x):
-            ts = x.get("updated_at") or x.get("created_at") or timezone.datetime.min.replace(tzinfo=timezone.utc)
+            ts = x.get("updated_at") or x.get("created_at") or datetime.min.replace(tzinfo=timezone.utc)
             return (ts, x["id"])
 
         items.sort(key=_key, reverse=True)
@@ -1904,8 +2432,14 @@ class DashboardStatsView(APIView):
       "messages": 34              # nb de messages contact
     }
     """
-    permission_classes = [AllowAny]   # ajuste si besoin (IsAuthenticated, etc.)
-
+   
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
     def get(self, request):
         users_count = Utilisateurs.objects.count()
         articles_count = ArticlesBlog.objects.count()
@@ -1924,3 +2458,159 @@ class DashboardStatsView(APIView):
             "messages": messages_count,
         }
         return Response(data, status=status.HTTP_200_OK)        
+ # --------------------------------------------------------------------
+# Permissions
+# --------------------------------------------------------------------
+class IsAdmin(permissions.BasePermission):
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
+    def has_permission(self, request, view):
+        u = getattr(request, "user", None)
+        return bool(u and getattr(u, "role", "") == "admin")
+
+
+# --------------------------------------------------------------------
+# Register (admin only)
+# POST /christland/api/dashboard/auth/register/
+# body: { email, password, prenom?, nom? }
+# --------------------------------------------------------------------
+class RegisterView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [AllowAny]  # on laisse AllowAny, on gère la logique dedans
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+    
+    @csrf_exempt
+    def post(self, request):
+        already_has_admin = Utilisateurs.objects.filter(role="admin", actif=True).exists()
+        if already_has_admin:
+            u = getattr(request, "user", None)
+            if not u or getattr(u, "role", "") != "admin":
+                return Response({"detail": "Permission refusée."}, status=403)
+        
+        email = (request.data.get("email") or "").strip().lower()
+        password = request.data.get("password") or ""
+        prenom = (request.data.get("prenom") or "").strip()
+        nom = (request.data.get("nom") or "").strip()
+
+        if not email or not password:
+            return Response({"detail": "Email et mot de passe requis."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if Utilisateurs.objects.filter(email=email).exists():
+            return Response({"detail": "Cet email est déjà utilisé."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # y a-t-il déjà au moins un admin ?
+        already_has_admin = Utilisateurs.objects.filter(role="admin", actif=True).exists()
+
+        # si un admin existe, il faut être authentifié ET admin pour créer un autre admin
+        if already_has_admin:
+            user = getattr(request, "user", None)
+            if not user or not getattr(user, "is_authenticated", False):
+                return Response({"detail": "Authentification requise."}, status=status.HTTP_401_UNAUTHORIZED)
+            if getattr(user, "role", None) != "admin":
+                return Response({"detail": "Permission refusée."}, status=status.HTTP_403_FORBIDDEN)
+
+        # => crée un ADMIN (comme tu le souhaites)
+        u = Utilisateurs.objects.create(
+            email=email,
+            mot_de_passe_hash=make_password(password),
+            prenom=prenom, nom=nom,
+            actif=True, role="admin",
+            cree_le=timezone.now(), modifie_le=timezone.now(),
+        )
+        return Response({
+            "user": {"id": u.id, "email": u.email, "prenom": u.prenom, "nom": u.nom, "role": u.role}
+        }, status=status.HTTP_201_CREATED)
+
+
+# --------------------------------------------------------------------
+# Refresh token -> new access
+# POST /christland/api/dashboard/auth/refresh/
+# body: { refresh }
+# --------------------------------------------------------------------
+class RefreshView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @csrf_exempt
+    def post(self, request):
+        token = (request.data.get("refresh") or "").strip()
+        payload = decode_jwt_raw(token)  # ⬅️ on décode le JWT brut
+        if not payload or payload.get("typ") != "refresh":
+            return Response({"detail": "Refresh token invalide."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        uid = payload.get("uid")
+        user = Utilisateurs.objects.filter(id=uid, actif=True).first()
+        if not user:
+            return Response({"detail": "Utilisateur introuvable."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        new_access = make_access_token(user)
+        return Response({"access": new_access}, status=status.HTTP_200_OK)
+
+
+# --------------------------------------------------------------------
+# Login -> access + refresh
+# POST /christland/api/dashboard/auth/login/
+# body: { email, password }
+# --------------------------------------------------------------------
+class LoginView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @csrf_exempt
+    def post(self, request):
+        email = (request.data.get("email") or "").strip().lower()
+        password = request.data.get("password") or ""
+        if not email or not password:
+            return Response({"detail": "Email et mot de passe requis."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        user = Utilisateurs.objects.filter(email__iexact=email, actif=True).first()
+        if not user or not user.mot_de_passe_hash:
+            return Response({"detail": "Identifiants invalides."},
+                            status=status.HTTP_401_UNAUTHORIZED)
+
+        if not check_password(password, user.mot_de_passe_hash):
+            return Response({"detail": "Identifiants invalides."},
+                            status=status.HTTP_401_UNAUTHORIZED)
+
+        access = make_access_token(user)
+        refresh = make_refresh_token(user)
+
+        return Response({
+            "access": access,
+            "refresh": refresh,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "prenom": user.prenom,
+                "nom": user.nom,
+                "role": user.role,
+            }
+        }, status=status.HTTP_200_OK)
+
+
+# --------------------------------------------------------------------
+# Me (profil courant)
+# GET /christland/api/dashboard/auth/me/
+# --------------------------------------------------------------------
+class MeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        u = request.user
+        return Response({
+            "id": u.id,
+            "email": u.email,
+            "prenom": u.prenom,
+            "nom": u.nom,
+            "role": u.role,
+        }, status=status.HTTP_200_OK)

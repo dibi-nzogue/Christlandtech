@@ -15,12 +15,30 @@ type ExtraItem = {
   image: string;
 };
 
-const Bullet: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <li className="flex gap-2 md:gap-2.5 lg:gap-3 leading-[1.55] md:leading-7 lg:leading-8">
-    <span className="mt-[7px] h-2 w-2 rounded-full bg-[#00A8E8]" />
-    <span className="text-[13px] sm:text-[14px] lg:text-[15px]">{children}</span>
-  </li>
-);
+
+const Bullet = <T extends React.ElementType = "li">({
+  as,
+  variants,
+  className = "",
+  children,
+}: {
+  as?: T;
+  variants?: Variants;
+  className?: string;
+  children: React.ReactNode;
+}) => {
+  const Component = as ?? "li";
+  return (
+    <Component
+      {...(variants ? { variants } : {})} // transmis uniquement si motion.* utilisé
+      className={`flex gap-2 md:gap-2.5 lg:gap-3 leading-[1.55] md:leading-7 lg:leading-8 ${className}`}
+    >
+      <span className="mt-[7px] h-2 w-2 rounded-full bg-[#00A8E8]" />
+      <span className="text-[13px] sm:text-[14px] lg:text-[15px]">{children}</span>
+    </Component>
+  );
+};
+
 
 // helper i18n → array
 const toArray = (v: unknown): string[] => (Array.isArray(v) ? (v as string[]) : []);
@@ -140,9 +158,9 @@ const ExtraRow: React.FC<{
                     className="space-y-1.5 md:space-y-2 lg:space-y-3 text-[13px] sm:text-[14px] text-gray-700"
                   >
                     {item.points.slice(1).map((p, i) => (
-                      <motion.li key={i} variants={itemUp}>
-                        <Bullet>{p}</Bullet>
-                      </motion.li>
+                      <Bullet key={i} as={motion.li} variants={itemUp}>
+                        {p}
+                      </Bullet>
                     ))}
                   </motion.ul>
                 </>

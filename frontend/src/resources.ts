@@ -75,6 +75,7 @@ const resources = {
       "com.a": "I agree to be contacted",
       "com.sen": "Send via WhatsApp",
       "com.tel": "Phone Number",
+      "com.con": "Leave us a message and we will get back to you shortly.",
 
       // Account helpers
       "compte.desc": "Already have an account?",
@@ -146,7 +147,7 @@ const resources = {
       // Buttons
       "see.more": "See more",
       "see.less": "See less",
-
+      "see.all": "All",
    
    
     }
@@ -233,6 +234,7 @@ const resources = {
       "com.a": "J’accepte d’être contacté",
       "com.sen": "Envoyer via Whatsapp",
       "com.tel": "Téléphone",
+      "com.con": "Laissez-nous un message et nous vous répondrons rapidement",
 
       // Account helpers
       "compte.desc": "Déjà un compte ?",
@@ -306,6 +308,7 @@ const resources = {
         // Boutons
         "see.more": "Voir plus",
         "see.less": "Voir moins",
+        "see.all": "Tous",
 
 
     },
