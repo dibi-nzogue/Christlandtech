@@ -145,6 +145,7 @@ export const toQueryString = (params?: Record<string, unknown>, lang?: string) =
 
 
 // ✅ n'ajoute jamais un token expiré
+// ✅ n'ajoute jamais un token expiré
 const withJsonAccept = (init?: RequestInit): RequestInit => {
   const headers = new Headers(init?.headers || {});
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
@@ -152,14 +153,17 @@ const withJsonAccept = (init?: RequestInit): RequestInit => {
   // Langue UI
   const lang = getUiLang();
   headers.set("Accept-Language", lang);
+  headers.set("X-Lang", lang);  // ← REMETS CETTE LIGNE !!!!
 
-  // Auth (si présent et valide)
+  // Auth
   const bearer = auth.bearerHeader();
   if (bearer.Authorization && !headers.has("Authorization")) {
     headers.set("Authorization", bearer.Authorization);
   }
   return { ...init, headers };
 };
+
+
 // localStorage.setItem('i18n-lang','en')
 
 const parseJsonSafe = async (res: Response) => {
@@ -227,7 +231,8 @@ export function useFetchQuery<T = any>(url: string, opts: UseFetchOptions<T> = {
     setState((s) => ({ ...s, loading: true, error: null }));
   }
 
-  const qs = toQueryString(params, uiLang);     // ✅ même langue
+  // FORCE ?lang=en (ou fr) dans TOUTES les requêtes – le backend le lit à 100%
+const qs = toQueryString({ ...params, lang: uiLang }, uiLang);
   const requestInit = withJsonAccept(fetchInit); // withJsonAccept lit déjà getUiLang() à chaud
 
   try {

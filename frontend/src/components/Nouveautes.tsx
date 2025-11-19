@@ -37,7 +37,7 @@ const NextArrow = (props: any) => {
       onClick={onClick}
       aria-label="Next"
       className="flex absolute top-1/2 -translate-y-1/2 right-2 sm:-right-4
-                 z-10 bg-white shadow-md rounded-full p-2 sm:p-3 md:p-5
+                 z-10 bg-white shadow-md rounded-full p-2 sm:p-3 md:p-3
                  cursor-pointer hover:bg-gray-100 transition"
     >
       <ArrowRight size={18} className="text-gray-700" />
@@ -51,7 +51,7 @@ const PrevArrow = (props: any) => {
       onClick={onClick}
       aria-label="Previous"
       className="flex absolute top-1/2 -translate-y-1/2 left-2 sm:-left-4
-                 z-10 bg-white shadow-md rounded-full p-2 sm:p-3 md:p-5
+                 z-10 bg-white shadow-md rounded-full p-2 sm:p-3 md:p-3
                  cursor-pointer hover:bg-gray-100 transition rotate-180"
     >
       <ArrowRight size={18} className="text-gray-700" />
@@ -105,18 +105,24 @@ export default function Nouveautes() {
     return latest.filter((p) => p.category?.nom === activeTab || p.categorie?.nom === activeTab);
   }, [latest, activeTab]);
 
-  /* Pilotage robuste des colonnes */
   const visibleSlides = useVisibleSlides();
-  const slidesToShow = Math.min(visibleSlides, Math.max(1, filtered?.length || 1));
-  const showArrows = visibleSlides >= 2 && (filtered?.length || 0) > 1;
-  const autoPlayMobile = visibleSlides === 1 && (filtered?.length || 0) > 1;
+  const count = filtered?.length ?? 0;
 
-  // re-init slick si nb de colonnes change
-  const sliderKey = `nv-${visibleSlides}-${filtered?.length || 0}`;
+  // 👉 Toujours 3 / 2 / 1 colonnes selon la largeur écran
+  const slidesToShow = visibleSlides;
+
+  // Flèches seulement si on a plus de cartes que de colonnes
+  const showArrows = visibleSlides >= 2 && count > slidesToShow;
+
+  // Autoplay uniquement sur mobile s’il y a >1 produit
+  const autoPlayMobile = visibleSlides === 1 && count > 1;
+
+  // re-init slick si nb de colonnes ou nombre de produits change
+  const sliderKey = `nv-${visibleSlides}-${count}`;
 
   const settings = {
     dots: false,
-    infinite: (filtered?.length ?? 0) > slidesToShow,
+    infinite: count > slidesToShow,
     speed: 600,
     swipeToSlide: true,
     variableWidth: false,
@@ -140,6 +146,85 @@ export default function Nouveautes() {
     hidden: { opacity: 0, y: 80 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" } },
   };
+
+  // Petite fonction pour rendre une carte produit (réutilisée grid + slider)
+  const renderCard = (p: any) => (
+    <motion.div
+      key={p.id}
+      variants={containerVariants}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.8 }}
+      className="
+        h-[520px] sm:h-[540px] md:h-[560px]
+        bg-white shadow-md rounded-2xl p-4
+        flex flex-col justify-between
+        hover:shadow-lg transition-shadow
+      "
+    >
+      {/* --- Bloc haut : image + marque + titre/specs --- */}
+      <div className="space-y-2">
+        {/* Image */}
+        <div className="w-full rounded-2xl overflow-hidden">
+          <div className="h-[190px] sm:h-[220px] md:h-[250px]">
+            <img
+              src={p.image || FALLBACK_SVG}
+              alt={p.nom}
+              className="w-full h-full object-contain object-center block"
+              loading="lazy"
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                if (img.src !== FALLBACK_SVG) img.src = FALLBACK_SVG;
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Marque */}
+        <h4 className="text-xs sm:text-sm text-gray-500 text-center">
+          {p.brand?.nom || ""}
+        </h4>
+
+        {/* Titre + specs */}
+        <div className="px-1">
+          <p
+            className="font-semibold text-gray-800 text-sm sm:text-base text-center
+                       overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical] [WebkitLineClamp:2]"
+            title={p.nom}
+          >
+            {p.nom}
+          </p>
+          {p.specs && (
+            <p
+              className="mt-1 text-xs sm:text-sm text-gray-600 text-center
+                         overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical] [WebkitLineClamp:3]"
+              title={p.specs}
+            >
+              {p.specs}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Prix */}
+      <div className="mt-2 flex items-center justify-center">
+        {p.price ? (
+          <span className="font-bold text-gray-900 text-sm sm:text-base">
+            Fcfa {p.price}
+          </span>
+        ) : (
+          <span className="text-gray-400 text-xs sm:text-sm">Prix indisponible</span>
+        )}
+      </div>
+
+      {/* État */}
+      {p.state && (
+        <div className="mt-3 bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl text-xs sm:text-sm font-medium w-full text-center">
+          État&nbsp;: {p.state}
+        </div>
+      )}
+    </motion.div>
+  );
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-10 flex flex-col items-center py-10 bg-white">
@@ -189,96 +274,37 @@ export default function Nouveautes() {
         </div>
       )}
 
-      {/* Carrousel */}
-      {!loading && (filtered?.length ?? 0) > 0 && (
-        <div className="relative w-full mb-10">
-          {/* Hauteurs homogènes sans toucher aux largeurs calculées par Slick */}
-          <style>{`
-            .nouveautes-slider .slick-track { align-items: stretch; }
-            .nouveautes-slider .slick-slide > div { height: 100%; }
-          `}</style>
+      {/* Carrousel OU grille simple selon le nombre de produits */}
+      {!loading && count > 0 && (
+        count <= visibleSlides ? (
+          // 👉 Cas 1 : peu de produits → grille (garde la taille habituelle)
+          <div className="w-full mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filtered!.map((p) => (
+                <div key={p.id} className="px-1 md:px-3 py-3">
+                  {renderCard(p)}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          // 👉 Cas 2 : beaucoup de produits → slider
+          <div className="relative w-full mb-10">
+            {/* Hauteurs homogènes sans toucher aux largeurs calculées par Slick */}
+            <style>{`
+              .nouveautes-slider .slick-track { align-items: stretch; }
+              .nouveautes-slider .slick-slide > div { height: 100%; }
+            `}</style>
 
-          <Slider key={sliderKey} className="nouveautes-slider" {...settings}>
-            {filtered!.map((p) => (
-              <div key={p.id} className="px-1 md:px-3 py-3">
-                <motion.div
-                  variants={containerVariants}
-                  initial="hidden"
-                  whileInView="visible"
-                  viewport={{ once: true, amount: 0.8 }}
-                  className="
-                    h-[520px] sm:h-[540px] md:h-[560px]
-                    bg-white shadow-md rounded-2xl p-4
-                    flex flex-col justify-between
-                    hover:shadow-lg transition-shadow
-                  "
-                >
-                  {/* --- Bloc haut : image + marque + titre/specs --- */}
-                  <div className="space-y-2">
-                    {/* Image (un peu plus grande pour mieux remplir) */}
-                    <div className="w-full rounded-2xl overflow-hidden">
-                      <div className="h-[190px] sm:h-[220px] md:h-[250px]">
-                        <img
-                          src={p.image || FALLBACK_SVG}
-                          alt={p.name}
-                          className="w-full h-full object-contain object-center block"
-                          loading="lazy"
-                          onError={(e) => {
-                            const img = e.currentTarget as HTMLImageElement;
-                            if (img.src !== FALLBACK_SVG) img.src = FALLBACK_SVG;
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Marque */}
-                    <h4 className="text-xs sm:text-sm text-gray-500 text-center">
-                      {p.brand?.nom || ""}
-                    </h4>
-
-                    {/* Titre + specs (clamp) */}
-                    <div className="px-1">
-                      <p
-                        className="font-semibold text-gray-800 text-sm sm:text-base text-center
-                                   overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical] [WebkitLineClamp:2]"
-                        title={p.name}
-                      >
-                        {p.name}
-                      </p>
-                      {p.specs && (
-                        <p
-                          className="mt-1 text-xs sm:text-sm text-gray-600 text-center
-                                     overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical] [WebkitLineClamp:3]"
-                          title={p.specs}
-                        >
-                          {p.specs}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* --- Prix (section centrale) --- */}
-                  <div className="mt-2 flex items-center justify-center">
-                    {p.price ? (
-                      <span className="font-bold text-gray-900 text-sm sm:text-base">
-                        Fcfa {p.price}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400 text-xs sm:text-sm">Prix indisponible</span>
-                    )}
-                  </div>
-
-                  {/* --- État (collé en bas) --- */}
-                  {p.state && (
-                    <div className="mt-3 bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl text-xs sm:text-sm font-medium w-full text-center">
-                      État&nbsp;: {p.state}
-                    </div>
-                  )}
-                </motion.div>
-              </div>
-            ))}
-          </Slider>
-        </div>
+            <Slider key={sliderKey} className="nouveautes-slider" {...settings}>
+              {filtered!.map((p) => (
+                <div key={p.id} className="px-1 md:px-3 py-3">
+                  {renderCard(p)}
+                </div>
+              ))}
+            </Slider>
+          </div>
+        )
       )}
 
       {/* Bouton Voir plus */}
@@ -288,7 +314,7 @@ export default function Nouveautes() {
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, amount: 0.5 }}
+        viewport={{ once: true, amount: 0.5}}
       >
         {t("pdt")}
       </motion.button>

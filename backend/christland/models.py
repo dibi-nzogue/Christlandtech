@@ -154,20 +154,16 @@ class Favoris(models.Model):
     class Meta:
         db_table = 'favoris'
 
-class TranslationEntry(models.Model):
-    app_label  = models.CharField(max_length=80, db_index=True)
-    model_name = models.CharField(max_length=120, db_index=True)
-    object_id  = models.CharField(max_length=64, db_index=True)
-    field_name = models.CharField(max_length=120, db_index=True)
-    lang       = models.CharField(max_length=10, db_index=True)  # "en", "en-US", ...
-    text       = models.TextField(blank=True, default="")
-    source_hash = models.CharField(max_length=64, blank=True, default="", db_index=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+class TextTranslation(models.Model):
+    source_lang = models.CharField(max_length=10, default="fr")
+    target_lang = models.CharField(max_length=10)
+    source_text = models.TextField()
+    translated_text = models.TextField()
 
+    # (optionnel) pour éviter les doublons
     class Meta:
-        unique_together = ("app_label","model_name","object_id","field_name","lang")
-
+        unique_together = ("source_lang", "target_lang", "source_text")
+        
 # ===== Catalogue ==============================================================
 
 class Produits(models.Model):

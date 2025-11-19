@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -133,6 +135,19 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
 ]
 
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-lang",  # ← INDISPENSABLE POUR LA TRADUCTION
+]
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -205,4 +220,4 @@ REST_FRAMEWORK = {
 }
 
 
-
+LIBRETRANSLATE_URL = "https://libretranslate.de"

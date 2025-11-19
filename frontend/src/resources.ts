@@ -92,6 +92,8 @@ const resources = {
       "stat.client": "Satisfied Clients",
       "stat.exp": "Experience",
       "stat.commande": "Commands",
+      "stat2.commander": " Order now",
+      "tous": "All",
       "ser.title": "DISCOVER OUR ",
       "ser.title1": " SERVICES",
       "ser.ch": "Our purpose is to help our clients",
@@ -149,14 +151,22 @@ const resources = {
       "see.less": "See less",
       "see.all": "All",
    
-   
+   "filters": {
+  "brand": "BRAND",
+  "color": "COLOR",
+  "state": "CONDITION"
+},
+
+"mobile": {
+  "categories": "Categories",
+  "filters": "Filters",
+  "openCategories": "Open categories",
+  "openFilters": "Open filters"
+}
+
+
     }
   },
-
- 
-
-
-
 
 
   fr: {
@@ -197,7 +207,7 @@ const resources = {
       "siege": "Siège Principal",
       "new": "Nouveautés",
       "pdt": "Tous les Produits",
-
+      "tous": " Tous",
       // Forms
       "form.button": "Envoyer",
       "form.button1": "Créer Compte",
@@ -251,7 +261,7 @@ const resources = {
       "stat.client": "Clients Satisfaits",
       "stat.exp": "Expérience",
       "stat.commande": "Commandes",
-      
+      "stat2.commander": " Commander",
       // services
       "ser.title": "DÉCOUVREZ NOS",
       "ser.title1": " SERVICES",
@@ -309,6 +319,20 @@ const resources = {
         "see.more": "Voir plus",
         "see.less": "Voir moins",
         "see.all": "Tous",
+
+"filters": {
+  "brand": "MARQUE",
+  "color": "COULEUR",
+  "state": "ÉTAT"
+},
+
+"mobile": {
+  "categories": "Catégories",
+  "filters": "Filtres",
+  "openCategories": "Ouvrir les catégories",
+  "openFilters": "Ouvrir les filtres"
+}
+
 
 
     },

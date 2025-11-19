@@ -165,8 +165,6 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, code, options, selecte
 const fmt = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
 
 
-
-
 const ProductCard: React.FC<{
   name: string;
   price?: number | null;
@@ -176,59 +174,67 @@ const ProductCard: React.FC<{
   promoNow?: boolean;
   promoFin?: string | null;
   onOrder?: () => void;
-}> = ({ name, price, oldPrice, img, desc, promoNow, promoFin, onOrder }) => (
+}> = ({ name, price, oldPrice, img, desc, promoNow, promoFin, onOrder }) => {
+  const { t } = useTranslation();   // ✅ on déclare t ici
 
-  <article className="group rounded-2xl border border-gray-200 bg-white p-4 shadow transition-shadow hover:shadow-lg">
-    <div className="relative w-full bg-white border border-gray-100 rounded-xl">
-     {promoNow && (
-  <span
-    className="absolute top-2 left-2 z-20 bg-red-600 text-white text-[11px] font-semibold px-2 py-1 rounded-md shadow-lg ring-1 ring-red-500/30  pointer-events-none select-none">
-    PROMO
-  </span>
-)}
-<div className="pt-[100%] md:pt-[75%]" />
-  <img
-  src={img}
-  alt={name}
-  loading="lazy"
-  width={800}
-  height={600}
-   className="absolute inset-0 h-full w-full object-contain rounded-xl transition-transform duration-300 ease-out group-hover:scale-[1.02]"
-  onError={(e) => { (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG; }}/>
-</div>
+  return (
+    <article className="group rounded-2xl border border-gray-200 bg-white p-4 shadow transition-shadow hover:shadow-lg">
+      <div className="relative w-full bg-white border border-gray-100 rounded-xl">
+        {promoNow && (
+          <span className="absolute top-2 left-2 z-20 bg-red-600 text-white text-[11px] font-semibold px-2 py-1 rounded-md shadow-lg ring-1 ring-red-500/30  pointer-events-none select-none">
+            PROMO
+          </span>
+        )}
+        <div className="pt-[100%] md:pt-[75%]" />
+        <img
+          src={img}
+          alt={name}
+          loading="lazy"
+          width={800}
+          height={600}
+          className="absolute inset-0 h-full w-full object-contain rounded-xl transition-transform duration-300 ease-out group-hover:scale-[1.02]"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
+          }}
+        />
+      </div>
 
-    <h3 className="mt-3 text-[15px] sm:text-base font-semibold text-gray-900">{name}</h3>
-    {desc ? <p className="mt-1 line-clamp-2 text-sm text-gray-500">{desc}</p> : null}
+      <h3 className="mt-3 text-[15px] sm:text-base font-semibold text-gray-900">{name}</h3>
+      {desc ? <p className="mt-1 line-clamp-2 text-sm text-gray-500">{desc}</p> : null}
 
-    <div className="mt-3 flex items-center justify-between">
-      {typeof price === "number" ? (
-        <span className="text-xl sm:text-xl md:text-sm lg:text-2xl font-bold text-gray-900">{fmt(price)}</span>
-      ) : (
-        <span />
+      <div className="mt-3 flex items-center justify-between">
+        {typeof price === "number" ? (
+          <span className="text-xl sm:text-xl md:text-sm lg:text-2xl font-bold text-gray-900">
+            {fmt(price)}
+          </span>
+        ) : (
+          <span />
+        )}
+        {typeof oldPrice === "number" && typeof price === "number" && oldPrice > price && (
+          <span className="text-sm sm:text-base md:text-text-base lg:text-lg text-gray-500 line-through">
+            {fmt(oldPrice)}
+          </span>
+        )}
+      </div>
+
+      {promoNow && promoFin && (
+        <p className="mt-1 text-xs text-gray-500">
+          🔔 Offre valable jusqu’au {new Date(promoFin).toLocaleDateString("fr-FR")}
+        </p>
       )}
-      {typeof oldPrice === "number" && typeof price === "number" && oldPrice > price && (
-        <span className="text-sm sm:text-base md:text-text-base lg:text-lg text-gray-500 line-through">
-          {fmt(oldPrice)}
-        </span>
-      )}
-    </div>
-    {promoNow && promoFin && (
-  <p className="mt-1 text-xs text-gray-500">
-    🔔 Offre valable jusqu’au{" "}
-    {new Date(promoFin).toLocaleDateString("fr-FR")}
-  </p>
-)}
 
-    <div className="mt-3 flex items-center">
-      <button
-        onClick={onOrder}
-        className="rounded-lg border px-3 py-1.5 text-sm sm:text-md font-medium bg-[#00A8E8] text-white border-[#00A8E8] hover:opacity-90"
-      >
-        Commander
-      </button>
-    </div>
-  </article>
-);
+      <div className="mt-3 flex items-center">
+        <button
+          onClick={onOrder}
+          className="rounded-lg border px-3 py-1.5 text-sm sm:text-md font-medium bg-[#00A8E8] text-white border-[#00A8E8] hover:opacity-90"
+        >
+          {t("stat2.commander")}
+        </button>
+      </div>
+    </article>
+  );
+};
+
 
 type PresentationProps = {
   onOrder: (p: ProduitMini) => void;
@@ -338,32 +344,40 @@ const Presentation: React.FC<PresentationProps> = ({ onOrder }) => {
   const { data: filtersPayload, loading: filtersLoading } = useFilters(filterParams);
 
   const FILTERS: Filter[] = React.useMemo(() => {
-    const base: Filter[] = [];
+  const base: Filter[] = [];
 
-    if (filtersPayload?.brands?.length) {
-      base.push({
-        title: "MARQUE",
-        code: "brand",
-        options: filtersPayload.brands.map((b) => ({ label: b.nom, value: b.slug })),
-      });
-    }
-    if (filtersPayload?.colors?.length) {
-      base.push({
-        title: "COULEUR",
-        code: "color",
-        options: filtersPayload.colors.map((c) => ({ label: c.nom, value: c.slug })),
-      });
-    }
-    if (filtersPayload?.states?.length) {
-      base.push({
-        title: "ÉTAT",
-        code: "etat",
-        options: (filtersPayload.states as any[]).map((s: any) => ({
-          label: s.label ?? s.value,
-          value: s.value ?? s.label,
-        })),
-      });
-    }
+  if (filtersPayload?.brands?.length) {
+    base.push({
+      title: t("filters.brand"), // ← traduit
+      code: "brand",
+      options: filtersPayload.brands.map((b) => ({
+        label: b.nom,
+        value: b.slug,
+      })),
+    });
+  }
+
+  if (filtersPayload?.colors?.length) {
+    base.push({
+      title: t("filters.color"), // ← traduit
+      code: "color",
+      options: filtersPayload.colors.map((c) => ({
+        label: c.nom,
+        value: c.slug,
+      })),
+    });
+  }
+
+  if (filtersPayload?.states?.length) {
+    base.push({
+      title: t("filters.state"), // ← traduit
+      code: "etat",
+      options: (filtersPayload.states as any[]).map((s: any) => ({
+        label: s.label ?? s.value,
+        value: s.value ?? s.label,
+      })),
+    });
+  }
 
     if (filtersPayload?.attributes?.length) {
       filtersPayload.attributes.forEach((a) => {
@@ -398,12 +412,13 @@ const Presentation: React.FC<PresentationProps> = ({ onOrder }) => {
       page,
       page_size: PAGE_SIZE,
     };
-    if (q) qp.q = q; 
+    if (q) qp.q = q;
     Object.entries(selected).forEach(([k, v]) => {
       if (v) qp[k] = v;
     });
     return qp;
-  }, [categorySlug, subSlug, page, selected]);
+  }, [categorySlug, subSlug, page, selected, q]);  // ✅ ajout de q ici
+
 
   const { data: productPage, loading: productsLoading } = useProducts(productParams);
 
@@ -522,26 +537,28 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
         </div>
 
         {/* Mobile actions */}
-        <div className="flex items-center gap-3 lg:hidden mb-3 md:mb-4">
-          <button
-            type="button"
-            onClick={() => setMobileCatsOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm active:scale-[0.99]"
-            aria-label="Ouvrir les catégories"
-          >
-            <FiMenu className="h-5 w-5" />
-            Catégories
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileFiltersOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm active:scale-[0.99]"
-            aria-label="Ouvrir les filtres"
-          >
-            <FiMenu className="h-5 w-5" />
-            Filtres
-          </button>
-        </div>
+       <div className="flex items-center gap-3 lg:hidden mb-3 md:mb-4">
+  <button
+    type="button"
+    onClick={() => setMobileCatsOpen(true)}
+    className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm active:scale-[0.99]"
+    aria-label={t("mobile.openCategories")}
+  >
+    <FiMenu className="h-5 w-5" />
+    {t("mobile.categories")}
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setMobileFiltersOpen(true)}
+    className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm active:scale-[0.99]"
+    aria-label={t("mobile.openFilters")}
+  >
+    <FiMenu className="h-5 w-5" />
+    {t("mobile.filters")}
+  </button>
+</div>
+
 
         {/* Carrousel (md+) */}
         <div className="hidden md:flex items-center gap-3 mt-0">
@@ -566,7 +583,7 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
                 ].join(" ")}
                 title="Afficher tout"
               >
-                Tous
+               {t("tous")}
               </button>
 
               {(catsLoading ? [] : cats).map((c) => {

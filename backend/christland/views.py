@@ -21,6 +21,9 @@ from rest_framework.decorators import api_view
 import requests
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.core.cache import cache
+from datetime import datetime
+from django.utils import timezone
+from christland.models import TextTranslation
 from .models import (
     Categories, Produits, VariantesProduits, ImagesProduits,
     Marques, Couleurs, CategorieAttribut,
@@ -38,9 +41,20 @@ from .auth_jwt import JWTAuthentication, make_access_token, make_refresh_token, 
 import jwt
 from django.db.models import Sum
 from django.utils.text import slugify
+from christland.services.text_translate import translate_text
 from django.db.models import Subquery, OuterRef
-from .serializers import ProduitCardSerializer, ProduitsSerializer, ArticleDashboardSerializer, ArticleEditSerializer, ArticleCreateSerializer
-from datetime import datetime
+from .serializers import (
+    ProduitCardSerializer,
+    ProduitsSerializer,
+    ArticleDashboardSerializer,
+    ArticleEditSerializer,
+    ArticleCreateSerializer,
+    CategorieMiniSerializer,
+    MarqueMiniSerializer,
+    CouleurMiniSerializer,
+     _etat_label, 
+     get_request_lang,
+)
 from rest_framework.pagination import PageNumberPagination
 from django.core.mail import send_mail
 import json
@@ -60,321 +74,14 @@ from rest_framework import status, permissions
 from django.contrib.auth.hashers import check_password, make_password
 
 
-# ============================================
-# i18n unified helpers (rapide & robuste)
-# ============================================
 
-# -----------------------------
-# Helpers
-# -----------------------------
-# --- i18n helpers (en haut du fichier, après _tr)
-DISPLAY_LANG_SLUG = False  # True si tu veux aussi traduire visuellement les slugs
-
-def tr_field(request, obj, name, raw):
-    return _tr(request, obj, name, raw or "")
-
-def tr_display_slug(request, obj, raw):
-    return tr_field(request, obj, "slug", raw or "") if DISPLAY_LANG_SLUG else (raw or "")
-
-class I18nSerializerMixin:
-    def tr_cat(self, request, c):
-        return {
-            "id": c.id,
-            "nom": tr_field(request, c, "nom", c.nom),
-            "slug": tr_display_slug(request, c, c.slug),
-            "parent": c.parent_id,
-        }
-
-    def tr_brand(self, request, m):
-        return {
-            "id": m.id,
-            "nom": tr_field(request, m, "nom", m.nom),
-            "slug": tr_display_slug(request, m, m.slug),
-            "logo_url": m.logo_url,
-        }
-
-    def tr_color(self, request, c):
-        return {
-            "id": c.id,
-            "nom": tr_field(request, c, "nom", c.nom),
-            "slug": tr_display_slug(request, c, c.slug),
-            "code_hex": c.code_hex,
-            "est_active": getattr(c, "est_active", True),
-        }
-
-    def tr_product_card(self, request, p, image_url=None, specs=None, price=None, state=None, category=None):
-        return {
-            "id": p.id,
-            "slug": tr_display_slug(request, p, p.slug),
-            "nom": tr_field(request, p, "nom", p.nom),  # ✅ traduit
-            "brand": (
-                {
-                    "slug": getattr(p.marque, "slug", None),
-                    "nom": getattr(p.marque, "nom", None),  # ❌ pas de tr_field ici
-                } if p.marque_id else None
-            ),
-            "image": image_url,
-            "specs": specs,
-            "price": price,
-            "state": state,
-            "category": (
-                {
-                    "id": category.id,
-                    "slug": category.slug,
-                    "nom": tr_field(request, category, "nom", category.nom),  # ✅ traduit
-                } if category else None
-            ),
-        }
- 
-
-
-# cache global (clé: (model, lang))
-_TRANSLATION_BULK_CACHE = {}
-
- 
- # --- i18n helpers ----------------------------------------------------
-from django.core.cache import cache  # tu l'as déjà importé plus haut, c’est ok
-
-BASE_LANG = "fr"
-DISPLAY_LANG_SLUG = False
-
-TRANSLATION_TTL = 86400  # 24h, tu peux augmenter si tu veux
-
-def _req_lang(request):
-    q = (request.query_params.get("lang") or "").strip().lower()
-    if q:
-        return q.split(",")[0].split("-")[0]
-    raw = (request.headers.get("Accept-Language") or BASE_LANG).lower()
-    primary = raw.split(",")[0].strip()
-    return primary.split("-")[0] if primary else BASE_LANG
-
-
-def _tr(request, instance, field_name: str, value: str) -> str:
-    """
-    Traduction avec :
-      - early return pour la langue de base
-      - cache par requête (request._tr_cache)
-      - cache global (django cache) pour toutes les requêtes suivantes
-    """
-    lang = _req_lang(request)
-
-    # rien à faire si pas de texte ou langue de base
-    if not isinstance(value, str) or not value or lang == BASE_LANG:
-        return value
-
-    # cache par requête
-    cache_dict = getattr(request, "_tr_cache", None)
-    if cache_dict is None:
-        cache_dict = {}
-        setattr(request, "_tr_cache", cache_dict)
-
-    meta = getattr(instance, "_meta", None)
-    if meta is None:
-        return value
-
-    app_label = getattr(meta, "app_label", "christland")
-    model_name = getattr(meta, "model_name", instance.__class__.__name__).lower()
-    class_name = instance.__class__.__name__
-
-    # variantes de nom de modèle possibles
-    singular = {
-        "produits": "produit",
-        "categories": "categorie",
-        "marques": "marque",
-        "couleurs": "couleur",
-    }.get(model_name, model_name.rstrip("s"))
-
-    model_keys = [
-        model_name,             # "produits"
-        class_name,             # "Produits"
-        singular,               # "produit"
-        class_name.rstrip("s"), # "Produit"
-    ]
-
-    obj_id = getattr(instance, "pk", None)
-    if obj_id is None:
-        return value
-
-    for model_key in model_keys:
-        if not model_key:
-            continue
-
-        # clé pour le cache par requête
-        local_ck = (app_label, model_key, obj_id, field_name, lang)
-        if local_ck in cache_dict:
-            t = cache_dict[local_ck]
-            if t != value:
-                return t
-            continue  # même valeur => on tente éventuellement un autre model_key
-
-        # clé pour le cache global Django
-        global_ck = f"tr:{app_label}:{model_key}:{obj_id}:{field_name}:{lang}"
-
-        # 1) on essaye d'abord le cache global
-        t = cache.get(global_ck, None)
-        if t is not None:
-            cache_dict[local_ck] = t
-            if t != value:
-                return t
-            continue
-
-        # 2) sinon on calcule réellement la traduction
-        t = translate_field_for_instance(
-            app_label,
-            model_key,
-            str(obj_id),
-            field_name,
-            value,
-            lang,
-        )
-
-        # 3) on met en cache (local + global)
-        cache_dict[local_ck] = t
-        cache.set(global_ck, t, TRANSLATION_TTL)
-
-        if t != value:
-            return t
-
-    return value
-
-
-def tr_field(request, obj, name, raw):
-    return _tr(request, obj, name, raw or "")
-
-def tr_display_slug(request, obj, raw):
-    return tr_field(request, obj, "slug", raw or "") if DISPLAY_LANG_SLUG else (raw or "")
-# ---------------------------------------------------------------------
-
-
-
-
-
-
-# b) traduire les specs (valeurs/libellés)
-def _specs_to_filled_list_i18n(request, specs_qs):
-    items = []
-    for sp in specs_qs.select_related("attribut", "valeur_choice"):
-        attr = sp.attribut
-        if not attr or not attr.actif:
-            continue
-        # libellé de l’attribut
-        lib = _tr(request, attr, "libelle", attr.libelle or attr.code)
-        # valeur (selon le type)
-        if sp.valeur_choice:
-            val = _tr(request, sp.valeur_choice, "valeur", sp.valeur_choice.valeur)
-        elif sp.valeur_text is not None:
-            # bool en texte → traduisible aussi
-            val = _tr(request, sp, "valeur_text", sp.valeur_text)
-        elif sp.valeur_int is not None:
-            val = str(sp.valeur_int)
-        elif sp.valeur_dec is not None:
-            val = str(sp.valeur_dec)
-        else:
-            val = None
-        if val not in (None, ""):
-            items.append(f"{val}")
-    return " | ".join(items[:5])
-
-
-# --- helper pour normaliser le texte de recherche vers la langue de base ----
-try:
-    # à TOI d'ajouter cette fonction dans christland.services.i18n_translate
-    from christland.services.i18n_translate import translate_free_text_to_base
-except ImportError:
-    translate_free_text_to_base = None
-
-
-# Petit dictionnaire de secours pour quelques mots anglais fréquents
-EN_FR_KEYWORDS: dict[str, str] = {
-    "laptop": "ordinateur portable",
-    "computer": "ordinateur",
-    "pc": "ordinateur",
-    "desktop": "ordinateur",
-    "monitor": "écran",
-    "screen": "écran",
-    "keyboard": "clavier",
-    "mouse": "souris",
-    "headphones": "casque",
-    "earphones": "écouteurs",
-    "earbuds": "écouteurs",
-    "phone": "téléphone",
-    "smartphone": "téléphone",
-    "tablet": "tablette",
-    "tv": "télévision",
-    "television": "télévision",
-    "camera": "caméra",
-}
-
-
-
-
-def _normalize_search_query(request, q: str) -> str:
-    """
-    On veut toujours chercher dans la langue de base (fr),
-    même si l'utilisateur tape en anglais (ou autre).
-    - 1) On tente la traduction automatique (free text)
-    - 2) Si ça ne donne rien, on regarde dans EN_FR_KEYWORDS
-    - 3) Sinon, on renvoie le texte brut
-    """
-    q = (q or "").strip()
-    if not q:
-        return ""
-
-    lang = _req_lang(request)
-    if lang == BASE_LANG:
-        # déjà en français → on cherche tel quel
-        return q
-
-    low = q.lower()
-
-    # 1️⃣ Traduction automatique vers la langue de base (fr)
-    if translate_free_text_to_base:
-        try:
-            translated = translate_free_text_to_base(
-                q,
-                source_lang=lang,
-                target_lang=BASE_LANG,
-            )
-            if translated:
-                translated = translated.strip()
-                # si la traduction a vraiment changé le mot, on l'utilise
-                if translated and translated.lower() != low:
-                    return translated
-        except Exception:
-            # en cas d'erreur, on continue vers les fallbacks
-            pass
-
-    # 2️⃣ Fallback : dictionnaire pour quelques mots très fréquents
-    if low in EN_FR_KEYWORDS:
-        return EN_FR_KEYWORDS[low]
-
-    # 3️⃣ Dernier recours : on garde le texte original
-    return q
-
-
-
-
-# class SmallPagination(PageNumberPagination):
-#     page_size = 10
-#     page_size_query_param = "page_size"
-#     max_page_size = 100
-
-# def _req_lang(request):
-#     q = (request.query_params.get("lang") or "").strip().lower()
-#     if q:
-#         return q.split(",")[0].split("-")[0]
-#     # 👇 ajoute ceci
-#     x = (request.headers.get("X-Lang") or "").strip().lower()
-#     if x:
-#         return x.split(",")[0].split("-")[0]
-#     raw = (request.headers.get("Accept-Language") or BASE_LANG).lower()
-#     primary = raw.split(",")[0].strip()
-#     return primary.split("-")[0] if primary else BASE_LANG
-
-
-
-
-
+def _product_min_price(prod: Produits) -> Decimal | None:
+    prices = []
+    for v in prod.variantes.all():
+        prix = v.prix_actuel()
+        if prix is not None:
+            prices.append(prix)
+    return min(prices) if prices else None
 
 def _descendants_ids(cat: Categories) -> list[int]:
     todo = [cat]
@@ -384,6 +91,15 @@ def _descendants_ids(cat: Categories) -> list[int]:
         ids.append(c.id)
         todo.extend(list(c.enfants.all()))
     return ids
+
+def _product_main_image_url(request, prod: Produits) -> str | None:
+    img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
+    if not img or not getattr(img, "url", None):
+        return None
+    url = str(img.url).strip()
+    if url.lower().startswith(("http://", "https://", "data:")):
+        return url
+    return request.build_absolute_uri(url)
 
 
 def _image_accessor_name() -> str:
@@ -514,20 +230,14 @@ class SmallPagination(PageNumberPagination):
 
 from rest_framework.response import Response
 
-class CategoryProductList(I18nSerializerMixin, ListAPIView):
+class CategoryProductList(generics.ListAPIView):
     serializer_class = ProduitCardSerializer
     pagination_class = SmallPagination
-
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
 
     def get_queryset(self):
         cat_slug = (self.request.query_params.get("category") or "tous").strip().lower()
         sub_slug = (self.request.query_params.get("subcategory") or "").strip().lower()
 
-        # périmètre catégorie
         if sub_slug:
             sub = get_object_or_404(Categories, slug=sub_slug, est_actif=True)
             cat_ids = [sub.id]
@@ -535,111 +245,117 @@ class CategoryProductList(I18nSerializerMixin, ListAPIView):
             cat = get_object_or_404(Categories, slug=cat_slug, est_actif=True)
             cat_ids = _descendants_ids(cat)
         else:
-            cat_ids = list(Categories.objects.filter(est_actif=True).values_list("id", flat=True))
-
-        img_sq = ImagesProduits.objects.filter(
-            produit_id=OuterRef("pk")
-        ).order_by("-principale", "position", "id").values("url")[:1]
+            cat_ids = list(
+                Categories.objects.filter(est_actif=True).values_list("id", flat=True)
+            )
 
         qs = (
-            Produits.objects.filter(est_actif=True, visible=1, categorie_id__in=cat_ids)
+            Produits.objects
+            .filter(est_actif=True, visible=1, categorie_id__in=cat_ids)
             .select_related("categorie", "marque")
-            .annotate(
-                _min_price=Coalesce(Min("variantes__prix_promo"), Min("variantes__prix")),
-                _max_price=Coalesce(Max("variantes__prix_promo"), Max("variantes__prix")),
-                _main_img=Subquery(img_sq),
-            )
-            .only("id", "slug", "nom", "etat", "categorie__id", "categorie__slug", "categorie__nom",
-                  "marque__id", "marque__slug", "marque__nom")
+            .prefetch_related("images", "variantes")
             .distinct()
         )
 
-        # 💥 ICI il manquait l’application des filtres facettés
+        # Filtres facetés
         qs = _apply_faceted_filters(qs, self.request.query_params, cat_ids)
 
+        # 🔎 Recherche multi-champs + traductions (nom)
+               # 🔎 Recherche full-text multi-champs + traductions TextTranslation
         q = (self.request.query_params.get("q") or "").strip()
         if q:
-            q_norm = _normalize_search_query(self.request, q)
-            qs = qs.filter(nom__icontains=q_norm)
+            # langue courante (fr, en, ...)
+            lang = get_request_lang(self.request)  # ex: "fr" / "en"
 
+            # --- 1) recherche sur les champs FR (nom, slug, descriptions, marque, catégorie) ---
+            terms = [t.strip() for t in q.split() if t.strip()]
+            base_q = Q()
+            if terms:
+                for term in terms:
+                    base_q &= (
+                        Q(nom__icontains=term) |
+                        Q(slug__icontains=term) |
+                        Q(description_courte__icontains=term) |
+                        Q(description_long__icontains=term) |
+                        Q(marque__nom__icontains=term) |
+                        Q(categorie__nom__icontains=term)
+                    )
+
+            ids_match: set[int] = set()
+            if base_q:
+                ids_match |= set(
+                    qs.filter(base_q).values_list("id", flat=True)
+                )
+
+            # --- 2) si langue ≠ fr → chercher aussi dans TextTranslation ---
+            if lang != "fr":
+                # On cherche "lap" dans translated_text → ça retourne les noms FR d’origine
+                translated_sources = (
+                    TextTranslation.objects.filter(
+                        source_lang="fr",
+                        target_lang=lang,
+                        translated_text__icontains=q,
+                    )
+                    .values_list("source_text", flat=True)
+                )
+
+                source_texts = list(set(translated_sources))
+                if source_texts:
+                    ids_match |= set(
+                        qs.filter(nom__in=source_texts).values_list("id", flat=True)
+                    )
+
+            # Si on a des IDs → on restreint, sinon aucun résultat
+            if ids_match:
+                qs = qs.filter(id__in=ids_match).distinct()
+            else:
+                qs = qs.none()
+
+        # Tri
         sort = self.request.query_params.get("sort")
-        if sort == "price_asc":
-            qs = qs.order_by("_min_price", "id")
-        elif sort == "price_desc":
-            qs = qs.order_by("-_max_price", "-id")
+        if sort in ("price_asc", "price_desc"):
+            qs = qs.annotate(
+                _min_price_tmp=Coalesce(
+                    Min("variantes__prix_promo"),
+                    Min("variantes__prix"),
+                )
+            )
+            qs = qs.order_by(
+                "_min_price_tmp" if sort == "price_asc" else "-_min_price_tmp",
+                "-id",
+            )
         elif sort == "new":
             qs = qs.order_by("-cree_le", "-id")
         else:
             qs = qs.order_by("-id")
-        return qs
 
+        return qs
 
     @method_decorator(vary_on_headers("Accept-Language", "X-Lang"))
     def list(self, request, *args, **kwargs):
-        # langue pour la clé de cache
         lang = (
             request.query_params.get("lang")
             or request.headers.get("X-Lang")
-            or request.headers.get("Accept-Language")
-            or "fr"
-        ).split(",")[0].split("-")[0]
-
+            or request.headers.get("Accept-Language", "fr")
+        )
+        lang = (lang or "fr").split(",")[0].split("-")[0]
         cache_key = f"products_v2:{lang}:{request.get_full_path()}"
         cached = cache.get(cache_key)
         if cached:
             return Response(cached)
 
-        # -------- 1) Récupérer le queryset + pagination ----------
-        queryset = self.get_queryset()
+        queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
-        items = page if page is not None else queryset
-
-        # -------- 2) Sérialisation de base ----------
-        serializer = self.get_serializer(items, many=True)
-        data = [dict(obj) for obj in serializer.data]
-
-        # -------- 3) i18n + champs dérivés ----------
-        for i, prod in enumerate(items):
-            try:
-                # nom traduit
-                data[i]["nom"] = tr_field(request, prod, "nom", prod.nom)
-
-                # image principale (annotation _main_img ou champ image)
-                if not data[i].get("image"):
-                    url = getattr(prod, "_main_img", "") or ""
-                    if url and not url.lower().startswith(("http://", "https://", "data:")):
-                        url = request.build_absolute_uri(
-                            f"{settings.MEDIA_URL.rstrip('/')}/{url.lstrip('/')}"
-                        )
-                    data[i]["image"] = url or ""
-
-                # prix min (annotation)
-                if "_min_price" in prod.__dict__:
-                    val = prod.__dict__["_min_price"]
-                    data[i]["price"] = str(val) if val is not None else None
-
-                # état (libellé traduit)
-                data[i]["state"] = tr_field(request, prod, "etat", prod.etat or "") or None
-
-                # catégorie (libellé traduit, slug technique inchangé)
-                if prod.categorie_id:
-                    data[i]["category"] = {
-                        "id": prod.categorie_id,
-                        "slug": prod.categorie.slug,
-                        "nom": tr_field(request, prod.categorie, "nom", prod.categorie.nom),
-                    }
-            except Exception:
-                # on évite de crasher pour une seule ligne
-                pass
-
-        # -------- 4) Construction du payload + cache ----------
         if page is not None:
-            payload = self.get_paginated_response(data).data
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
         else:
-            payload = data
+            serializer = self.get_serializer(queryset, many=True)
+            response = Response(serializer.data)
 
-        cache.set(cache_key, payload, 180)  # TTL 3 min
-        return Response(payload)
+        cache.set(cache_key, response.data, 180)
+        return response
+
 
 # -----------------------------
 # 2) Facettes/filters (query params)
@@ -650,12 +366,8 @@ class CategoryFilters(APIView):
     GET /api/catalog/filters/?category=tous|<slug_cat>&subcategory=<slug_sub>
     -> renvoie les filtres disponibles (options) selon le périmètre.
     """
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
-
     def get(self, request):
+        lang = get_request_lang(request)
         cat_slug = (request.query_params.get("category") or "tous").strip().lower()
         sub_slug = (request.query_params.get("subcategory") or "").strip().lower()
 
@@ -667,68 +379,61 @@ class CategoryFilters(APIView):
             cat = get_object_or_404(Categories, slug=cat_slug, est_actif=True)
             cat_ids = _descendants_ids(cat)
         else:
-            # "tous" => périmètre global
             cat = None
             cat_ids = list(Categories.objects.filter(est_actif=True).values_list("id", flat=True))
 
         base = Produits.objects.filter(est_actif=True, visible=1, categorie_id__in=cat_ids)
-        # États présents dans le périmètre
-        states_qs = (
-            base.exclude(etat__isnull=True)
-                .exclude(etat__exact="")
-                .values_list("etat", flat=True)
-                .distinct()
-        )
 
-        # on mappe chaque état vers un exemple de produit (pour avoir un PK)
-        first_prod_by_state = {
-            v: base.filter(etat=v).values_list("id", flat=True).first()
-            for v in states_qs
-        }
-
+        # États (neuf / occasion / reconditionné)
+        states_qs = base.exclude(etat__isnull=True).exclude(etat__exact="").values_list("etat", flat=True).distinct()
         states = []
         for v in states_qs:
-            # libellé "brut" (ex: via choices) pour fallback
-            raw_label = dict(Produits.ETATS).get(v, v.title())
-            pid = first_prod_by_state.get(v)
-            if pid:
-                # on hydrate un faux objet juste pour l’ID et la meta
-                dummy = Produits(id=pid)
-                label_tr = tr_field(request, dummy, "etat", raw_label)
-            else:
-                label_tr = raw_label  # aucun produit trouvé pour ce state: fallback
+            label = _etat_label(v, request=request)  # FR ou EN auto
+            states.append({"value": v, "label": label})
 
-            states.append({"value": v, "label": label_tr})
+        # Marques (brut – traduit par MarqueMiniSerializer si tu l'utilises ailleurs)
+        marques_qs = Marques.objects.filter(produits__in=base).distinct().order_by("nom")
+        marques = [{"nom": m.nom, "slug": m.slug, "logo_url": m.logo_url} for m in marques_qs]
 
-        # Marques
-       # Marques
-        marques_qs = (
-            Marques.objects.filter(produits__in=base)
-            .distinct().order_by("nom")
-        )
-        marques = [{
-           "nom": m.nom,
-            "slug": m.slug,           # slug technique
-            "logo_url": m.logo_url,
-        } for m in marques_qs]
-       # Couleurs
+                # Couleurs (avec traduction du nom)
         couleurs_qs = (
-            Couleurs.objects.filter(variantes__produit__in=base)
-            .distinct().order_by("nom")
+            Couleurs.objects
+            .filter(variantes__produit__in=base)
+            .distinct()
+            .order_by("nom")
         )
-        couleurs = [{
-            "nom": tr_field(request, c, "nom", c.nom),
-            "slug": c.slug,           # slug technique
-            "code_hex": c.code_hex,
-        } for c in couleurs_qs]
 
-        # Fallback couleurs globales (idem)
-        if not couleurs:
-            couleurs = [{
-                "nom": tr_field(request, c, "nom", c.nom),
+        couleurs = []
+        for c in couleurs_qs:
+            name = c.nom or ""
+            if lang != "fr" and name:
+                name = translate_text(
+                    text=name,
+                    target_lang=lang,
+                    source_lang="fr",
+                )
+            couleurs.append({
+                "nom": name,
                 "slug": c.slug,
                 "code_hex": c.code_hex,
-            } for c in Couleurs.objects.filter(est_active=True).order_by("nom")]
+            })
+
+        # Fallback global si aucune couleur dans la catégorie
+        if not couleurs:
+            fallback_qs = Couleurs.objects.filter(est_active=True).order_by("nom")
+            for c in fallback_qs:
+                name = c.nom or ""
+                if lang != "fr" and name:
+                    name = translate_text(
+                        text=name,
+                        target_lang=lang,
+                        source_lang="fr",
+                    )
+                couleurs.append({
+                    "nom": name,
+                    "slug": c.slug,
+                    "code_hex": c.code_hex,
+                })
 
         # Prix min/max
         prix_aggr = VariantesProduits.objects.filter(produit__in=base).aggregate(
@@ -738,26 +443,7 @@ class CategoryFilters(APIView):
         price_min = prix_aggr["min"] or prix_aggr["min_fallback"]
         price_max = prix_aggr["max"] or prix_aggr["max_fallback"]
 
-        # États (neuf/occasion/reconditionné) dans le périmètre
-        states_qs = (
-            base.exclude(etat__isnull=True)
-                .exclude(etat__exact="")
-                .values_list("etat", flat=True)
-                .distinct()
-        )
-     
-
-        # Fallback Couleurs : si aucune couleur trouvée dans la catégorie courante,
-        # on montre les couleurs globales actives (optionnel mais demandé pour toujours afficher le filtre)
-        couleurs = list(couleurs)
-        if not couleurs:
-            couleurs = list(
-                Couleurs.objects.filter(est_active=True)
-                .values("nom", "slug", "code_hex")
-                .order_by("nom")
-            )
-
-        # Attributs pour la catégorie (tel que tu le fais déjà)
+        # Attributs dynamiques (inchangé – parfait)
         try:
             from .models import CategorieAttribut
             ca_qs = CategorieAttribut.objects.filter(categorie_id__in=cat_ids)\
@@ -774,85 +460,71 @@ class CategoryFilters(APIView):
                 continue
             seen.add(a.id)
             meta = {"code": a.code, "libelle": a.libelle, "type": a.type}
-            # options si CHOIX
             if a.type == Attribut.CHOIX:
-                qs_vals = ValeurAttribut.objects.filter(attribut=a)\
-                        .values("valeur", "slug").order_by("valeur")
-                meta["options"] = list(qs_vals)
+                meta["options"] = list(ValeurAttribut.objects.filter(attribut=a).values("valeur", "slug").order_by("valeur"))
             attrs_meta.append(meta)
 
-        # Détecte présence côté produit / variante dans le périmètre choisi
-        # (base = produits actifs/visibles déjà calculé plus haut)
-        prod_attr_codes = set(
-            SpecProduit.objects.filter(produit__in=base)
-            .values_list("attribut__code", flat=True)
-            .distinct()
-        )
-        var_attr_codes = set(
-            SpecVariante.objects.filter(variante__produit__in=base)
-            .values_list("attribut__code", flat=True)
-            .distinct()
-        )
+        # Séparation produit / variante
+        prod_attr_codes = set(SpecProduit.objects.filter(produit__in=base).values_list("attribut__code", flat=True).distinct())
+        var_attr_codes = set(SpecVariante.objects.filter(variante__produit__in=base).values_list("attribut__code", flat=True).distinct())
 
-        # Séparation heuristique : couleur toujours côté variante si présente
         def is_variant_attr(code: str) -> bool:
             c = (code or "").lower()
-            if c == "couleur":
-                return True
-            if c in var_attr_codes and c not in prod_attr_codes:
-                return True
-            return False
+            return c == "couleur" or (c in var_attr_codes and c not in prod_attr_codes)
 
-        attributes_product = []
-        attributes_variant = []
-        for meta in attrs_meta:
-            (attributes_variant if is_variant_attr(meta["code"]) else attributes_product).append(meta)
+        attributes_product = [m for m in attrs_meta if not is_variant_attr(m["code"])]
+        attributes_variant = [m for m in attrs_meta if is_variant_attr(m["code"])]
+
+        # Catégorie courante
+        category_data = {"nom": cat.nom, "slug": cat.slug} if cat else None
 
         payload = {
-           "category": ({"nom": tr_field(request, cat, "nom", cat.nom), "slug": cat.slug} if cat else None),
-            "brands": list(marques),
-            "colors": list(couleurs),
-            "price": {"min": price_min, "max": price_max},
+            "category": category_data,
+            "brands": marques,
+            "colors": couleurs,
+            "price": {"min": float(price_min) if price_min else None, "max": float(price_max) if price_max else None},
             "states": states,
-            # ⬇️ deux listes distinctes
             "attributes_product": attributes_product,
             "attributes_variant": attributes_variant,
         }
         return Response(payload)
-                
 
 
 class CategoryListBase(APIView):
-    
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
-    # pas de permissions ici
+    """
+    Liste des catégories (niveau 1 ou toutes)
+    Traduction gérée par CategorieMiniSerializer
+    """
     def get(self, request):
         level = (request.query_params.get("level") or "1").strip()
         qs = Categories.objects.filter(est_actif=True)
         if str(level) == "1":
             qs = qs.filter(parent__isnull=True)
 
+        qs = qs.order_by("nom")
+
+        # 🔁 on passe par le serializer pour déclencher I18nTranslateMixin
+        serializer = CategorieMiniSerializer(
+            qs, many=True, context={"request": request}
+        )
+        data = serializer.data
+
+        # 👉 si tu veux garder image_url + position, on enrichit
         def abs_media(path):
-            if not path: return None
+            if not path:
+                return None
             p = str(path).strip()
-            if p.lower().startswith(("http://","https://","data:")):
+            if p.lower().startswith(("http://", "https://", "data:")):
                 return p
             base = request.build_absolute_uri(settings.MEDIA_URL)
             return f"{base.rstrip('/')}/{p.lstrip('/')}"
-        
-        data = [{
-            "id": c.id,
-            "nom": tr_field(request, c, "nom", c.nom),
-            "slug": tr_display_slug(request, c, c.slug),
-            "parent": c.parent_id,
-            "image_url": abs_media(getattr(c, "image_url", None)),
-            "position": getattr(c, "position", None),
-        } for c in qs.order_by("nom")]
+
+        for item, c in zip(data, qs):
+            item["image_url"] = abs_media(getattr(c, "image_url", None))
+            item["position"] = getattr(c, "position", None)
 
         return Response(data)
+
 
 class CategoryListPublic(CategoryListBase):
     permission_classes = [AllowAny]  # ✅ public
@@ -869,52 +541,47 @@ class ProductMiniView(APIView):
     -> { id, slug, nom, ref, image }
     - ref : premier SKU de variante si dispo, sinon slug produit
     - image : image principale (ou première) du produit
+    Traduction gérée automatiquement par les serializers
     """
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
-    
     def get(self, request, pk_or_slug: str):
-        qs = (Produits.objects
-              .filter(est_actif=True, visible=1)
-              .select_related("categorie", "marque")
-              .prefetch_related("images", "variantes"))
+        qs = Produits.objects.filter(est_actif=True, visible=1)\
+                             .select_related("categorie", "marque")\
+                             .prefetch_related("images", "variantes")
 
         if pk_or_slug.isdigit():
             prod = get_object_or_404(qs, id=int(pk_or_slug))
         else:
             prod = get_object_or_404(qs, slug=pk_or_slug)
 
-        # image principale si marquée, sinon première par position
+        # Image principale
         img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
-        img_url = img.url if img else ""
-        if img_url and not img_url.lower().startswith(("http://", "https://", "data:")):
-            img_url = request.build_absolute_uri(img_url)
+        img_url = ""
+        if img and getattr(img, "url", None):
+            img_url = str(img.url).strip()
+            if not img_url.lower().startswith(("http://", "https://", "data:")):
+                img_url = request.build_absolute_uri(img_url)
 
-        # ref : SKU d'une variante si présent, sinon slug produit
+        # Référence (SKU ou slug)
         sku = (prod.variantes
-               .exclude(sku__isnull=True).exclude(sku__exact="")
+               .exclude(sku__isnull=True)
+               .exclude(sku__exact="")
                .values_list("sku", flat=True)
-               .first()) or ""
+               .first()) or prod.slug
 
         payload = {
             "id": prod.id,
-            "slug": tr_display_slug(request, prod, prod.slug),
-            "nom": tr_field(request, prod, "nom", prod.nom),
-            "ref": sku or prod.slug,  # ref reste technique
+            "slug": prod.slug,   # ← traduit automatiquement si besoin
+            "nom": prod.nom,     # ← traduit automatiquement par le serializer
+            "ref": sku,
             "image": img_url,
         }
 
-        return Response(payload)    
+        return Response(payload) 
     
-
 # --------- Helpers ----------
 def _abs_media(request, path: str | None) -> str | None:
     """
-    Ton champ image_couverture est un CharField.
-    - S'il contient déjà une URL absolue (http/https/data:), on la renvoie telle quelle.
-    - Sinon, on préfixe avec MEDIA_URL pour produire une URL absolue.
+    Transforme un chemin relatif en URL absolue avec MEDIA_URL
     """
     if not path:
         return None
@@ -924,40 +591,89 @@ def _abs_media(request, path: str | None) -> str | None:
     base = request.build_absolute_uri(settings.MEDIA_URL)
     return f"{base.rstrip('/')}/{p.lstrip('/')}"
 
-def _serialize_article(a: ArticlesBlog, request):
+# Nouvelle fonction propre – plus de _tr
+from christland.services.text_translate import translate_text
+from .serializers import get_request_lang  # tu l'as déjà importé plus haut
+
+def _serialize_article(a: ArticlesBlog, request) -> dict:
+    """
+    Sérialise un article blog (utilisé par BlogPostsView)
+    avec traduction automatique en fonction de la langue.
+    """
+    lang = get_request_lang(request) or "fr"
+    lang = (lang or "fr").split(",")[0].split("-")[0].lower()
+
+    # valeurs brutes FR
+    title = a.titre or ""
+    excerpt = a.extrait or ""
+    content = a.contenu or ""
+
+    # 🔁 si langue ≠ fr → on passe par translate_text (cache + Google)
+    if lang != "fr":
+        if title:
+            title = translate_text(
+                text=title,
+                target_lang=lang,
+                source_lang="fr",
+            )
+        if excerpt:
+            excerpt = translate_text(
+                text=excerpt,
+                target_lang=lang,
+                source_lang="fr",
+            )
+        if content:
+            content = translate_text(
+                text=content,
+                target_lang=lang,
+                source_lang="fr",
+            )
+
     return {
-       "id": a.id,
-        "slug": _tr(request, a, "slug",   a.slug   or ""),
-        "title": _tr(request, a, "titre",   a.titre   or ""),
-        "excerpt": _tr(request, a, "extrait", a.extrait or ""),
-        "content": _tr(request, a, "contenu", a.contenu or ""),
+        "id": a.id,
+        "slug": a.slug,  # ❗ on NE traduit PAS le slug pour garder les URLs stables
+        "title": title,
+        "excerpt": excerpt,
+        "content": content,
         "image": _abs_media(request, getattr(a, "image_couverture", None)),
-        # Tu peux exposer autres champs si besoin :
-        # "published_at": a.publie_le,
-        # "created_at": a.cree_le,
     }
 
 
+
 class BlogHeroView(APIView):
-    """
-    GET /christland/api/blog/hero/
-    -> renvoie { title, slug } pour alimenter l’intro de la page
-    Règle : on prend le plus ancien (id ASC). Si tu préfères
-    "dernier publié", remplace order_by("id") par order_by("-publie_le", "-id")
-    """
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
-    
     def get(self, request):
-        qs: QuerySet[ArticlesBlog] = ArticlesBlog.objects.all().order_by("id")
-        a = qs.first()
+        a = ArticlesBlog.objects.order_by("id").first()
         if not a:
-               return Response({"title": "", "slug": ""})
-        title = _tr(request, a, "titre", a.titre or "")
-        slug = _tr(request, a, "slug", a.slug or "")
-        return Response({"title": title, "slug": slug})
+            return Response({"title": "", "slug": ""})
+
+        lang = get_request_lang(request) or "fr"
+        lang = (lang or "fr").split(",")[0].split("-")[0].lower()
+
+        # 🎯 Traduction du titre (si langue ≠ fr)
+        title = a.titre or ""
+        if lang != "fr" and title:
+            title = translate_text(
+                text=title,
+                target_lang=lang,
+                source_lang="fr",
+            )
+
+        # 🎯 Traduction du slug (puisqu’il n’est pas un lien technique)
+        slug_text = a.slug or ""
+        if lang != "fr" and slug_text:
+            # On remplace les tirets avant traduction pour avoir un texte naturel
+            slug_text_clean = slug_text.replace("-", " ").strip()
+
+            slug_text = translate_text(
+                text=slug_text_clean,
+                target_lang=lang,
+                source_lang="fr",
+            )
+
+        return Response({
+            "title": title,
+            "slug": slug_text,   # 👈 Maintenant le slug est bien traduit
+        })
 
 
 class BlogPostsView(APIView):
@@ -1039,17 +755,11 @@ def _specs_to_filled_list(specs_qs):
 # views.py
 # views.py
 class ProduitsListCreateView(generics.ListCreateAPIView):
-    
     serializer_class = ProduitsSerializer
     pagination_class = SmallPagination
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-    
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
-    
+
     def get_queryset(self):
         qs = (
             Produits.objects
@@ -1059,10 +769,12 @@ class ProduitsListCreateView(generics.ListCreateAPIView):
             .prefetch_related('images', 'variantes')
             .distinct()
         )
+
         q = (self.request.query_params.get("q") or "").strip()
         if q:
-            q_norm = _normalize_search_query(self.request, q)
-            qs = qs.filter(nom__icontains=q_norm)   # ✅ uniquement le nom
+            # Recherche simple et rapide en français uniquement (c’est le dashboard)
+            # Pas besoin de traduction ici → on cherche dans le nom original
+            qs = qs.filter(nom__icontains=q)
 
         return qs
 
@@ -1074,8 +786,8 @@ class ProduitsDetailView(generics.RetrieveUpdateDestroyAPIView):
     authentication_classes = [JWTAuthentication]  
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx 
+        ctx["disable_i18n"] = True   # 🛑 ON BLOQUE TOUTE TRADUCTION ICI
+        return ctx
 
 # --- helpers pour image absolue et specs/prix ---
 
@@ -1204,118 +916,149 @@ class DashboardArticleEditView(generics.RetrieveAPIView):
 
 # views.py
 class BlogLatestView(APIView):
-    """
-    GET /christland/api/blog/latest/?limit=2
-    -> [{ id, slug, title, excerpt, image }]
-    """
     permission_classes = [AllowAny]
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
-    
+
     def get(self, request):
         try:
             limit = int(request.query_params.get("limit") or "2")
         except ValueError:
             limit = 2
 
-        qs = ArticlesBlog.objects.all().order_by("-cree_le", "-id")[: max(1, limit)]
-        data = [{
-            "id": a.id,
-            "slug":  _tr(request, a, "slug",   a.slug   or ""),
-            "title": _tr(request, a, "titre",   a.titre   or ""),
-            "excerpt": _tr(request, a, "extrait", a.extrait or ""),
-            "image": _abs_media(request, getattr(a, "image_couverture", None)),
-        } for a in qs]
+        qs = ArticlesBlog.objects.all().order_by("-cree_le", "-id")[:max(1, limit)]
+
+        lang = get_request_lang(request) or "fr"
+        lang = (lang or "fr").split(",")[0].split("-")[0].lower()
+
+        data = []
+        for a in qs:
+            title = a.titre or ""
+            excerpt = a.extrait or ""
+
+            if lang != "fr":
+                if title:
+                    title = translate_text(title, target_lang=lang, source_lang="fr")
+                if excerpt:
+                    excerpt = translate_text(excerpt, target_lang=lang, source_lang="fr")
+
+            data.append({
+                "id": a.id,
+                "slug": a.slug,   # pas traduit
+                "title": title,
+                "excerpt": excerpt,
+                "image": _abs_media(request, getattr(a, "image_couverture", None)),
+            })
+
         return Response(data, status=200)
 
+from christland.services.text_translate import translate_text
 
-
-from django.utils.decorators import method_decorator
-from django.views.decorators.vary import vary_on_headers
-
-
-def _etat_label_i18n(request, prod: Produits) -> str | None:
-    """
-    Retourne l'état traduit de façon fiable :
-    - on part du libellé issu des choices (Produits.ETATS)
-    - on le passe dans tr_field pour avoir 'New / Used / Refurbished' en anglais
-    """
-    code = (prod.etat or "").strip()
-    if not code:
-        return None
-
-    # libellé "humain" à partir des choices
-    raw_label = dict(Produits.ETATS).get(code, code.title())
-    # on traduit ce libellé, pas le code brut "neuf"
-    return tr_field(request, prod, "etat", raw_label) or raw_label
-
-
-
-
-class LatestProductsView(I18nSerializerMixin, APIView):
-    authentication_classes = [JWTAuthentication]
+class LatestProductsView(APIView):
     permission_classes = [AllowAny]
 
     @method_decorator(vary_on_headers("Accept-Language", "X-Lang"))
     def get(self, request):
-        # langue pour la clé de cache
-        lang = (
-            request.query_params.get("lang")
-            or request.headers.get("X-Lang")
-            or request.headers.get("Accept-Language")
-            or "fr"
-        ).split(",")[0].split("-")[0]
+        # langue demandée
+        lang = request.query_params.get("lang") or request.headers.get("X-Lang") or "fr"
+        lang = (lang or "fr").split(",")[0].split("-")[0].lower()
 
         cache_key = f"latest:{lang}"
         cached = cache.get(cache_key)
         if cached:
             return Response(cached)
 
-        # ✅ on garde tes prefetch pour les specs (i18n inclus)
+        # on récupère les 10 derniers produits actifs & visibles
         qs = (
             Produits.objects
             .filter(est_actif=True, visible=1)
             .select_related("marque", "categorie")
             .prefetch_related(
-                "images", "variantes", "specs",
-                "variantes__specs",
-                "specs__attribut", "variantes__specs__attribut",
-                "specs__valeur_choice", "variantes__specs__valeur_choice"
+                "images",
+                "variantes",
+                "specs", "specs__attribut", "specs__valeur_choice",
+                "variantes__specs", "variantes__specs__attribut", "variantes__specs__valeur_choice"
             )
             .order_by("-cree_le", "-id")[:10]
         )
 
-        def build_specs(prod):
-            s = _specs_to_filled_list_i18n(request, prod.specs.all())
-            if s:
-                return s
-            v = prod.variantes.first()
-            if v and hasattr(v, "specs"):
-                return _specs_to_filled_list_i18n(request, v.specs.all()) or ""
-            return ""
+        # base : on laisse le serializer faire son travail (nom, description, etc.)
+        serializer = ProduitCardSerializer(qs, many=True, context={"request": request})
+        base_data = list(serializer.data)
 
-        data = [
-            self.tr_product_card(
-                request, p,
-                image_url=_product_main_image_url(request, p),
-                specs=build_specs(p),
-                price=(str(_product_min_price(p)) if _product_min_price(p) is not None else None),
-                # 🔁 AVANT
-                # state=tr_field(request, p, "etat", p.etat or "") or None,
-                # ✅ APRES
-                state=_etat_label_i18n(request, p),
-                category=(p.categorie if p.categorie_id else None),
-            )
-            for p in qs
-        ]
+        results = []
 
-        # cache 3 minutes (ajuste à ton besoin)
-        cache.set(cache_key, data, 180)
-        return Response(data)
+        for item, prod in zip(base_data, qs):
+            # on part de l'objet sérialisé
+            obj = dict(item)
+
+            # ---------- Specs (comme avant) ----------
+            specs_text = ""
+            if prod.specs.exists():
+                specs_text = " | ".join([
+                    sp.valeur_text
+                    or (sp.valeur_choice.valeur if sp.valeur_choice else "")
+                    or str(sp.valeur_int or sp.valeur_dec or "")
+                    for sp in prod.specs.all()[:5]
+                    if sp.valeur_text
+                    or sp.valeur_choice
+                    or sp.valeur_int is not None
+                    or sp.valeur_dec is not None
+                ])
+            elif prod.variantes.exists():
+                var = prod.variantes.first()
+                if var and var.specs.exists():
+                    specs_text = " | ".join([
+                        sp.valeur_text
+                        or (sp.valeur_choice.valeur if sp.valeur_choice else "")
+                        or str(sp.valeur_int or sp.valeur_dec or "")
+                        for sp in var.specs.all()[:5]
+                        if sp.valeur_text
+                        or sp.valeur_choice
+                        or sp.valeur_int is not None
+                        or sp.valeur_dec is not None
+                    ])
+            obj["specs"] = specs_text.strip()
+
+            # ---------- Image principale ----------
+            main_img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
+            if main_img and main_img.url:
+                url = str(main_img.url).strip()
+                if not url.lower().startswith(("http://", "https://", "data:")):
+                    url = request.build_absolute_uri(url)
+                obj["image"] = url
+            else:
+                obj["image"] = None
+
+            # ---------- Prix min ----------
+            prix = _product_min_price(prod)
+            obj["price"] = str(prix) if prix is not None else None
+
+                       # État (utilise le helper i18n)
+            item["state"] = _etat_label(prod.etat, request=request)
 
 
+            # ---------- Catégorie pour les onglets ----------
+            if prod.categorie:
+                cat_name = prod.categorie.nom or ""
+                # on traduit nous-mêmes le nom si langue ≠ fr
+                if lang != "fr" and cat_name:
+                    cat_name = translate_text(
+                        text=cat_name,
+                        target_lang=lang,
+                        source_lang="fr",
+                    )
+
+                obj["category"] = {
+                    "id": prod.categorie.id,
+                    "nom": cat_name,              # ✅ nom traduit
+                    "slug": prod.categorie.slug,  # ✅ slug brut (clé des onglets)
+                }
+            else:
+                obj["category"] = None
+
+            results.append(obj)
+
+        cache.set(cache_key, results, 180)
+        return Response(results)
 
 
 from .models import MessagesContact
@@ -1631,18 +1374,13 @@ class MarquesListView(APIView):
     """
     GET /christland/api/catalog/marques/?q=&active_only=1
     -> [{id, nom, slug, logo_url}]
+    Traduction gérée automatiquement par MarqueMiniSerializer
     """
-   
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [AllowAny]  # on laisse AllowAny, on gère la logique dedans
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
-    
+    permission_classes = [AllowAny]
+
     def get(self, request):
         q = (request.query_params.get("q") or "").strip()
-        active_only = (request.query_params.get("active_only") or "").lower() in ("1","true","yes")
+        active_only = request.query_params.get("active_only", "").lower() in ("1", "true", "yes")
 
         qs = Marques.objects.all().order_by("nom")
         if active_only:
@@ -1651,7 +1389,12 @@ class MarquesListView(APIView):
             qs = qs.filter(Q(nom__icontains=q) | Q(slug__icontains=q))
 
         data = [
-            {"id": m.id, "nom": tr_field(request, m, "nom", m.nom), "slug": m.slug, "logo_url": m.logo_url}
+            {
+                "id": m.id,
+                "nom": m.nom,          # ← traduit automatiquement
+                "slug": m.slug,
+                "logo_url": m.logo_url,
+            }
             for m in qs
         ]
 
@@ -1662,17 +1405,13 @@ class CouleursListView(APIView):
     """
     GET /christland/api/catalog/couleurs/?q=&active_only=1
     -> [{id, nom, slug, code_hex, est_active}]
+    Traduction gérée automatiquement par CouleurMiniSerializer
     """
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [AllowAny]  # on laisse AllowAny, on gère la logique dedans
+    permission_classes = [AllowAny]
 
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
     def get(self, request):
         q = (request.query_params.get("q") or "").strip()
-        active_only = (request.query_params.get("active_only") or "").lower() in ("1","true","yes")
+        active_only = request.query_params.get("active_only", "").lower() in ("1", "true", "yes")
 
         qs = Couleurs.objects.all().order_by("nom")
         if active_only:
@@ -1680,15 +1419,10 @@ class CouleursListView(APIView):
         if q:
             qs = qs.filter(Q(nom__icontains=q) | Q(slug__icontains=q))
 
-        data = [
-            {"id": c.id, "nom": tr_field(request, c, "nom", c.nom), "slug": c.slug, "code_hex": c.code_hex, "est_active": c.est_active}
-            for c in qs
-        ]
-
-        return Response(data)
-
-
-
+        serializer = CouleurMiniSerializer(
+            qs, many=True, context={"request": request}
+        )
+        return Response(serializer.data)
 # views.py (ajoute/replace ces parties)
 import re
 from django.db.utils import IntegrityError
@@ -2248,7 +1982,7 @@ class ProductClickView(APIView):
         prod.refresh_from_db(fields=['commande_count'])
         return Response({"ok": True, "count": prod.commande_count}, status=200)
 
-class MostDemandedProductsView(I18nSerializerMixin, APIView):
+class MostDemandedProductsView(APIView):
     """
     GET /christland/api/catalog/products/most-demanded/?limit=2
     -> [ {id, slug, nom, image, price, count}, ... ]
@@ -2261,32 +1995,14 @@ class MostDemandedProductsView(I18nSerializerMixin, APIView):
         return ctx 
     
     def get(self, request):
-        try:
-            limit = int(request.query_params.get("limit") or "2")
-        except ValueError:
-            limit = 2
+        limit = int(request.query_params.get("limit", 2))
+        qs = Produits.objects.filter(est_actif=True, visible=1)\
+                             .select_related("marque", "categorie")\
+                             .prefetch_related("images", "variantes")\
+                             .order_by("-commande_count", "-id")[:limit]
 
-        qs = (
-            Produits.objects
-            .filter(est_actif=True, visible=1)
-            .select_related("marque", "categorie")
-            .prefetch_related("images", "variantes")
-            .order_by("-commande_count", "-id")[: max(1, limit)]
-        )
-
-        data = []
-        for p in qs:
-              data.append(self.tr_product_card(
-            request, p,
-            image_url=_product_main_image_url(request, p),
-            specs=None,
-            price=str(_product_min_price(p)) if _product_min_price(p) is not None else None,
-            state=p.etat or None,   # <- passe l’état brut
-            category=(p.categorie if p.categorie_id else None),
-        ))
-
-
-        return Response(data, status=200)       
+        serializer = ProduitCardSerializer(qs, many=True, context={"request": request})
+        return Response(serializer.data)      
     
 
 
@@ -2314,23 +2030,29 @@ class AdminGlobalSearchView(APIView):
     """
     GET /christland/api/dashboard/search/?q=...&page=1&page_size=10
     - Produits: filtre SUR 'nom' uniquement
-    - Articles: filtre SUR 'extrait' OU 'contenu' uniquement
+    - Articles: filtre SUR 'titre' OU 'extrait' OU 'contenu'
     - Les autres champs sont juste renvoyés (affichage)
     """
-    
+
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
-    
+
     def get(self, request):
         q = (request.query_params.get("q") or "").strip()
         if not q:
-            return Response({"count": 0, "next": None, "previous": None, "results": []})
+            return Response({
+                "count": 0,
+                "next": None,
+                "previous": None,
+                "results": [],
+            })
 
-        # pagination safe
+        # -------- Pagination safe --------
         try:
             page = max(1, int(request.query_params.get("page") or 1))
         except ValueError:
@@ -2360,15 +2082,18 @@ class AdminGlobalSearchView(APIView):
                 "url": f"/Dashboard/Modifier/{p.id}",
                 "created_at": getattr(p, "cree_le", None),
                 "updated_at": None,
-                # champs d'affichage supplémentaires si tu veux
                 "brand": getattr(p.marque, "nom", None),
                 "category": getattr(p.categorie, "nom", None),
             })
 
-        # -------- Articles: filtre UNIQUEMENT sur extrait OU contenu --------
+        # -------- Articles: filtre sur titre OU extrait OU contenu --------
         axs = (
             ArticlesBlog.objects
-            .filter(Q(extrait__icontains=q) | Q(contenu__icontains=q))   # 👈 pas de filtre sur titre
+            .filter(
+                Q(titre__icontains=q) |
+                Q(extrait__icontains=q) |
+                Q(contenu__icontains=q)
+            )
             .order_by("-modifie_le", "-cree_le", "-id")
         )
 
@@ -2377,7 +2102,7 @@ class AdminGlobalSearchView(APIView):
             article_items.append({
                 "type": "article",
                 "id": a.id,
-                "title": a.titre or "",                        # affichage seulement
+                "title": a.titre or "",
                 "excerpt": (a.extrait or "")[:220],
                 "image": _abs_media(request, getattr(a, "image_couverture", None)),
                 "url": f"/Dashboard/Articles/{a.id}/edit",
@@ -2385,7 +2110,7 @@ class AdminGlobalSearchView(APIView):
                 "updated_at": getattr(a, "modifie_le", None),
             })
 
-        # fusion + tri (updated, sinon created)
+        # -------- Fusion + tri (updated, sinon created) --------
         items = prod_items + article_items
 
         def _key(x):
@@ -2394,7 +2119,7 @@ class AdminGlobalSearchView(APIView):
 
         items.sort(key=_key, reverse=True)
 
-        # pagination
+        # -------- Pagination manuelle --------
         total = len(items)
         start = (page - 1) * page_size
         end = start + page_size
@@ -2416,7 +2141,6 @@ class AdminGlobalSearchView(APIView):
             "previous": _page_url(page - 1),
             "results": results,
         }, status=status.HTTP_200_OK)
-        
 
 
 class DashboardStatsView(APIView):

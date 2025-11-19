@@ -1,36 +1,76 @@
-# christland/serializers_i18n.py
 from rest_framework import serializers
-from christland.services.i18n_translate import translate_field_for_instance
+from christland.services.text_translate import translate_text
+
 
 class I18nTranslateMixin(serializers.ModelSerializer):
     """
-    Mixin pour traduire automatiquement certains champs string selon ?lang=xx
-    Dans ton serializer concret, définis:
-       i18n_fields = ("titre", "extrait", "contenu", ...)
+    Mixin simple :
+      - i18n_fields : champs directs à traduire
+      - i18n_nested : champs imbriqués (ex: {"categorie": ["nom"]})
     """
-    i18n_fields: tuple[str, ...] = tuple()
+
+    i18n_fields = ()
+    i18n_nested = {}
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
 
-        # langue depuis ?lang= ou Accept-Language (défaut fr)
-        request = self.context.get("request") if hasattr(self, "context") else None
-        lang = None
-        if request is not None:
-            lang = request.query_params.get("lang") or request.headers.get("Accept-Language")
-        lang = (lang or "fr").strip().lower()
+        request = self.context.get("request")
+        if not request:
+            return data
 
-        # infos modèle (clé de cache)
-        meta = getattr(instance, "_meta", None)
-        app_label  = getattr(meta, "app_label", "christland")
-        model_name = getattr(meta, "model_name", instance.__class__.__name__)
-        obj_id     = getattr(instance, "pk", None)
+        # ⛔ NE PAS traduire les endpoints du dashboard
+        path = getattr(request, "path", "") or ""
+        if path.startswith("/christland/api/dashboard/"):
+            return data
 
-        # trad uniquement sur les champs listés et si str
-        for f in getattr(self, "i18n_fields", ()):
-            if f in data and isinstance(data[f], str) and obj_id is not None:
-                data[f] = translate_field_for_instance(
-                    app_label, model_name, str(obj_id), f, data[f], lang
+        # Récupérer la langue
+        lang = request.query_params.get("lang")
+        if not lang:
+            lang = request.headers.get("Accept-Language", "fr")
+
+        lang = (lang or "fr").split(",")[0].split("-")[0].lower()
+
+        # Si on est en français → pas de traduction
+        if lang == "fr":
+            return data
+
+        # 1) Champs directs
+        for field in getattr(self, "i18n_fields", []):
+            if field in data and isinstance(data[field], str):
+                data[field] = translate_text(
+                    text=data[field],
+                    target_lang=lang,
+                    source_lang="fr",
                 )
+
+        # 2) Champs imbriqués
+        for nested_field, subfields in getattr(self, "i18n_nested", {}).items():
+            nested = data.get(nested_field)
+            if not nested:
+                continue
+
+            # Cas classique : {"categorie": {"nom": "..."}}
+            if isinstance(nested, dict):
+                for sub in subfields:
+                    if sub in nested and isinstance(nested[sub], str):
+                        nested[sub] = translate_text(
+                            text=nested[sub],
+                            target_lang=lang,
+                            source_lang="fr",
+                        )
+
+            # Cas liste d’objets (ex: "variantes": [{ "nom": "..." }, {...}])
+            elif isinstance(nested, list):
+                for item in nested:
+                    if not isinstance(item, dict):
+                        continue
+                    for sub in subfields:
+                        if sub in item and isinstance(item[sub], str):
+                            item[sub] = translate_text(
+                                text=item[sub],
+                                target_lang=lang,
+                                source_lang="fr",
+                            )
 
         return data

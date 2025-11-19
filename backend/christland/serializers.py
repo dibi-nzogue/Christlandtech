@@ -9,52 +9,61 @@ from .models import (
 from django.utils import timezone
 
 from .serializers_i18n import I18nTranslateMixin
-# helper générique pour traduire un champ d'instance selon la langue de la requête
-from christland.services.i18n_translate import translate_field_for_instance
 
-def _req_lang_from_context(context) -> str:
-    req = context.get("request") if context else None
-    if req:
-        q = (req.query_params.get("lang") or "").strip().lower()
-        if q:
-            return q.split(",")[0].split("-")[0]
-        raw = (req.headers.get("Accept-Language") or "fr").lower()
-        primary = raw.split(",")[0].strip()
-        return primary.split("-")[0] if primary else "fr"
-    return "fr"
 
-def _tr_from_context(ctx, instance, field_name: str, value: str):
+# helpers i18n simples pour les champs "choices" comme etat
+
+def get_request_lang(request) -> str:
     """
-    Version robuste : essaie à la fois model_name (lower) ET NomDeClasse.
-    Évite l'appel si langue 'fr' ou value vide.
+    Récupère la langue à partir de ?lang= ou des headers.
+    Retourne 'fr', 'en', etc.
     """
-    if not isinstance(value, str) or not value:
-        return value
+    if not request:
+        return "fr"
+    lang = (
+        request.query_params.get("lang")
+        or request.headers.get("X-Lang")
+        or request.headers.get("Accept-Language", "fr")
+    )
+    return (lang or "fr").split(",")[0].split("-")[0].lower()
 
-    lang = _req_lang_from_context(ctx)
-    if lang in ("fr", "", None):
-        return value
 
-    meta = getattr(instance, "_meta", None)
-    if not meta:
-        return value
+def _etat_label(etat_code: str | None, request=None, lang: str | None = None) -> str | None:
+    """
+    Traduit le code d'état ('neuf', 'occasion', 'reconditionne') 
+    en label selon la langue (fr/en).
+    """
+    if not etat_code:
+        return None
 
-    app_label = getattr(meta, "app_label", "christland")
-    model_keys = [
-        getattr(meta, "model_name", instance.__class__.__name__).lower(),  # ex: "produits"
-        instance.__class__.__name__,                                       # ex: "Produits"
-    ]
-    obj_id = getattr(instance, "pk", None)
-    if obj_id is None:
-        return value
+    if lang is None:
+        lang = get_request_lang(request)
 
-    # Essaie d'abord la clé "standard" (lower), puis la clé "NomDeClasse"
-    for mk in model_keys:
-        t = translate_field_for_instance(app_label, mk, str(obj_id), field_name, value, lang)
-        if t != value:
-            return t
-    return value
+    mappings = {
+        "fr": {
+            "neuf": "Neuf",
+            "occasion": "Occasion",
+            "reconditionne": "Reconditionné",
+        },
+        "en": {
+            "neuf": "New",
+            "occasion": "Used",
+            "reconditionne": "Refurbished",
+        },
+    }
 
+    labels = mappings.get(lang, mappings["fr"])
+    return labels.get(etat_code, etat_code.capitalize())
+
+
+def _product_min_price(obj):
+    """Retourne le prix actuel le plus bas parmi toutes les variantes"""
+    prices = []
+    for v in obj.variantes.all():
+        prix = v.prix_actuel()
+        if prix is not None:
+            prices.append(prix)
+    return min(prices) if prices else None
 
 
 class CouleurMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
@@ -62,6 +71,7 @@ class CouleurMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
     class Meta:
         model = Couleurs
         fields = ("nom", "slug", "code_hex")
+        
 
 
 class ImageProduitSerializer(I18nTranslateMixin, serializers.ModelSerializer):
@@ -110,18 +120,7 @@ class VarianteSerializer(I18nTranslateMixin, serializers.ModelSerializer):
     couleur = CouleurMiniSerializer()
     prix_affiche = serializers.SerializerMethodField()
     promo_now = serializers.SerializerMethodField()
-    
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        ctx = self.context
-        data["nom"] = _tr_from_context(ctx, instance, "nom", data.get("nom"))
-
-        # Couleur.nom (imbriqué)
-        if data.get("couleur") and instance.couleur_id:
-            data["couleur"]["nom"] = _tr_from_context(
-                ctx, instance.couleur, "nom", data["couleur"].get("nom")
-            )
-        return data
+   
     
     class Meta:
         model = VariantesProduits
@@ -157,7 +156,7 @@ class MarqueMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
 
 class CategorieMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
     # + traduire le nom de catégorie
-    i18n_fields = ["nom","slug"]
+    i18n_fields = ["nom"]
     parent_slug = serializers.CharField(source="parent.slug", read_only=True)
 
     class Meta:
@@ -166,160 +165,74 @@ class CategorieMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
 
 
 
-class ProduitCardSerializer(serializers.ModelSerializer):
-    # Données embarquées
+
+class ProduitCardSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+    i18n_fields = ["nom", "description_courte"]
+  
+    # Champs imbriqués
     images = ImageProduitSerializer(many=True, read_only=True)
     variantes = VarianteSerializer(many=True, read_only=True)
     marque = MarqueMiniSerializer(read_only=True)
     categorie = CategorieMiniSerializer(read_only=True)
 
     # Champs calculés
-    prix_from = serializers.SerializerMethodField()
-    old_price_from = serializers.SerializerMethodField()
-    promo_now = serializers.SerializerMethodField()
-    promo_fin = serializers.SerializerMethodField()
-
-    # Champs stock
-    quantite = serializers.IntegerField(read_only=True)   # si présent sur Produits
-    stock_total = serializers.SerializerMethodField()     # somme des stocks des variantes
+    price = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+    specs = serializers.SerializerMethodField()
+    state = serializers.SerializerMethodField()
 
     class Meta:
         model = Produits
         fields = (
-            "id", "nom", "slug",
-            "description_courte",
-            "categorie", "marque",
-            "images", "variantes",
-            "prix_from", "old_price_from", "promo_now", "promo_fin",
-            "quantite", "stock_total",
+            "id", "nom", "slug", "description_courte",
+            "marque", "categorie", "images", "variantes",
+            "price", "image", "specs", "state",
         )
 
-    # --------------------------
-    # Traductions centralisées
-    # --------------------------
-    def to_representation(self, instance):
-        """
-        Point unique pour appliquer les traductions i18n,
-        afin que CategoryProductList (qui renvoie un queryset) bénéficie de la même logique
-        que tes autres vues qui appellent tr_product_card.
-        """
-        data = super().to_representation(instance)
-        ctx = self.context
+    def get_price(self, obj):
+        prix = _product_min_price(obj)
+        return str(prix) if prix is not None else None
 
-        # Produit.nom
-        # Produit.nom
-        data["nom"] = _tr_from_context(ctx, instance, "nom", data.get("nom"))
-        if data["nom"] == instance.nom:
-            # 🩹 fallback : on force le lookup avec modèle explicite
-            lang = _req_lang_from_context(ctx)
-            data["nom"] = translate_field_for_instance(
-                "christland",    # app_label
-                "produits",      # modèle lowercase exact de ta table
-                str(instance.id),
-                "nom",
-                data["nom"],
-                lang,
-            )
+    def get_image(self, obj):
+        img = obj.images.filter(principale=True).first() or obj.images.order_by("position", "id").first()
+        request = self.context.get("request")
+        if img and img.url:
+            url = str(img.url).strip()
+            if not url.lower().startswith(("http://", "https://", "data:")):
+                url = request.build_absolute_uri(url) if request else url
+            return url
+        return None
 
+    def get_specs(self, obj):
+        def extract(sp):
+            if sp.valeur_choice:
+                return sp.valeur_choice.valeur
+            if sp.valeur_text:
+                return sp.valeur_text
+            if sp.valeur_int is not None:
+                return str(sp.valeur_int)
+            if sp.valeur_dec is not None:
+                return str(sp.valeur_dec)
+            return ""
 
-        # Produit.description_courte
-        if "description_courte" in data:
-            data["description_courte"] = _tr_from_context(
-                ctx, instance, "description_courte", data.get("description_courte")
-            )
+        # Specs produit
+        if obj.specs.exists():
+            values = [extract(sp) for sp in obj.specs.all()[:5] if extract(sp)]
+            if values:
+                return " | ".join(values)
 
-        # Catégorie.nom
-        if data.get("categorie") and instance.categorie_id:
-            data["categorie"]["nom"] = _tr_from_context(
-                ctx, instance.categorie, "nom", data["categorie"].get("nom")
-            )
+        # Specs première variante
+        var = obj.variantes.first()
+        if var and var.specs.exists():
+            values = [extract(sp) for sp in var.specs.all()[:5] if extract(sp)]
+            if values:
+                return " | ".join(values)
 
-        # Marque.nom
-        if data.get("marque") and instance.marque_id:
-            data["marque"]["nom"] = _tr_from_context(
-                ctx, instance.marque, "nom", data["marque"].get("nom")
-            )
+        return ""
 
-        # Variantes[].nom (on traduit via id de la variante)
-        lang = _req_lang_from_context(ctx)
-        for v in (data.get("variantes") or []):
-            vid = v.get("id")
-            if not vid:
-                continue
-            v["nom"] = translate_field_for_instance(
-                instance._meta.app_label,           # "christland"
-                "variantesproduits",                # modèle en bdd (lowercase)
-                str(vid),
-                "nom",
-                v.get("nom") or "",
-                lang,
-            )
-
-        # Images[].alt_text (si ImageProduitSerializer expose "id")
-        for im in (data.get("images") or []):
-            iid = im.get("id")
-            if not iid:
-                # si pas d'id exposé, on laisse tel quel
-                continue
-            im["alt_text"] = translate_field_for_instance(
-                instance._meta.app_label,
-                "imagesproduits",
-                str(iid),
-                "alt_text",
-                im.get("alt_text") or "",
-                lang,
-            )
-
-        return data
-
-    # --------------------------
-    # Méthodes de calcul
-    # --------------------------
-    def get_stock_total(self, obj):
-        # Somme des stocks de toutes les variantes (None -> 0)
-        return sum((v.stock or 0) for v in obj.variantes.all())
-
-    def get_prix_from(self, obj):
-        prices = []
-        for v in obj.variantes.all():
-            pa = v.prix_actuel()
-            if pa is not None:
-                prices.append(pa)
-        return min(prices) if prices else None
-
-    def get_old_price_from(self, obj):
-        now = timezone.now()
-        normals = []
-        for v in obj.variantes.all():
-            if not v.promo_active or v.prix_promo is None:
-                continue
-            if v.promo_debut and v.promo_debut > now:
-                continue
-            if v.promo_fin and now > v.promo_fin:
-                continue
-            if v.prix is not None:
-                normals.append(v.prix)
-        return min(normals) if normals else None
-
-    def get_promo_now(self, obj):
-        now = timezone.now()
-        for v in obj.variantes.all():
-            if v.promo_active and v.prix_promo is not None:
-                if (not v.promo_debut or v.promo_debut <= now) and (not v.promo_fin or now <= v.promo_fin):
-                    return True
-        return False
-
-    def get_promo_fin(self, obj):
-        now = timezone.now()
-        fins = []
-        for v in obj.variantes.all():
-            if v.promo_active and v.prix_promo is not None:
-                if (not v.promo_debut or v.promo_debut <= now) and (not v.promo_fin or now <= v.promo_fin):
-                    if v.promo_fin:
-                        fins.append(v.promo_fin)
-        return min(fins).isoformat() if fins else None
-   
-   
+    def get_state(self, obj):
+        request = self.context.get("request")
+        return _etat_label(obj.etat, request=request)
 
 
 class ProduitsSerializer(I18nTranslateMixin, serializers.ModelSerializer):
