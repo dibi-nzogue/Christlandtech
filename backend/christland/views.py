@@ -18,6 +18,9 @@ from django.conf import settings
 from django.core.mail import EmailMessage
 from django.utils import timezone
 from rest_framework.decorators import api_view
+import logging
+logger = logging.getLogger(__name__)
+
 import requests
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.core.cache import cache
@@ -340,9 +343,13 @@ class CategoryProductList(generics.ListAPIView):
         )
         lang = (lang or "fr").split(",")[0].split("-")[0]
         cache_key = f"products_v2:{lang}:{request.get_full_path()}"
+
         cached = cache.get(cache_key)
         if cached:
+            logger.info("CategoryProductList CACHE HIT %s", cache_key)
             return Response(cached)
+
+        logger.info("CategoryProductList CACHE MISS %s", cache_key)
 
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)

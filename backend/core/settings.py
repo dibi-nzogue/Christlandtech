@@ -219,5 +219,12 @@ REST_FRAMEWORK = {
     ),
 }
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "christland-locmem-cache",
+    }
+}
+
 
 LIBRETRANSLATE_URL = "https://libretranslate.de"
