@@ -1,11 +1,11 @@
 // src/components/ContactSection.tsx
 import React, { useState } from "react";
-import { Mail, Phone } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { sendContactMessage } from "../hooks/useFetchQuery";
-import profil from "../assets/images/profil.png";
+import profil from "../assets/images/logo1.png";
 
 type ContactSectionProps = { id?: string };
 
@@ -84,19 +84,28 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
           />
 
           <div className="space-y-3 text-gray-600">
-            <div className="flex items-center justify-center md:justify-start gap-3">
-              <Mail className="text-gray-400" size={18} />
-              <span className="text-sm">info@christland.product.tech</span>
-            </div>
-            <div className="flex items-center justify-center md:justify-start gap-3">
-              <Phone className="text-gray-400" size={18} />
-              <span className="text-sm">691 554 641</span>
-            </div>
-            <div className="flex items-center justify-center md:justify-start gap-3">
-              <Phone className="text-gray-400" size={18} />
-              <span className="text-sm">676 089 671</span>
-            </div>
-          </div>
+  <div className="flex items-center justify-center md:justify-start gap-3">
+    <Mail className="text-gray-400" size={18} />
+    <span className="text-sm">info@christland.tech</span>
+  </div>
+
+  <div className="flex items-center justify-center md:justify-start gap-3">
+    <Phone className="text-gray-400" size={18} />
+    <span className="text-sm">691 554 641</span>
+  </div>
+
+  <div className="flex items-center justify-center md:justify-start gap-3">
+    <Phone className="text-gray-400" size={18} />
+    <span className="text-sm">676 089 671</span>
+  </div>
+
+  {/* ✅ Ligne ville + icône */}
+  <div className="flex items-center justify-center md:justify-start gap-3">
+    <MapPin className="text-gray-400" size={18} />
+    <span className="text-sm"> Yaoundé, Cameroun</span>
+  </div>
+</div>
+
         </div>
 
         {/* droite : formulaire */}

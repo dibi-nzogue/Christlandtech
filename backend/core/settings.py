@@ -41,8 +41,21 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    "rest_framework", "corsheaders", "christland",
+    "rest_framework", "corsheaders", 
+    "christland.apps.ChristlandConfig",
+    'csp',
 ]
+
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": ("'self'",),
+        "script-src": ("'self'", "'unsafe-inline'"),
+        "style-src": ("'self'", "https://fonts.googleapis.com", "'unsafe-inline'"),
+        "img-src": ("'self'", "data:",),
+        "connect-src": ("'self'",),
+        "font-src": ("'self'", "https://fonts.gstatic.com"),
+    }
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -53,6 +66,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'csp.middleware.CSPMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -73,6 +87,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'core.wsgi.application'
+
+
+# Langues cibles pour les traductions
+I18N_TARGET_LANGS = ["en"]
+
+# Active / désactive la traduction automatique à chaque save
+AUTO_BUILD_TRANSLATIONS = True  # True en dev si tu veux, False en prod si tu préfères
 
 
 # import environ, os
@@ -180,24 +201,46 @@ USE_I18N = True
 USE_TZ = True
 
 
-# # settings.py
-# DEFAULT_FROM_EMAIL = "nzogue.dibiye@gmail.com"
-# CONTACT_RECIPIENTS = ["nzogue.dibiye@gmail.com"]  # liste de destinataires
+# # # settings.py
+# # DEFAULT_FROM_EMAIL = "nzogue.dibiye@gmail.com"
+# # CONTACT_RECIPIENTS = ["nzogue.dibiye@gmail.com"]  # liste de destinataires
+# # EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# # # configure aussi ton SMTP (HOST, PORT, USER, PASSWORD, TLS/SSL) selon ton provider
+
+# # Qui reçoit les messages
+# CONTACT_INBOX = "rachelnzogue9@gmail.com"
+
+# # SMTP technique (ne change pas selon l’utilisateur)
 # EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-# # configure aussi ton SMTP (HOST, PORT, USER, PASSWORD, TLS/SSL) selon ton provider
+# EMAIL_HOST = "smtp.gmail.com"
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = "rachelnzogue9@gmail.com"              # ton compte émetteur
+# EMAIL_HOST_PASSWORD = "nqfgoakcuiwvrwbz"   # mot de passe d’application Gmail
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER                      # expéditeur “technique”
+# EMAIL_TIMEOUT = 20
+
 
 # Qui reçoit les messages
-CONTACT_INBOX = "rachelnzogue9@gmail.com"
+CONTACT_INBOX = "info@christland.tech"
 
-# SMTP technique (ne change pas selon l’utilisateur)
+# Backend d'envoi
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "rachelnzogue9@gmail.com"              # ton compte émetteur
-EMAIL_HOST_PASSWORD = "nqfgoakcuiwvrwbz"   # mot de passe d’application Gmail
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER                      # expéditeur “technique”
+
+# 🔐 SMTP OVH
+EMAIL_HOST = "ssl0.ovh.net"      # serveur SMTP OVH
+EMAIL_PORT = 587                 # port TLS
+EMAIL_USE_TLS = True             # on active TLS
+
+EMAIL_HOST_USER = "info@christland.tech"   # ton adresse mail OVH complète
+EMAIL_HOST_PASSWORD = "TON_MOT_DE_PASSE_ICI"   # mot de passe de la boîte mail
+
+# Adresse qui apparaîtra comme expéditeur
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
 EMAIL_TIMEOUT = 20
+
+
 
 
 load_dotenv(BASE_DIR / ".env")
@@ -227,4 +270,4 @@ CACHES = {
 }
 
 
-LIBRETRANSLATE_URL = "https://libretranslate.de"
+LIBRETRANSLATE_URL = "https://libretranslate.com"

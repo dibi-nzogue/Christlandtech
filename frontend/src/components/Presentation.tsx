@@ -243,8 +243,30 @@ type PresentationProps = {
 /* ==================== Page ==================== */
 const Presentation: React.FC<PresentationProps> = ({ onOrder }) => {
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
-  const q = (searchParams.get("q") || "").trim();
+ const [searchParams] = useSearchParams();
+const q = (searchParams.get("q") || "").trim();
+
+// 🔁 Rafraîchir la page quand on arrive avec ?refresh=1
+React.useEffect(() => {
+  const flag = searchParams.get("refresh");
+  if (flag === "1") {
+    // On enlève le paramètre de l’URL pour éviter une boucle infinie
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("refresh");
+
+    const newSearch = params.toString();
+    const newUrl =
+      newSearch.length > 0
+        ? `${window.location.pathname}?${newSearch}`
+        : window.location.pathname;
+
+    window.history.replaceState(null, "", newUrl);
+
+    // Et on rafraîchit réellement la page
+    window.location.reload();
+  }
+}, [searchParams]);
+
 
   /** Carrousel catégories — md+ */
   const trackRef = React.useRef<HTMLDivElement>(null);
@@ -326,7 +348,16 @@ const Presentation: React.FC<PresentationProps> = ({ onOrder }) => {
     error: catsError,
   } = useTopCategories({ level: 1 });
 
+
+  
   const cats = apiCategories ?? [];
+  
+  // 🔹 Ne garder que les catégories racines (pas les sous-catégories)
+const topCats = cats.filter((c: any) => {
+  const parentField = c.parent_id ?? c.parent ?? null;
+  return parentField === null || parentField === undefined;
+});
+
   // re-mesure quand la liste de catégories arrive ou change
  React.useEffect(() => {
   const id = requestAnimationFrame(syncEdges);
@@ -478,7 +509,7 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
    {/* ===== ENTÊTE ===== */}
 <motion.div className="w-full bg-gray-100" variants={headerEnter} initial="hidden" animate="show">
   <div className="container mx-auto px-5">
-    <div className="flex items-center justify-between h-40 md:h-40 lg:h-48 ">
+    <div className="flex items-center justify-between h-35 md:h-40 lg:h-48 ">
       <div className="min-w-0 mt-6">
         <motion.div
           className="text-xs sm:text-sm text-gray-500"
@@ -586,16 +617,17 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
                {t("tous")}
               </button>
 
-              {(catsLoading ? [] : cats).map((c) => {
+              {(catsLoading ? [] : topCats).map((c) => {
                 const active = categorySlug === c.slug;
                 return (
                   <button
                     key={c.slug}
                     type="button"
                     onClick={() => {
-                      setCategorySlug(active ? "tous" : c.slug);
-                      setSubSlug("");
-                    }}
+  setCategorySlug(active ? "tous" : (c.slug || ""));
+  setSubSlug("");
+}}
+
                     className={[
                       "shrink-0 rounded-md border font-medium whitespace-nowrap px-4 lg:px-5 py-2",
                       active
@@ -670,7 +702,7 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
                 overflow-y-hidden hover:overflow-y-auto
               "
             >
-              <h3 className="text-lg font-bold text-gray-900">Filtrer</h3>
+              <h3 className="text-lg font-bold text-gray-900"> {t("mobile.filters")}</h3>
               <div className="mt-4 border-t border-[#00A8E8] pt-4">
                 {(filtersLoading ? [] : FILTERS).map((f) => (
                   <FilterGroup key={f.code} {...f} selected={selected[f.code] ?? ""} onSelect={onSelect} />
@@ -702,22 +734,23 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
                   const img = firstImageUrl(p) || FALLBACK_IMG;
                   return (
                   <ProductCard
-                    key={p.id}
-                    name={p.nom}
-                    // prix courant envoyé par l’API (peut être string -> Number)
-                    price={p?.prix_from != null ? Number(p.prix_from as any) : null}
-                    // ancien prix barré : UNIQUEMENT si la promo est active MAINTENANT
-                    oldPrice={
-                     p?.promo_now && p?.old_price_from != null
+                  key={p.id}
+                  name={p.nom}
+                  // prix courant envoyé par l’API (peut être string -> Number)
+                  price={p?.prix_from != null ? Number(p.prix_from as any) : null}
+                  // ancien prix barré : UNIQUEMENT si la promo est active MAINTENANT
+                  oldPrice={
+                    p?.promo_now && p?.old_price_from != null
                       ? Number(p.old_price_from as any)
                       : null
-                    }
-                    img={img}
-                    desc={p.description_courte}
-                    promoNow={p.promo_now}             // ✅ nouveau
-                    promoFin={p.promo_fin ?? null} 
-                    onOrder={() => orderAndTrack(p, img)}
-                  />
+                  }
+                  img={img}
+                  desc={p.description_courte}
+                  promoNow={p.promo_now}             // ✅ nouveau
+                  promoFin={p.promo_fin ?? null} 
+                  onOrder={() => orderAndTrack(p, img)}
+                />
+
                   );
                 })}
               </div>
@@ -795,16 +828,17 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
                   Tous
                 </button>
 
-                {(catsLoading ? [] : cats).map((c) => {
+                {(catsLoading ? [] :topCats).map((c) => {
                   const active = categorySlug === c.slug;
                   return (
                     <button
                       key={c.slug}
                       type="button"
                       onClick={() => {
-                        setCategorySlug(active ? "tous" : c.slug);
-                        setSubSlug("");
-                        setMobileCatsOpen(false);
+                        setCategorySlug(active ? "tous" : (c.slug || ""));
+setSubSlug("");
+setMobileCatsOpen(false);
+
                       }}
                       className={`rounded-xl border px-4 py-2 text-sm font-medium text-left ${
                         active ? `${ACCENT} ${ACCENT_HOVER}` :  "bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
@@ -826,7 +860,7 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileFiltersOpen(false)} aria-hidden="true" />
           <div className="absolute left-0 top-0 h-full w-[86%] max-w-[360px] bg-white shadow-2xl p-5 overflow-y-auto">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-base font-bold">Filtrer</h3>
+              <h3 className="text-base font-bold"> {t("mobile.filters")}</h3>
               <button
                 type="button"
                 aria-label="Fermer"
@@ -843,7 +877,7 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
               ))}
             </div>
 
-            <div className="sticky bottom-0 -mx-5 mt-4 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 p-5 border-t">
+            {/* <div className="sticky bottom-0 -mx-5 mt-4 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 p-5 border-t">
               <div className="flex gap-3">
                 <button
                   className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${ACCENT} ${ACCENT_HOVER}`}
@@ -858,7 +892,7 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
                   Réinitialiser
                 </button>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       )}

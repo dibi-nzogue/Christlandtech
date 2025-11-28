@@ -14,7 +14,7 @@ const Accueil: React.FC = () => {
 
   // const { t } = useTranslation();
 
-  return (
+  return ( 
     <>
       <Navbar />
       <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 pt-8 md:pt-28 lg:pt-32">

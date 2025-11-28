@@ -27,11 +27,17 @@ export type ApiImage = {
 export type ApiCategory = {
   id: number;
   nom: string;
-  slug: string;
+  slug?: string;
+  description: string;
+  est_actif: boolean;
   parent?: number | null;
+  parent_id?: number | null;
+  parent_nom?: string;
   image_url?: string;
   position?: number;
 };
+
+
 
 export type ApiBrand = { slug: string; nom: string };
 export type ApiColor = { slug: string; nom: string; code_hex?: string };
@@ -401,6 +407,14 @@ export function useTopCategories(params: { level?: number } = {}) {
   });
 }
 
+export function useTopCategories1() {
+  return useFetchQuery<ApiCategory[]>(api("/api/catalog/categories/top/"), {
+    keepPreviousData: true,
+    select: (raw: any) => (Array.isArray(raw) ? raw : []),
+  });
+}
+
+
 export function useFilters(params: { category?: string; subcategory?: string }) {
   return useFetchQuery<FiltersPayload>(api("/api/catalog/filters/"), {
     params,
@@ -747,6 +761,32 @@ export function useblogLatestArticles(limit = 2) {
 
 // ...
 
+
+export type VariantPayload = {
+  nom?: string;
+  sku?: string | null;
+  code_barres?: string;
+  prix?: number | null;
+  prix_promo?: number | null;
+  promo_active?: boolean;
+  promo_debut?: string | null;
+  promo_fin?: string | null;
+  stock?: number | null;
+  couleur?: number | string | null;
+  prix_achat?: number | null;
+  variante_poids_grammes?: number | null;
+  variante_est_actif?: boolean;
+  attributes?: {
+    code: string;
+    type: "text" | "int" | "dec" | "bool" | "choice";
+    libelle?: string;
+    unite?: string;
+    value: string;
+  }[];
+};
+
+
+
 export type ProductPayload = {
   nom: string;
   slug?: string;
@@ -760,7 +800,9 @@ export type ProductPayload = {
   etat?: "neuf" | "occasion" | "reconditionné";
   categorie?: number | string | null;
   marque?: number | string | null;
-    product_attributes?: {
+
+  // 🔧 Attributs au niveau PRODUIT
+  product_attributes?: {
     code: string;
     type: "text" | "int" | "dec" | "bool" | "choice";
     libelle?: string;
@@ -768,66 +810,65 @@ export type ProductPayload = {
     value: string;
   }[];
 
-  variant_attributes?: {
-    code: string;
-    type: "text" | "int" | "dec" | "bool" | "choice";
-    libelle?: string;
-    unite?: string;
-    value: string;
-  }[];
-  // Variante
-  variante_nom?: string;
-  sku?: string;
-  code_barres?: string;
-  prix?: number | null;
-  prix_promo?: number | null;
-  promo_active?: boolean;
-  promo_debut?: string | null;         // ⬅️
-  promo_fin?: string | null;           // ⬅️
-  stock?: number | null;
-  couleur?: number | string | null;
-  prix_achat?: number | null;          // ⬅️
-  variante_poids_grammes?: number | null; // ⬅️
-  variante_est_actif?: boolean;        // ⬅️
+  // 🧩 Toutes les variantes (1 ou plusieurs)
+  variants?: VariantPayload[];
 
-  images?: { url: string; alt_text?: string; position?: number | null; principale?: boolean }[];
+  // 🖼 Images
+  images?: {
+    url: string;
+    alt_text?: string;
+    position?: number | null;
+    principale?: boolean;
+  }[];
 };
 
-// src/hooks/useFetchQuery.tsx (remplace la fonction existante)
-export async function createProductWithVariant(payload: ProductPayload & { images?: any[] }) {
+
+// src/hooks/useFetchQuery.tsx
+export async function createProductWithVariant(
+ payload: ProductPayload & { images?: any[]; variants?: VariantPayload[] }
+) {
   const url = api("/api/produits/ajouter/");
-  const res = await fetch(url, {
+
+  const res = await authedFetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(payload),
   });
 
   let body: any = null;
-  try { body = await res.json(); } catch { body = null; }
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
 
   if (!res.ok) {
-    // ⬇️ LOG utile en dev pour voir tout le JSON
     console.error("Create product error", res.status, body);
 
-    // Compose un message lisible
     let msg = body?.error || body?.detail || `HTTP ${res.status}`;
 
-    // Si l’API renvoie field/field_errors, on les concatène
     if (body?.field) {
       msg = `${body.field}: ${body?.error || body?.detail || "Erreur"}`;
     }
     if (body?.field_errors && typeof body.field_errors === "object") {
-      const parts = Object.entries(body.field_errors).map(([k, v]) => `${k}: ${v}`);
+      const parts = Object.entries(body.field_errors).map(
+        ([k, v]) => `${k}: ${v}`
+      );
       if (parts.length) msg += " — " + parts.join(" | ");
     }
 
     throw new Error(msg);
   }
 
+  // ✅ Succès : on notifie le reste du front qu'un produit a été créé
+ if (typeof window !== "undefined" && "dispatchEvent" in window) {
+    // ancien event spécifique (tu peux le laisser si tu veux)
+    window.dispatchEvent(new Event("product:created"));
+    // nouvel event plus générique
+    window.dispatchEvent(new Event("products:changed"));
+  }
+
   return body;
 }
-
-
 
 /* =========================================================
    📚 Référentiels : catégories, marques, couleurs
@@ -864,16 +905,24 @@ export async function uploadProductImage(file: File, alt_text?: string) {
   fd.append("file", file);
   if (alt_text) fd.append("alt_text", alt_text);
 
-  const res = await fetch(url, {
+  const res = await authedFetch(url, {
     method: "POST",
-    body: fd,
+    body: fd, // authedFetch NE met PAS Content-Type si c'est un FormData
   });
+
   if (!res.ok) {
-    const raw = await res.json().catch(() => ({}));
-    throw new Error(raw?.error || `HTTP ${res.status}`);
+    let raw: any = {};
+    try {
+      raw = await res.json();
+    } catch {
+      raw = {};
+    }
+    throw new Error(raw?.error || raw?.detail || `HTTP ${res.status}`);
   }
+
   return (await res.json()) as { url: string; alt_text?: string };
 }
+
 // Types search
 export type AdminSearchItem = {
   type: "product" | "article";
@@ -1000,3 +1049,83 @@ export async function loginRequest(email: string, password: string): Promise<Log
 }
 
 
+type DashboardListParams = {
+  page?: number;
+  page_size?: number;
+  q?: string;
+};
+
+/** Liste paginée des catégories du dashboard */
+export async function getDashboardCategories(
+  params: DashboardListParams = {}
+) {
+  const url = api("/api/dashboard/categories/manage/") + toQueryString({
+    page: params.page,
+    page_size: params.page_size,
+    q: params.q,
+  });
+
+  const res = await authedFetch(url, { method: "GET" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await parseJsonSafe(res)) as ApiPage<ApiCategory>;
+}
+
+
+
+/** Supprimer une catégorie (par id) */
+export async function deleteDashboardCategory(id: number) {
+  const url = api(`/api/dashboard/categories/manage/${id}/`);
+  const res = await authedFetch(url, { method: "DELETE" });
+  if (!res.ok && res.status !== 204) {
+    throw new Error("Erreur suppression catégorie");
+  }
+}
+
+/** Modifier une catégorie (PUT ou PATCH) */
+/** Détail d'une catégorie (pour le formulaire d'édition) */
+export async function getDashboardCategory(id: number) {
+  const url = api(`/api/dashboard/categories/manage/${id}/`);
+  const res = await authedFetch(url, { method: "GET" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await parseJsonSafe(res)) as ApiCategory;
+}
+
+/** Mise à jour d'une catégorie existante */
+export async function updateDashboardCategory(
+  id: number,
+  payload: Partial<ApiCategory>
+) {
+  const url = api(`/api/dashboard/categories/manage/${id}/`);
+  const res = await authedFetch(url, {
+    method: "PATCH", // ou "PUT" si tu envoies tous les champs
+    body: JSON.stringify(payload),
+  });
+
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(body?.detail || `HTTP ${res.status}`);
+  }
+  return body as ApiCategory;
+}
+
+export async function createDashboardCategory(payload: any) {
+  const url = api("/api/dashboard/categories/manage/");
+
+  const res = await authedFetch(url, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  let body: any = null;
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
+
+  if (!res.ok) {
+    throw new Error(body?.detail || body?.error || `HTTP ${res.status}`);
+  }
+
+  return body as ApiCategory;
+}

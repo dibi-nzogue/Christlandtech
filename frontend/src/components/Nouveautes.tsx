@@ -86,7 +86,23 @@ export default function Nouveautes() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const { data: latest, loading, error } = useLatestProducts();
+  const { data: latest, loading, error, refetch } = useLatestProducts({
+    refreshMs: 0,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  useEffect(() => {
+    const handleProductCreated = () => {
+      refetch(); // 🔁 on recharge la liste directement
+    };
+
+    window.addEventListener("product:created", handleProductCreated);
+    return () => {
+      window.removeEventListener("product:created", handleProductCreated);
+    };
+  }, [refetch]);
+
 
   /* Onglets */
   const [activeTab, setActiveTab] = useState<string>(ALL_KEY);
@@ -148,7 +164,18 @@ export default function Nouveautes() {
   };
 
   // Petite fonction pour rendre une carte produit (réutilisée grid + slider)
-  const renderCard = (p: any) => (
+// Petite fonction pour rendre une carte produit (réutilisée grid + slider)
+const renderCard = (p: any) => {
+  // ✅ formatage du prix
+  const priceDisplay =
+    p.price !== null && p.price !== undefined
+      ? Number(p.price).toLocaleString("fr-FR", {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        })
+      : null;
+
+  return (
     <motion.div
       key={p.id}
       variants={containerVariants}
@@ -182,7 +209,7 @@ export default function Nouveautes() {
 
         {/* Marque */}
         <h4 className="text-xs sm:text-sm text-gray-500 text-center">
-          {p.brand?.nom || ""}
+          {p.marque?.nom || ""}
         </h4>
 
         {/* Titre + specs */}
@@ -208,12 +235,14 @@ export default function Nouveautes() {
 
       {/* Prix */}
       <div className="mt-2 flex items-center justify-center">
-        {p.price ? (
+        {priceDisplay ? (
           <span className="font-bold text-gray-900 text-sm sm:text-base">
-            Fcfa {p.price}
+            Fcfa {priceDisplay}
           </span>
         ) : (
-          <span className="text-gray-400 text-xs sm:text-sm">Prix indisponible</span>
+          <span className="text-gray-400 text-xs sm:text-sm">
+            Prix indisponible
+          </span>
         )}
       </div>
 
@@ -225,6 +254,7 @@ export default function Nouveautes() {
       )}
     </motion.div>
   );
+};
 
   return (
     <div className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-10 flex flex-col items-center py-10 bg-white">

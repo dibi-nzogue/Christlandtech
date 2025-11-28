@@ -16,6 +16,15 @@ const Footer: React.FC = () => {
 
     const { t } = useTranslation();
 
+  const footerLinks = [
+    { key: "Accueil", to: "/" },
+    { key: "A propos", to: "/a-propos" },
+    { key: "Produits", to: "/Produits" },
+    { key: "Services", to: "/Services" },
+    { key: "Assistance", to: "/Assistance" },
+  ];
+
+
   return (
     <footer className="bg-[#f5f5f5] text-gray-500 pt-10 pb-5 px-6 md:px-16">
       {/* --- Haut du footer --- */}
@@ -57,18 +66,18 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Colonne 2 : Liens */}
-        <div className="space-y-2">
-          {["Accueil", "A propos", "Produits", "Services", "Assistance"].map(
-            (item, index) => (
-              <p
-                key={index}
-                className="text-sm hover:text-[#00A9DC] cursor-pointer transition-colors"
-              >
-                {t(item)}
-              </p>
-            )
-          )}
-        </div>
+<div className="space-y-2">
+  {footerLinks.map((link) => (
+    <Link
+      key={link.key}
+      to={link.to}
+      className="block text-sm hover:text-[#00A9DC] transition-colors"
+    >
+      {t(link.key)}
+    </Link>
+  ))}
+</div>
+
 
         {/* Colonne 3 : Contact */}
         <div className="space-y-3 text-sm">

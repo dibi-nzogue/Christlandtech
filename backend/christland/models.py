@@ -168,7 +168,7 @@ class TextTranslation(models.Model):
 
 class Produits(models.Model):
     nom = models.CharField(max_length=255, blank=True)
-    slug = models.CharField(max_length=255, blank=True)
+    slug = models.CharField(max_length=255,null=True,  blank=True)
     description_courte = models.CharField(max_length=255, blank=True)
     description_long = models.CharField(max_length=255, blank=True)
     garantie_mois = models.IntegerField(null=True, blank=True)
@@ -195,7 +195,7 @@ class Produits(models.Model):
 
 class VariantesProduits(models.Model):
     produit = models.ForeignKey(Produits, on_delete=models.CASCADE, related_name='variantes', null=True, blank=True)
-    sku = models.CharField(max_length=255, blank=True)
+    sku = models.CharField(max_length=255, null=True,  blank=True)
     code_barres = models.CharField(max_length=255, blank=True)
     nom = models.CharField(max_length=255, blank=True)
     prix = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)

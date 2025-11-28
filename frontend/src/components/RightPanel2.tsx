@@ -34,7 +34,7 @@ const RightPanel2: React.FC = () => {
               to={`/blog/${a.slug}`}
               className="block group mb-4 last:mb-0"
             >
-              <div className="relative w-full overflow-hidden rounded-lg bg-gray-50">
+              <div className="relative w-full overflow-hidden rounded-lg bg-gray-0">
                 <div className="pt-[56.25%]" />
                 <img
                   src={a.image || FALLBACK}

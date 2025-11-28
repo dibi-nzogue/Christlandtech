@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { createDashboardArticle, uploadProductImage, type NewArticlePayload } from "../hooks/useFetchQuery";
-
+import { useNavigate } from "react-router-dom"; // 👈 ajoute ça
 const ArticleForm: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ kind: "success" | "error"; msg: string } | null>(null);
-
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     slug: "",
     extrait: "",
@@ -35,18 +35,23 @@ const ArticleForm: React.FC = () => {
     e.preventDefault();
 
     const payload: NewArticlePayload = {
-      // titre non envoyé
       extrait: form.extrait || null,
       contenu: form.contenu || null,
       image: form.image || null,
-      // publie_le: non envoyé -> auto côté serveur
     };
 
     try {
       setSubmitting(true);
       await createDashboardArticle(payload);
-      setToast({ kind: "success", msg: "Article créé ✅" });
+
+      // ✅ Reset local form (optionnel)
       setForm({ slug: "", extrait: "", contenu: "", image: "" });
+
+      // ✅ Redirection vers Dashboard + onglet Articles + flash message
+      navigate("/Dashboard?tab=articles", {
+        state: { flash: "Article créé avec succès ✅" },
+        replace: true,
+      });
     } catch (e: any) {
       setToast({ kind: "error", msg: e?.message || "Échec de la création." });
     } finally {

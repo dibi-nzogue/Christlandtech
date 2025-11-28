@@ -13,13 +13,18 @@ const RightPanel1: React.FC = () => {
   const items = (latest ?? []).slice(0, 2); // <= ne garder que 2
 
   return (
-    <div className="space-y-4 w-full md:w-1/4 h-[80vh] md:h-[50vh] lg:h-[65vh]">
-      <div className="bg-white p-4 rounded-xl shadow-sm mt-4">
+    // 👉 wrapper responsive : full width sur mobile, colonne sur grand écran
+    <aside className="w-full lg:w-1/4 mt-6 lg:mt-0 lg:self-start">
+      <div className="bg-white p-4 rounded-xl shadow-sm max-h-[65vh] overflow-y-auto">
         <h3 className="font-semibold mb-3">Les Plus Récents</h3>
 
-        {loading && <div className="text-sm text-gray-500">Chargement…</div>}
+        {loading && (
+          <div className="text-sm text-gray-500">Chargement…</div>
+        )}
         {!loading && items.length === 0 && (
-          <div className="text-sm text-gray-500">Aucun produit pour le moment.</div>
+          <div className="text-sm text-gray-500">
+            Aucun produit pour le moment.
+          </div>
         )}
 
         {!loading &&
@@ -29,21 +34,21 @@ const RightPanel1: React.FC = () => {
                 <div className="pt-[56.25%]" />
                 <img
                   src={p.image || FALLBACK}
-                  alt={p.name}
-                  className="absolute inset-0 h-full w-full  object-contain rounded-xl transition-transform duration-300 ease-out group-hover:scale-[1.02]"
+                  alt={p.nom}
+                  className="absolute inset-0 h-full w-full object-contain rounded-xl transition-transform duration-300 ease-out"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).src = FALLBACK;
                   }}
                 />
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium truncate">{p.name}</p>
+                <p className="text-sm font-medium truncate">{p.nom}</p>
                 <p className="text-xs text-gray-500">{fmt(p.price)}</p>
               </div>
             </div>
           ))}
       </div>
-    </div>
+    </aside>
   );
 };
 

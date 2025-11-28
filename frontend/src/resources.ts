@@ -77,6 +77,21 @@ const resources = {
       "com.tel": "Phone Number",
       "com.con": "Leave us a message and we will get back to you shortly.",
 
+
+      "form.sending": "Sending…",
+      "form.button.email": "Send by email",
+      "form.button.whatsapp": "Send via WhatsApp",
+      "form.button.signal": "Open Signal",
+      "form.button.telegram": "Send via Telegram",
+
+      "contact.channel.label": "Preferred contact channel",
+      "contact.channel.email": "Email",
+      "contact.channel.whatsapp": "WhatsApp",
+      "contact.channel.signal": "Signal",
+      "contact.channel.telegram": "Telegram",
+
+
+
       // Account helpers
       "compte.desc": "Already have an account?",
       "compte.desc1": "Log In",
@@ -245,6 +260,20 @@ const resources = {
       "com.sen": "Envoyer via Whatsapp",
       "com.tel": "Téléphone",
       "com.con": "Laissez-nous un message et nous vous répondrons rapidement",
+
+
+      "form.sending": "Envoi…",
+      "form.button.email": "Envoyer par email",
+      "form.button.whatsapp": "Envoyer via WhatsApp",
+      "form.button.signal": "Ouvrir Signal",
+      "form.button.telegram": "Envoyer via Telegram",
+
+      "contact.channel.label": "Canal de contact préféré",
+      "contact.channel.email": "Email",
+      "contact.channel.whatsapp": "WhatsApp",
+      "contact.channel.signal": "Signal",
+      "contact.channel.telegram": "Telegram",
+
 
       // Account helpers
       "compte.desc": "Déjà un compte ?",

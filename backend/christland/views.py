@@ -20,7 +20,7 @@ from django.utils import timezone
 from rest_framework.decorators import api_view
 import logging
 logger = logging.getLogger(__name__)
-
+from decimal import Decimal, InvalidOperation
 import requests
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.core.cache import cache
@@ -55,6 +55,7 @@ from .serializers import (
     CategorieMiniSerializer,
     MarqueMiniSerializer,
     CouleurMiniSerializer,
+    CategoryDashboardSerializer,
      _etat_label, 
      get_request_lang,
 )
@@ -77,6 +78,11 @@ from rest_framework import status, permissions
 from django.contrib.auth.hashers import check_password, make_password
 
 
+def _as_int(val):
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return None
 
 def _product_min_price(prod: Produits) -> Decimal | None:
     prices = []
@@ -529,18 +535,143 @@ class CategoryListBase(APIView):
         for item, c in zip(data, qs):
             item["image_url"] = abs_media(getattr(c, "image_url", None))
             item["position"] = getattr(c, "position", None)
+            item["parent_id"] = c.parent_id 
 
         return Response(data)
 
 
-class CategoryListPublic(CategoryListBase):
-    permission_classes = [AllowAny]  # ✅ public
+class CategoryListPublic(APIView):
+    permission_classes = [AllowAny]
     authentication_classes = []
+
+    def get(self, request):
+        qs = (
+            Categories.objects
+            .filter(est_actif=True)
+            .order_by("nom")
+        )
+
+        serializer = CategorieMiniSerializer(
+            qs, many=True, context={"request": request}
+        )
+        data = serializer.data
+
+        # --- Fonction helper pour rendre l’image absolue ---
+        def abs_media(path):
+            if not path:
+                return None
+            p = str(path).strip()
+            if p.lower().startswith(("http://", "https://", "data:")):
+                return p
+            base = request.build_absolute_uri(settings.MEDIA_URL)
+            return f"{base.rstrip('/')}/{p.lstrip('/')}"
+
+        # ------ 1️⃣ Préparation : on relie les objets et leur dict ------
+        pairs = list(zip(qs, data))
+
+        # ------ 2️⃣ On enrichit chaque item ------
+        for c, item in pairs:
+            item["image_url"] = abs_media(getattr(c, "image_url", None))
+            item["position"] = getattr(c, "position", None)
+            item["parent_id"] = c.parent_id
+            item["children"] = []   # 👈 IMPORTANT ici !
+
+        # ------ 3️⃣ On construit les sous-catégories ------
+        by_id = {c.id: item for c, item in pairs}
+        for c, item in pairs:
+            if c.parent_id:
+                parent_item = by_id.get(c.parent_id)
+                if parent_item:
+                    parent_item["children"].append({
+                        "id": c.id,
+                        "nom": item["nom"],
+                        "slug": item["slug"],
+                    })
+
+        return Response(data)
+
+
 class CategoryListDashboard(CategoryListBase):
     permission_classes = [IsAuthenticated]          # ✅ protégé
     authentication_classes = [JWTAuthentication]
 
-    
+    class CategoryListTop(APIView):
+        """
+    GET /christland/api/catalog/categories/top/
+    👉 Ne renvoie que les catégories parents (niveau 1), sans sous-catégories
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        qs = (
+            Categories.objects
+            .filter(est_actif=True, parent__isnull=True)  # 🚀 uniquement top-level
+            .order_by("nom")
+        )
+
+        serializer = CategorieMiniSerializer(
+            qs, many=True, context={"request": request}
+        )
+        data = serializer.data
+
+        # 🔗 Absolutiser image_url et ajouter position
+        def abs_media(path):
+            if not path:
+                return None
+            p = str(path).strip()
+            if p.lower().startswith(("http://", "https://")):
+                return p
+            base = request.build_absolute_uri(settings.MEDIA_URL)
+            return f"{base.rstrip('/')}/{p.lstrip('/')}"
+
+        for item, c in zip(data, qs):
+            item["image_url"] = abs_media(getattr(c, "image_url", None))
+            item["position"] = getattr(c, "position", None)
+            item["parent_id"] = c.parent_id  # toujours None ici
+
+        return Response(data)
+
+
+class CategoryListTop(APIView):
+    """
+    GET /christland/api/catalog/categories/top/
+    👉 Ne renvoie que les catégories parents (niveau 1), sans sous-catégories
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        qs = (
+            Categories.objects
+            .filter(est_actif=True, parent__isnull=True)  # 🚀 uniquement top-level
+            .order_by("nom")
+        )
+
+        serializer = CategorieMiniSerializer(
+            qs, many=True, context={"request": request}
+        )
+        data = serializer.data
+
+        # 🔗 Absolutiser image_url et ajouter position
+        def abs_media(path):
+            if not path:
+                return None
+            p = str(path).strip()
+            if p.lower().startswith(("http://", "https://")):
+                return p
+            base = request.build_absolute_uri(settings.MEDIA_URL)
+            return f"{base.rstrip('/')}/{p.lstrip('/')}"
+
+        for item, c in zip(data, qs):
+            item["image_url"] = abs_media(getattr(c, "image_url", None))
+            item["position"] = getattr(c, "position", None)
+            item["parent_id"] = c.parent_id  # toujours None ici
+
+        return Response(data)
+
+
+
     
 class ProductMiniView(APIView):
     """
@@ -574,7 +705,6 @@ class ProductMiniView(APIView):
                .exclude(sku__exact="")
                .values_list("sku", flat=True)
                .first()) or prod.slug
-
         payload = {
             "id": prod.id,
             "slug": prod.slug,   # ← traduit automatiquement si besoin
@@ -874,6 +1004,17 @@ class DashboardArticlesListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     
+    def get_serializer_class(self):
+        # 👉 GET = liste d’articles (dashboard)
+        if self.request.method == "GET":
+            return ArticleDashboardSerializer
+        # 👉 POST = création d’article
+        if self.request.method == "POST":
+            return ArticleCreateSerializer
+        # fallback
+        return ArticleDashboardSerializer
+    
+    
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
@@ -977,7 +1118,7 @@ class LatestProductsView(APIView):
         qs = (
             Produits.objects
             .filter(est_actif=True, visible=1)
-            .select_related("marque", "categorie")
+            .select_related("marque", "categorie", "categorie__parent")  # 🔹 + parent
             .prefetch_related(
                 "images",
                 "variantes",
@@ -1036,35 +1177,63 @@ class LatestProductsView(APIView):
                 obj["image"] = None
 
             # ---------- Prix min ----------
-            prix = _product_min_price(prod)
-            obj["price"] = str(prix) if prix is not None else None
+          # On garde le price calculé par le serializer
+            obj["price"] = item.get("price")
 
                        # État (utilise le helper i18n)
-            item["state"] = _etat_label(prod.etat, request=request)
-
+            obj["state"] = _etat_label(prod.etat, request=request)
 
             # ---------- Catégorie pour les onglets ----------
+# ---------- Catégorie / Sous-catégorie pour les onglets ----------
             if prod.categorie:
-                cat_name = prod.categorie.nom or ""
-                # on traduit nous-mêmes le nom si langue ≠ fr
-                if lang != "fr" and cat_name:
-                    cat_name = translate_text(
-                        text=cat_name,
+                cat = prod.categorie
+
+                # 1) on remonte jusqu'à la catégorie racine
+                root = cat
+                # si tu as max 2 niveaux, ça suffit ; sinon la boucle gère plusieurs niveaux
+                while getattr(root, "parent_id", None):
+                    root = root.parent
+
+                # 2) nom traduit de la catégorie racine
+                root_name = root.nom or ""
+                if lang != "fr" and root_name:
+                    root_name = translate_text(
+                        text=root_name,
                         target_lang=lang,
                         source_lang="fr",
                     )
 
+                # 🔹 catégorie utilisée pour les onglets = catégorie racine
                 obj["category"] = {
-                    "id": prod.categorie.id,
-                    "nom": cat_name,              # ✅ nom traduit
-                    "slug": prod.categorie.slug,  # ✅ slug brut (clé des onglets)
+                    "id": root.id,
+                    "nom": root_name,
+                    "slug": root.slug,
                 }
+
+                # (optionnel) exposer aussi la sous-catégorie si tu veux
+                if cat.id != root.id:
+                    sub_name = cat.nom or ""
+                    if lang != "fr" and sub_name:
+                        sub_name = translate_text(
+                            text=sub_name,
+                            target_lang=lang,
+                            source_lang="fr",
+                        )
+
+                    obj["subcategory"] = {
+                        "id": cat.id,
+                        "nom": sub_name,
+                        "slug": cat.slug,
+                    }
+                else:
+                    obj["subcategory"] = None
             else:
                 obj["category"] = None
+                obj["subcategory"] = None
 
             results.append(obj)
 
-        cache.set(cache_key, results, 180)
+        cache.set(cache_key, results,20)
         return Response(results)
 
 
@@ -1207,7 +1376,10 @@ class DashboardProductEditDataView(APIView):
             "principale": bool(im.principale),
         } for im in prod.images.all().order_by("position", "id") if im.url]
 
-        var = prod.variantes.all().order_by("id").first()
+        all_vars = list(prod.variantes.all().order_by("id"))
+
+        cat = prod.categorie  # raccourci
+        parent_cat = cat.parent if cat and cat.parent_id else None
 
         payload = {
             "id": prod.id,
@@ -1225,38 +1397,72 @@ class DashboardProductEditDataView(APIView):
                 {"id": prod.marque.id, "slug": prod.marque.slug, "nom": prod.marque.nom}
                 if prod.marque_id else None
             ),
+            # 🔹 Catégorie = parent si existant, sinon catégorie elle-même
             "categorie": (
-                {"id": prod.categorie.id, "slug": prod.categorie.slug, "nom": prod.categorie.nom}
-                if prod.categorie_id else None
+                {
+                    "id": parent_cat.id,
+                    "slug": parent_cat.slug,
+                    "nom": parent_cat.nom,
+                    "parent_id": parent_cat.parent_id,
+                } if parent_cat else (
+                    {
+                        "id": cat.id,
+                        "slug": cat.slug,
+                        "nom": cat.nom,
+                        "parent_id": cat.parent_id,
+                    } if cat else None
+                )
             ),
+            # 🔹 Sous-catégorie = enfant uniquement si cat a un parent
+            "sous_categorie": (
+                {
+                    "id": cat.id,
+                    "slug": cat.slug,
+                    "nom": cat.nom,
+                } if cat and cat.parent_id else None
+            ),
+
             "images": images,
             "product_attributes": _specs_to_filled_list(prod.specs.all()) if hasattr(prod, "specs") else [],
         }
 
-        if var:
-            payload["variant"] = {
-                "id": var.id,
-                "nom": var.nom or "",
-                "sku": var.sku or "",
-                "code_barres": var.code_barres or "",
-                "prix": var.prix,
-                "prix_promo": var.prix_promo,
-                "promo_active": bool(var.promo_active),
-                "promo_debut": var.promo_debut,
-                "promo_fin": var.promo_fin,
-                "stock": var.stock,
-                "prix_achat": getattr(var, "prix_achat", None),
-                "variante_poids_grammes": getattr(var, "poids_grammes", None) or getattr(var, "variante_poids_grammes", None),
-                "variante_est_actif": bool(getattr(var, "est_actif", True)),
+
+        # 🔹 toutes les variantes
+        variants_payload = []
+        for v in all_vars:
+            variants_payload.append({
+                "id": v.id,
+                "nom": v.nom or "",
+                "sku": v.sku or "",
+                "code_barres": v.code_barres or "",
+                "prix": v.prix,
+                "prix_promo": v.prix_promo,
+                "promo_active": bool(v.promo_active),
+                "promo_debut": v.promo_debut,
+                "promo_fin": v.promo_fin,
+                "stock": v.stock,
+                "prix_achat": getattr(v, "prix_achat", None),
+                "variante_poids_grammes": getattr(v, "poids_grammes", None),
+                "variante_est_actif": bool(getattr(v, "est_actif", True)),
                 "couleur": (
-                    {"id": var.couleur.id, "slug": var.couleur.slug, "nom": var.couleur.nom}
-                    if var.couleur_id else None
+                    {"id": v.couleur.id, "slug": v.couleur.slug, "nom": v.couleur.nom}
+                    if v.couleur_id else None
                 ),
-            }
-            payload["variant_attributes"] = _specs_to_filled_list(var.specs.all()) if hasattr(var, "specs") else []
+            })
+
+        # tableau complet (pour ton ProductEditForm)
+        payload["variants"] = variants_payload
+        payload["variantes"] = variants_payload  # alias au cas où le front lit 'variantes'
+
+        # compat : on garde aussi "variant" = 1ère variante + ses attributes
+        if all_vars:
+            first = all_vars[0]
+            payload["variant"] = variants_payload[0]
+            payload["variant_attributes"] = _specs_to_filled_list(first.specs.all()) if hasattr(first, "specs") else []
         else:
             payload["variant"] = None
             payload["variant_attributes"] = []
+
 
         return Response(payload, status=status.HTTP_200_OK)
 
@@ -1279,11 +1485,18 @@ class DashboardProductEditDataView(APIView):
             if fld in data:
                 setattr(prod, fld, data.get(fld))
 
-        # Catégorie (optionnelle)
-        if "categorie" in data and data["categorie"]:
-            cat = Categories.objects.filter(id=_as_int(data["categorie"])).first()
-            if cat:
-                prod.categorie = cat
+                # Catégorie / Sous-catégorie (optionnelles)
+        cat_obj = None
+
+        # 🔹 Priorité à la sous_categorie si fournie
+        if "sous_categorie" in data and data["sous_categorie"]:
+            cat_obj = Categories.objects.filter(id=_as_int(data["sous_categorie"])).first()
+        elif "categorie" in data and data["categorie"]:
+            cat_obj = Categories.objects.filter(id=_as_int(data["categorie"])).first()
+
+        if cat_obj:
+            prod.categorie = cat_obj
+
 
         # Marque (obligatoire côté création, ici optionnelle pour l’update)
         if "marque" in data and data["marque"]:
@@ -1349,15 +1562,29 @@ class DashboardProductEditDataView(APIView):
                     principale=bool(im.get("principale", False)),
                 )
 
-        # ---- Attributs Produit ----
+                # ---- Attributs Produit ----
         for it in data.get("product_attributes", []) or []:
             code = (it.get("code") or "").strip().lower()
             if not code:
                 continue
-            attr = _get_or_create_attr(code, it.get("type"), it.get("libelle"), it.get("unite"))
+
+            raw_value = it.get("value", None)
+
+            # 🔒 Si aucune vraie valeur envoyée → on NE TOUCHE PAS à la spec existante
+            if raw_value in (None, "", [], {}):
+                continue
+
+            attr = _get_or_create_attr(
+                code,
+                it.get("type"),
+                it.get("libelle"),
+                it.get("unite"),
+            )
             if not attr or not attr.actif:
                 continue
-            _write_spec_produit(prod, attr, it.get("value"))
+
+            _write_spec_produit(prod, attr, raw_value)
+
 
         # ---- Attributs Variante ----
         for it in data.get("variant_attributes", []) or []:
@@ -1488,19 +1715,47 @@ def _resolve_marque_verbose(val):
     return obj, ("created" if created else "exists")
 
 def _resolve_couleur(val):
+    """
+    Résout une couleur à partir de :
+      - un id (int / "12")
+      - un nom ("Beige", "beige", " BEIGE ")
+    en respectant la contrainte UNIQUE sur Couleurs.slug.
+    """
     if val in (None, ""):
         return None
+
+    # 1) id numérique ?
     maybe_id = _as_int(val)
     if maybe_id:
         return Couleurs.objects.filter(id=maybe_id).first()
+
+    # 2) nom -> slug
     name = str(val).strip()
     if not name:
         return None
-    obj, _ = Couleurs.objects.get_or_create(
-        nom=name,
-        defaults={"slug": slugify(name)}
-    )
-    return obj
+
+    slug = slugify(name)
+    if not slug:
+        return None
+
+    # 3) On essaie d'abord de récupérer par slug ou nom__iexact
+    existing = Couleurs.objects.filter(
+        Q(slug=slug) | Q(nom__iexact=name)
+    ).first()
+    if existing:
+        # Optionnel : si le nom est vide ou différent, on peut le rafraîchir
+        if not existing.nom:
+            existing.nom = name
+            existing.save(update_fields=["nom"])
+        return existing
+
+    # 4) Sinon on crée ; si une autre requête a créé entre-temps,
+    #    on rattrape l'IntegrityError et on relit.
+    try:
+        return Couleurs.objects.create(nom=name, slug=slug)
+    except IntegrityError:
+        return Couleurs.objects.filter(slug=slug).first()
+
 
 def _clean_images_payload(images):
     """
@@ -1649,78 +1904,155 @@ def _upsert_valeur_choice(attr: Attribut, raw_value: str):
     return va
 
 def _coerce_numeric(value):
-    """Essaie de caster en int puis decimal, sinon None."""
-    from decimal import Decimal, InvalidOperation
+    """Essaie de caster en int puis decimal, sans jamais laisser les deux à None."""
     if value is None or value == "":
         return None, None
+
+    s = str(value).strip()
+
+    iv = None
+    dv = None
+
+    # toujours tenter int
     try:
-        iv = int(value)
-        return iv, None
+        iv = int(s)
     except Exception:
-        pass
+        iv = None
+
+    # toujours tenter Decimal (même si int a marché)
     try:
-        dv = Decimal(str(value))
-        return None, dv
+        dv = Decimal(s)
     except InvalidOperation:
-        return None, None
+        dv = None
+
+    return iv, dv
 
 def _write_spec_produit(produit: Produits, attr: Attribut, raw_value):
     """
-    Ecrit/Met à jour SpecProduit selon le type de l'attribut.
+    Écrit/Met à jour SpecProduit selon le type de l'attribut.
+    ⚠️ IMPORTANT :
+      - si raw_value est vide / None / invalide -> on NE TOUCHE PAS à la spec existante
+        (pas d'update, pas de delete)
     """
+
+    # 👉 1) si aucune valeur envoyée -> on ne modifie rien
+    if raw_value in (None, "", [], {}):
+        return
+
     if attr.type == Attribut.CHOIX:
         va = _upsert_valeur_choice(attr, raw_value)
-        if not va: 
+        if not va:
             return
         SpecProduit.objects.update_or_create(
-            produit=produit, attribut=attr,
-            defaults={"valeur_choice": va, "valeur_text": None, "valeur_int": None, "valeur_dec": None},
+            produit=produit,
+            attribut=attr,
+            defaults={
+                "valeur_choice": va,
+                "valeur_text": None,
+                "valeur_int": None,
+                "valeur_dec": None,
+            },
         )
-    elif attr.type == Attribut.TEXTE or attr.type == Attribut.BOOLEEN:
+
+    elif attr.type in (Attribut.TEXTE, Attribut.BOOLEEN):
         # bool -> "true"/"false" en texte lisible
-        txt = str(bool(raw_value)).lower() if attr.type == Attribut.BOOLEEN else (str(raw_value or "").strip() or None)
+        if attr.type == Attribut.BOOLEEN:
+            txt = str(bool(raw_value)).lower()
+        else:
+            txt = str(raw_value).strip()
+            if txt == "":
+                # valeur vide -> on ne change rien
+                return
+
         SpecProduit.objects.update_or_create(
-            produit=produit, attribut=attr,
-            defaults={"valeur_text": txt, "valeur_choice": None, "valeur_int": None, "valeur_dec": None},
+            produit=produit,
+            attribut=attr,
+            defaults={
+                "valeur_text": txt,
+                "valeur_choice": None,
+                "valeur_int": None,
+                "valeur_dec": None,
+            },
         )
+
     else:
+        # ENTIER / DECIMAL
         iv, dv = _coerce_numeric(raw_value)
+        if iv is None and dv is None:
+            # valeur numérique invalide -> ne rien faire
+            return
+
         SpecProduit.objects.update_or_create(
-            produit=produit, attribut=attr,
+            produit=produit,
+            attribut=attr,
             defaults={
                 "valeur_int": iv if attr.type == Attribut.ENTIER else None,
                 "valeur_dec": dv if attr.type == Attribut.DECIMAL else None,
-                "valeur_text": None, "valeur_choice": None,
+                "valeur_text": None,
+                "valeur_choice": None,
             },
         )
+
 
 def _write_spec_variante(variante: VariantesProduits, attr: Attribut, raw_value):
-    """Idem pour SpecVariante."""
+    """
+    Idem pour SpecVariante.
+    - ne modifie la spec que si une vraie valeur est envoyée
+    """
+
+    # 👉 1) si aucune valeur envoyée -> on ne modifie rien
+    if raw_value in (None, "", [], {}):
+        return
+
     if attr.type == Attribut.CHOIX:
         va = _upsert_valeur_choice(attr, raw_value)
-        if not va: 
+        if not va:
             return
         SpecVariante.objects.update_or_create(
-            variante=variante, attribut=attr,
-            defaults={"valeur_choice": va, "valeur_text": None, "valeur_int": None, "valeur_dec": None},
-        )
-    elif attr.type == Attribut.TEXTE or attr.type == Attribut.BOOLEEN:
-        txt = str(bool(raw_value)).lower() if attr.type == Attribut.BOOLEEN else (str(raw_value or "").strip() or None)
-        SpecVariante.objects.update_or_create(
-            variante=variante, attribut=attr,
-            defaults={"valeur_text": txt, "valeur_choice": None, "valeur_int": None, "valeur_dec": None},
-        )
-    else:
-        iv, dv = _coerce_numeric(raw_value)
-        SpecVariante.objects.update_or_create(
-            variante=variante, attribut=attr,
+            variante=variante,
+            attribut=attr,
             defaults={
-                "valeur_int": iv if attr.type == Attribut.ENTIER else None,
-                "valeur_dec": dv if attr.type == Attribut.DECIMAL else None,
-                "valeur_text": None, "valeur_choice": None,
+                "valeur_choice": va,
+                "valeur_text": None,
+                "valeur_int": None,
+                "valeur_dec": None,
             },
         )
 
+    elif attr.type in (Attribut.TEXTE, Attribut.BOOLEEN):
+        if attr.type == Attribut.BOOLEEN:
+            txt = str(bool(raw_value)).lower()
+        else:
+            txt = str(raw_value).strip()
+            if txt == "":
+                return
+
+        SpecVariante.objects.update_or_create(
+            variante=variante,
+            attribut=attr,
+            defaults={
+                "valeur_text": txt,
+                "valeur_choice": None,
+                "valeur_int": None,
+                "valeur_dec": None,
+            },
+        )
+
+    else:
+        iv, dv = _coerce_numeric(raw_value)
+        if iv is None and dv is None:
+            return
+
+        SpecVariante.objects.update_or_create(
+            variante=variante,
+            attribut=attr,
+            defaults={
+                "valeur_int": iv if attr.type == Attribut.ENTIER else None,
+                "valeur_dec": dv if attr.type == Attribut.DECIMAL else None,
+                "valeur_text": None,
+                "valeur_choice": None,
+            },
+        )
 
 def _validate_required_attributes(categorie: Categories | None, product_attrs: list[dict], variant_attrs: list[dict]):
     """
@@ -1752,13 +2084,12 @@ def _validate_required_attributes(categorie: Categories | None, product_attrs: l
 
 
 
-
-# ---------- Création produit + variante + images ----------
 # ---------- Création produit + variante + images ----------
 @method_decorator(csrf_exempt, name="dispatch")
 class AddProductWithVariantView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
@@ -1770,14 +2101,43 @@ class AddProductWithVariantView(APIView):
         except json.JSONDecodeError:
             return JsonResponse({"error": "JSON invalide"}, status=400)
 
-        # validations lisibles
+        # ===== CATEGORIE / SOUS-CATEGORIE =====
+        raw_sub = payload.get("sous_categorie")
+        raw_cat = payload.get("categorie")
+
+        categorie = None
+
+        # 1) d'abord la sous-catégorie si envoyée
+        if raw_sub:
+            sub_id = _as_int(raw_sub)
+            if sub_id:
+                categorie = Categories.objects.filter(id=sub_id).first()
+            else:
+                categorie = Categories.objects.filter(slug=str(raw_sub).strip()).first()
+
+        # 2) sinon on tombe en fallback sur categorie
+        elif raw_cat:
+            cat_id = _as_int(raw_cat)
+            if cat_id:
+                categorie = Categories.objects.filter(id=cat_id).first()
+            else:
+                categorie = Categories.objects.filter(slug=str(raw_cat).strip()).first()
+
+
+        # ===== VALIDATIONS SIMPLES =====
         nom = (payload.get("nom") or "").strip()
         if not nom:
             return JsonResponse({"field": "nom", "error": "Le nom du produit est requis."}, status=400)
+        # description courte (OBLIGATOIRE)
+        description_courte = (payload.get("description_courte") or "").strip()
+        if not description_courte:
+            return JsonResponse(
+                {"field": "description_courte", "error": "La description courte est requise."},
+                status=400
+            )
 
         # etat (neuf | reconditionné | occasion)
         etat_raw = (payload.get("etat") or "").strip().lower()
-        # tolère sans accent ni majuscules
         if etat_raw in ("reconditionne", "reconditionné", "reconditionne'", "reconditionnee"):
             etat_value = "reconditionné"
         elif etat_raw in ("neuf",):
@@ -1785,63 +2145,99 @@ class AddProductWithVariantView(APIView):
         elif etat_raw in ("occasion",):
             etat_value = "occasion"
         else:
-            # par défaut "neuf" si non fourni; sinon renvoie 400 si tu préfères
             etat_value = "neuf"
-            # return JsonResponse({"field": "etat", "error": "Valeur invalide (neuf, reconditionné, occasion)."}, status=400)
 
         visible = payload.get("visible", 1)
         if visible not in (0, 1, None):
-            return JsonResponse({"field": "visible", "error": "Visible doit être 1 (oui) ou 0 (non)."}, status=400)
+            return JsonResponse(
+                {"field": "visible", "error": "Visible doit être 1 (oui) ou 0 (non)."},
+                status=400
+            )
 
-        prix = payload.get("prix", None)
-        if prix in (None, ""):
-            return JsonResponse({"field": "prix", "error": "Le prix de la variante est requis."}, status=400)
+        # ===== VARIANTS =====
+        variants_payload = payload.get("variants") or []
+
+        # rétro-compatibilité : si pas de "variants", on construit une seule variante
+        if not variants_payload:
+            variants_payload = [{
+                "nom": payload.get("variante_nom") or nom,
+                "sku": payload.get("sku"),
+                "code_barres": payload.get("code_barres"),
+                "prix": payload.get("prix"),
+                "prix_promo": payload.get("prix_promo"),
+                "promo_active": payload.get("promo_active"),
+                "promo_debut": payload.get("promo_debut"),
+                "promo_fin": payload.get("promo_fin"),
+                "stock": payload.get("stock"),
+                "couleur": payload.get("couleur"),
+                "variante_poids_grammes": payload.get("variante_poids_grammes"),
+                "variante_est_actif": payload.get("variante_est_actif", True),
+                "prix_achat": payload.get("prix_achat"),
+                "attributes": payload.get("variant_attributes") or [],
+            }]
+
+        # au moins une variante
+        if not variants_payload:
+            return JsonResponse(
+                {"field": "variants", "error": "Au moins une variante est requise."},
+                status=400
+            )
+
+        # chaque variante doit avoir un prix
+        for idx, v in enumerate(variants_payload, start=1):
+            if v.get("prix") in (None, ""):
+                return JsonResponse(
+                    {
+                        "field": f"variants[{idx-1}].prix",
+                        "error": "Le prix est requis pour chaque variante."
+                    },
+                    status=400
+                )
+
+
 
         marque_raw = payload.get("marque", None)
         if not marque_raw:
             return JsonResponse({"field": "marque", "error": "La marque est requise."}, status=400)
 
-        # catégorie (facultatif)
-        categorie = None
-        if payload.get("categorie"):
-            categorie = Categories.objects.filter(id=_as_int(payload["categorie"])).first()
+        # ⚠️ NE *PAS* RÉÉCRASER categorie ICI (on garde celle trouvée juste au-dessus)
+        # # catégorie (facultatif)
+        # categorie = None
+        # if payload.get("categorie"):
+        #     categorie = Categories.objects.filter(id=_as_int(payload["categorie"])).first()
 
-        # couleur (facultatif)
+        # ===== COULEUR (facultatif) =====
         couleur = _resolve_couleur(payload.get("couleur"))
-        # -- miroir attribut "couleur" pour le moteur d'attributs --
         if couleur:
-            # 1) s'assurer que l'attribut "couleur" existe en CHOIX
             attr_couleur, _ = Attribut.objects.get_or_create(
                 code="couleur",
                 defaults={
                     "libelle": "Couleur",
-                    "type": Attribut.CHOIX,  # "choice"
+                    "type": Attribut.CHOIX,
                     "ordre": 0,
                     "actif": True,
                 },
             )
-            # 2) créer/associer une valeur d'attribut qui mappe la Couleurs choisie
-            va_couleur, _ = ValeurAttribut.objects.get_or_create(
+            ValeurAttribut.objects.get_or_create(
                 attribut=attr_couleur,
                 slug=(couleur.slug or slugify(couleur.nom or ""))[:140],
                 defaults={"valeur": couleur.nom or ""},
             )
 
-          
-        # images (obligatoire ≥ 1)
+        # ===== IMAGES =====
         images_clean = _clean_images_payload(payload.get("images"))
         if not images_clean:
             return JsonResponse({"field": "images", "error": "Au moins une image est requise."}, status=400)
 
-        # marque
+        # ===== MARQUE =====
         marque, marque_note = _resolve_marque_verbose(marque_raw)
         if not marque:
             return JsonResponse({"field": "marque", "error": "Marque introuvable/invalid."}, status=400)
 
-        # slug
+        # ===== SLUG PRODUIT =====
         slug = (payload.get("slug") or "").strip() or slugify(nom)
 
-        # champs variante supplémentaires
+        # ===== CHAMPS VARIANTE SUPPLÉMENTAIRES =====
         promo_debut = _parse_dt_local(payload.get("promo_debut"))
         promo_fin   = _parse_dt_local(payload.get("promo_fin"))
         prix_achat  = payload.get("prix_achat") or None
@@ -1854,35 +2250,38 @@ class AddProductWithVariantView(APIView):
                 produit = Produits.objects.create(
                     nom=nom,
                     slug=slug,
-                    description_courte=payload.get("description_courte", "") or "",
+                     description_courte=description_courte,
                     description_long=payload.get("description_long", "") or "",
                     garantie_mois=payload.get("garantie_mois") or None,
                     poids_grammes=payload.get("poids_grammes") or None,
                     dimensions=payload.get("dimensions", "") or "",
-                    categorie=categorie,
+                    categorie=categorie,   # ✅ on garde la catégorie trouvée (id ou slug)
                     marque=marque,
                     est_actif=bool(payload.get("est_actif", False)),
                     visible=(visible if visible in (0, 1) else 1),
                     etat=etat_value,
                 )
 
-                # ---------- VARIANTE ----------
-                variante = VariantesProduits.objects.create(
-                    produit=produit,
-                    nom=payload.get("variante_nom") or nom,
-                    sku=payload.get("sku") or "",
-                    code_barres=payload.get("code_barres") or "",
-                    prix=payload.get("prix"),
-                    prix_promo=payload.get("prix_promo") or None,
-                    promo_active=bool(payload.get("promo_active", False)),
-                    promo_debut=promo_debut,
-                    promo_fin=promo_fin,
-                    stock=payload.get("stock") or 0,
-                    couleur=couleur,
-                    poids_grammes=var_poids,
-                    prix_achat=prix_achat,
-                    est_actif=var_actif,
-                )
+                variants_payload = payload.get("variants") or []
+
+                # rétro-compatibilité : si pas de "variants", on construit une seule variante
+                if not variants_payload:
+                    variants_payload = [{
+                        "nom": payload.get("variante_nom") or nom,
+                        "sku": payload.get("sku"),
+                        "code_barres": payload.get("code_barres"),
+                        "prix": payload.get("prix"),
+                        "prix_promo": payload.get("prix_promo"),
+                        "promo_active": payload.get("promo_active"),
+                        "promo_debut": payload.get("promo_debut"),
+                        "promo_fin": payload.get("promo_fin"),
+                        "stock": payload.get("stock"),
+                        "couleur": payload.get("couleur"),
+                        "variante_poids_grammes": payload.get("variante_poids_grammes"),
+                        "variante_est_actif": payload.get("variante_est_actif", True),
+                        "prix_achat": payload.get("prix_achat"),
+                        "attributes": payload.get("variant_attributes") or [],
+                    }]
 
                 # ---------- IMAGES ----------
                 for i, img in enumerate(images_clean, start=1):
@@ -1894,19 +2293,25 @@ class AddProductWithVariantView(APIView):
                         principale=bool(img.get("principale", False)),
                     )
 
-                # ---------- ATTRIBUTS: validation "obligatoire" ----------
+                                # ---------- ATTRIBUTS: validation "obligatoire" ----------
                 product_attrs = payload.get("product_attributes") or []
-                variant_attrs = payload.get("variant_attributes") or []
-                miss_msg = _validate_required_attributes(categorie, product_attrs, variant_attrs)
+
+                # on agrège les attributs de TOUTES les variantes
+                variant_attrs_all = []
+                for v in variants_payload:
+                    variant_attrs_all.extend(v.get("attributes") or [])
+
+                miss_msg = _validate_required_attributes(categorie, product_attrs, variant_attrs_all)
+
                 if miss_msg:
                     raise IntegrityError(miss_msg)
 
                 # ---------- ATTRIBUTS PRODUIT ----------
                 for item in product_attrs:
                     code = (item.get("code") or "").strip().lower()
-                    if not code: 
+                    if not code:
                         continue
-                    type_hint = item.get("type")  # "text/int/dec/bool/choice"
+                    type_hint = item.get("type")
                     libelle = item.get("libelle")
                     unite   = item.get("unite")
                     value   = item.get("value")
@@ -1916,40 +2321,82 @@ class AddProductWithVariantView(APIView):
                         continue
                     _write_spec_produit(produit, attr, value)
 
-                # ---------- ATTRIBUTS VARIANTE ----------
-                for item in variant_attrs:
-                    code = (item.get("code") or "").strip().lower()
-                    if not code:
-                        continue
-                    # on évite de recréer "couleur" si on l’a déjà mappée via FK (voir miroir ci-dessous)
-                    if code == "couleur" and variante.couleur_id:
-                        continue
+                             # ---------- VARIANTES (plusieurs) ----------
+                variantes_creees = []
 
-                    type_hint = item.get("type")
-                    libelle = item.get("libelle")
-                    unite   = item.get("unite")
-                    value   = item.get("value")
+                for v in variants_payload:
+                    v_nom    = v.get("nom") or nom
+                    v_sku    = v.get("sku") or None
+                    v_code   = v.get("code_barres") or ""
+                    v_prix   = v.get("prix")
+                    v_promo  = v.get("prix_promo") or None
+                    v_pa     = v.get("prix_achat") or None
+                    v_stock  = v.get("stock") or 0
+                    v_poids  = v.get("variante_poids_grammes") or None
+                    v_actif  = bool(v.get("variante_est_actif", True))
+                    v_promo_debut = _parse_dt_local(v.get("promo_debut"))
+                    v_promo_fin   = _parse_dt_local(v.get("promo_fin"))
 
-                    attr = _get_or_create_attr(code, type_hint, libelle, unite)
-                    if not attr or not attr.actif:
-                        continue
-                    _write_spec_variante(variante, attr, value)
+                    v_couleur = _resolve_couleur(v.get("couleur"))
 
-                # ---------- MIROIR ATTRIBUT "couleur" (si FK couleur) ----------
-                if variante.couleur_id:
-                    attr_couleur = _get_or_create_attr("couleur", Attribut.CHOIX, "Couleur")
-                    va_couleur = _upsert_valeur_choice(attr_couleur, variante.couleur.nom)
-                    SpecVariante.objects.update_or_create(
-                        variante=variante, attribut=attr_couleur,
-                        defaults={"valeur_choice": va_couleur, "valeur_text": None, "valeur_int": None, "valeur_dec": None},
+                    variante = VariantesProduits.objects.create(
+                        produit=produit,
+                        nom=v_nom,
+                        sku=v_sku,
+                        code_barres=v_code,
+                        prix=v_prix,
+                        prix_promo=v_promo,
+                        promo_active=bool(v.get("promo_active", False)),
+                        promo_debut=v_promo_debut,
+                        promo_fin=v_promo_fin,
+                        stock=v_stock,
+                        couleur=v_couleur,
+                        poids_grammes=v_poids,
+                        prix_achat=v_pa,
+                        est_actif=v_actif,
                     )
-            # ... juste après toutes les créations (produit, variante, images, specs, miroir couleur)
+                    variantes_creees.append(variante)
+
+                    # ---------- ATTRIBUTS VARIANTE (pour CETTE variante) ----------
+                    for item in v.get("attributes") or []:
+                        code = (item.get("code") or "").strip().lower()
+                        if not code:
+                            continue
+                        if code == "couleur" and variante.couleur_id:
+                            # pas de doublon "couleur"
+                            continue
+
+                        type_hint = item.get("type")
+                        libelle   = item.get("libelle")
+                        unite     = item.get("unite")
+                        value     = item.get("value")
+
+                        attr = _get_or_create_attr(code, type_hint, libelle, unite)
+                        if not attr or not attr.actif:
+                            continue
+                        _write_spec_variante(variante, attr, value)
+
+                    # ---------- MIROIR ATTRIBUT "couleur" ----------
+                    if variante.couleur_id:
+                        attr_couleur = _get_or_create_attr("couleur", Attribut.CHOIX, "Couleur")
+                        va_couleur   = _upsert_valeur_choice(attr_couleur, variante.couleur.nom)
+                        SpecVariante.objects.update_or_create(
+                            variante=variante, attribut=attr_couleur,
+                            defaults={
+                                "valeur_choice": va_couleur,
+                                "valeur_text": None,
+                                "valeur_int": None,
+                                "valeur_dec": None,
+                            },
+                        )
+
+
             return JsonResponse(
                 {
                     "ok": True,
                     "message": "Votre produit a bien été enregistré.",
                     "produit_id": produit.id,
-                    "variante_id": variante.id,
+                    "variante_ids": [v.id for v in variantes_creees],
                     "notes": {
                         "marque_message": (
                             "Marque créée." if (marque_note == "created")
@@ -1963,12 +2410,11 @@ class AddProductWithVariantView(APIView):
 
         except IntegrityError as ie:
             field, human = _integrity_to_field_error(ie)
-            payload = {"error": "Intégrité BD", "detail": str(ie)}
+            payload_err = {"error": "Intégrité BD", "detail": str(ie)}
             if field:
-                payload["field"] = field
-                payload["field_errors"] = {field: human}
-            return JsonResponse(payload, status=400)
-        
+                payload_err["field"] = field
+                payload_err["field_errors"] = {field: human}
+            return JsonResponse(payload_err, status=400)
 
 
 class ProductClickView(APIView):
@@ -2345,3 +2791,284 @@ class MeView(APIView):
             "nom": u.nom,
             "role": u.role,
         }, status=status.HTTP_200_OK)
+
+# ==========================
+#   CATEGORIES - DASHBOARD
+# ==========================
+
+class DashboardCategoryListCreateView(generics.ListCreateAPIView):
+    """
+    GET  /christland/api/dashboard/categories/manage/
+    POST /christland/api/dashboard/categories/manage/
+    """
+    queryset = Categories.objects.all().order_by("-id")
+    serializer_class = CategoryDashboardSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    def get(self, request, *args, **kwargs):
+        q = (request.query_params.get("q") or "").strip()
+
+        qs = Categories.objects.all().order_by("-cree_le", "-id")
+
+        if q:
+            qs = qs.filter(
+                Q(nom__icontains=q) |
+                Q(description__icontains=q)
+            )
+
+        paginator = SmallPagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+
+        rows = []
+        for c in page:
+            rows.append({
+                "id": c.id,
+                "nom": c.nom or "",
+                "slug": c.slug or "",   # 👈 avec le fix 1)
+                "description": c.description or "",
+                "est_actif": bool(c.est_actif),
+                "parent_id": c.parent_id,
+                "parent_nom": c.parent.nom if c.parent_id else "",
+            })
+
+        return paginator.get_paginated_response(rows)
+
+
+    def post(self, request):
+        nom = (request.data.get("nom") or "").strip()
+        description = (request.data.get("description") or "").strip()
+        est_actif = bool(request.data.get("est_actif", False))
+
+        # parent: on accepte "parent" ou "parent_id"
+        parent_id = request.data.get("parent") or request.data.get("parent_id")
+        parent = None
+        if parent_id:
+            try:
+                parent = Categories.objects.get(pk=int(parent_id))
+            except (Categories.DoesNotExist, ValueError, TypeError):
+                return Response(
+                    {"field": "parent", "error": "Catégorie parente invalide."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if not nom:
+            return Response(
+                {"field": "nom", "error": "Le nom de la catégorie est requis."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # slug automatique simple
+        slug_val = slugify(nom)
+
+        cat = Categories.objects.create(
+            nom=nom,
+            slug=slug_val,
+            description=description,
+            est_actif=est_actif,
+            parent=parent,
+            cree_le=timezone.now(),
+            image_url=request.data.get("image_url") or None,
+        )
+
+        return Response(
+            {
+                "id": cat.id,
+                "nom": cat.nom,
+                "description": cat.description,
+                "est_actif": cat.est_actif,
+                "parent_id": cat.parent_id,
+                "parent_nom": cat.parent.nom if cat.parent_id else "",
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET    /christland/api/dashboard/categories/manage/<id>/
+    PUT    /christland/api/dashboard/categories/manage/<id>/
+    DELETE /christland/api/dashboard/categories/manage/<id>/
+    """
+    queryset = Categories.objects.all()
+    serializer_class = CategoryDashboardSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    
+    def get_object(self):
+        pk = self.kwargs.get("pk")
+        return get_object_or_404(Categories, pk=pk)
+    
+    def patch(self, request, pk: int):
+        # on réutilise la même logique que PUT
+        return self.put(request, pk)
+    
+
+    def get(self, request, pk: int):
+        c = self.get_object()
+        return Response(
+            {
+                "id": c.id,
+                "nom": c.nom or "",
+                "description": c.description or "",
+                "slug": c.slug or "",
+                "est_actif": bool(c.est_actif),
+                "parent_id": c.parent_id,
+                "parent_nom": c.parent.nom if c.parent_id else "",
+            }
+        )
+
+
+    def put(self, request, pk: int):
+        c = self.get_object()
+        nom = (request.data.get("nom") or "").strip()
+        description = (request.data.get("description") or "").strip()
+        est_actif = bool(request.data.get("est_actif", False))
+
+        parent_id = request.data.get("parent") or request.data.get("parent_id")
+        parent = None
+        if parent_id:
+            try:
+                parent = Categories.objects.get(pk=int(parent_id))
+            except (Categories.DoesNotExist, ValueError, TypeError):
+                return Response(
+                    {"field": "parent", "error": "Catégorie parente invalide."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # sécurité : empêcher qu'une catégorie soit son propre parent
+            if parent.id == c.id:
+                return Response(
+                    {"field": "parent", "error": "Une catégorie ne peut pas être son propre parent."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if not nom:
+            return Response(
+                {"field": "nom", "error": "Le nom de la catégorie est requis."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        c.nom = nom
+        
+        c.description = description
+        c.est_actif = est_actif
+        c.parent = parent
+        c.image_url = request.data.get("image_url") or c.image_url 
+        # on recalcule le slug si vide
+        if not c.slug:
+            c.slug = slugify(nom)
+
+        c.save()
+
+        return Response(
+            {
+                "id": c.id,
+                "nom": c.nom,
+                "slug": c.slug or "",
+                "description": c.description,
+                "est_actif": c.est_actif,
+                "parent_id": c.parent_id,
+                "parent_nom": c.parent.nom if c.parent_id else "",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+    def delete(self, request, pk: int):
+        c = self.get_object()
+
+        # Empêcher la suppression si des sous-catégories existent
+        if Categories.objects.filter(parent=c).exists():
+            return Response(
+                {"error": "Impossible de supprimer une catégorie qui possède des sous-catégories."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        c.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    
+class DashboardCategoriesSelectView(APIView):
+    """
+    GET /christland/api/dashboard/categories/select/
+    -> [
+         { "id": 1, "nom": "Informatique", "slug": "informatique", "parent_id": null },
+         { "id": 2, "nom": "Ordinateurs portables", "slug": "ordinateurs-portables", "parent_id": 1 },
+         ...
+       ]
+    ⚠️ AUCUNE TRADUCTION : on renvoie exactement les champs FR de la base.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        q = (request.query_params.get("q") or "").strip()
+
+        qs = Categories.objects.all().order_by("nom")
+        if q:
+            qs = qs.filter(
+                Q(nom__icontains=q) |
+                Q(description__icontains=q)
+            )
+
+        data = [
+            {
+                "id": c.id,
+                "nom": c.nom or "",
+                "slug": c.slug or "",
+                "parent_id": c.parent_id,
+            }
+            for c in qs
+        ]
+        return Response(data)
+class DashboardCategoriesTreeView(APIView):
+    """
+    GET /christland/api/dashboard/categories/tree/
+    -> [
+         {
+           "id": 1,
+           "nom": "Informatique",
+           "slug": "informatique",
+           "parent_id": null,
+           "children": [
+             { "id": 2, "nom": "Ordinateurs portables", "slug": "ordinateurs-portables", "parent_id": 1 },
+             ...
+           ]
+         },
+         ...
+       ]
+    ⚠️ Toujours en FR brut, pas de traduction.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        qs = Categories.objects.all().order_by("nom")
+
+        # 1) on prépare un dict {id: item_dict}
+        by_id: dict[int, dict] = {}
+        for c in qs:
+            by_id[c.id] = {
+                "id": c.id,
+                "nom": c.nom or "",
+                "slug": c.slug or "",
+                "parent_id": c.parent_id,
+                "children": [],
+            }
+
+        # 2) on attache chaque catégorie à son parent si parent_id existe
+        roots: list[dict] = []
+        for c in qs:
+            item = by_id[c.id]
+            if c.parent_id:
+                parent_item = by_id.get(c.parent_id)
+                if parent_item:
+                    parent_item["children"].append(item)
+                else:
+                    # parent manquant (au cas où) -> on le traite comme racine
+                    roots.append(item)
+            else:
+                roots.append(item)
+
+        return Response(roots)

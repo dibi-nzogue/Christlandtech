@@ -120,15 +120,39 @@ class VarianteSerializer(I18nTranslateMixin, serializers.ModelSerializer):
     couleur = CouleurMiniSerializer()
     prix_affiche = serializers.SerializerMethodField()
     promo_now = serializers.SerializerMethodField()
-   
+    variante_poids_grammes = serializers.SerializerMethodField()
+    variante_est_actif = serializers.SerializerMethodField()
+
     
     class Meta:
         model = VariantesProduits
         fields = (
-            "id", "sku", "nom", "prix", "prix_promo", "prix_affiche",
-            "promo_now",  # <-- ajouté
-            "stock", "poids_grammes", "couleur"
+            "id",
+            "sku",
+            "code_barres",           # <- utilisé dans ProductEditForm
+            "nom",
+            "prix",
+            "prix_promo",
+            "prix_affiche",
+            "promo_active",          # <- utilisé dans ProductEditForm
+            "promo_debut",           # <- idem
+            "promo_fin",             # <- idem
+            "promo_now",
+            "stock",
+            "prix_achat",            # <- utilisé dans ProductEditForm
+            "poids_grammes",
+            "variante_poids_grammes",# alias pour le front
+            "est_actif",
+            "variante_est_actif",    # alias pour le front
+            "couleur",
         )
+
+
+    def get_variante_poids_grammes(self, obj):
+            return obj.poids_grammes
+
+    def get_variante_est_actif(self, obj):
+        return obj.est_actif
 
     def get_prix_affiche(self, obj):
         # ✅ respecte promo_active + fenêtre de dates, déjà géré par ton modèle
@@ -161,8 +185,123 @@ class CategorieMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
 
     class Meta:
         model = Categories
-        fields = ("nom", "slug", "parent_slug")
+        fields = ("id", "nom", "slug", "parent_slug")
 
+class CategoryDashboardSerializer(serializers.ModelSerializer):
+    # on veut traduire nom + description
+    # i18n_fields = ["nom", "description"]
+
+    # 👇 on ajoute ces 2 champs calculés
+    parent_id = serializers.IntegerField(source="parent.id", read_only=True)
+    parent_nom = serializers.CharField(source="parent.nom", read_only=True)
+    children = serializers.SerializerMethodField()  # 
+    class Meta:
+        model = Categories
+        fields = (
+            "id",
+            "nom",
+            "slug",
+            "description",
+            "est_actif",
+            "image_url",
+            "position",
+            "parent",      # FK brute
+            "parent_id",   # id du parent (pour le front)
+            "parent_nom",  # nom du parent (optionnel mais pratique)
+             "children",
+        )
+    def get_children(self, obj):
+            return [
+                {"id": child.id, "nom": child.nom, "slug": child.slug}
+                for child in obj.children.all()
+            ]
+
+
+class CatalogCategorySerializer(I18nTranslateMixin, serializers.ModelSerializer):
+    """
+    Serializer utilisé par /api/catalog/categories/ (useCategories côté front).
+    On expose bien parent_id pour que React puisse retrouver les sous-catégories.
+    """
+    i18n_fields = ["nom", "description"]
+
+    parent_id = serializers.IntegerField(source="parent.id", read_only=True)
+
+    class Meta:
+        model = Categories
+        fields = (
+            "id",
+            "nom",
+            "slug",
+            "description",
+            "est_actif",
+            "image_url",
+            "position",
+            "parent",      # pk du parent
+            "parent_id",   # pk du parent (utile pour le filtrage front)
+        )
+
+
+
+
+
+class ProductEditSerializer(serializers.ModelSerializer):
+    # on veut traduire les champs texte
+    # i18n_fields = ["nom", "description_courte", "description_long"]
+
+    # relations imbriquées
+    categorie = CategorieMiniSerializer(read_only=True)
+    sous_categorie = CategorieMiniSerializer(read_only=True)
+    marque = MarqueMiniSerializer(read_only=True)
+    variantes = VarianteSerializer(many=True, read_only=True)
+    images = ImageProduitSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Produits
+        fields = (
+            "id",
+            "nom",
+            "slug",
+            "description_courte",
+            "description_long",
+            "categorie",
+            "sous_categorie",
+            "marque",
+            "est_actif",
+            "visible",
+            "garantie_mois",
+            "poids_grammes",
+            "dimensions",
+            "etat",
+            "variantes",
+            "images",
+        )
+
+    def to_representation(self, instance):
+        """
+        Corrige les anciens produits :
+        - si sous_categorie est vide
+        - et que categorie a un parent
+        => on considère que categorie = parent, et la vraie catégorie feuille = sous_categorie.
+        """
+        data = super().to_representation(instance)
+
+        cat = getattr(instance, "categorie", None)
+        subcat = getattr(instance, "sous_categorie", None)
+
+        # cas typique : ancien produit où tu n'avais que 'categorie' pointant sur la sous-catégorie
+        if subcat is None and cat is not None and getattr(cat, "parent_id", None):
+            parent = cat.parent  # catégorie parente
+
+            data["categorie"] = (
+                CategorieMiniSerializer(parent, context=self.context).data
+                if parent
+                else None
+            )
+            data["sous_categorie"] = CategorieMiniSerializer(
+                cat, context=self.context
+            ).data
+
+        return data
 
 
 
@@ -180,14 +319,25 @@ class ProduitCardSerializer(I18nTranslateMixin, serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     specs = serializers.SerializerMethodField()
     state = serializers.SerializerMethodField()
-
+        # Nouveaux champs pour le front (prix + promo)
+    prix_from = serializers.SerializerMethodField()
+    old_price_from = serializers.SerializerMethodField()
+    promo_now = serializers.SerializerMethodField()
+    promo_fin = serializers.SerializerMethodField()
+ 
     class Meta:
         model = Produits
         fields = (
             "id", "nom", "slug", "description_courte",
             "marque", "categorie", "images", "variantes",
-            "price", "image", "specs", "state",
+            "price",          # prix min actuel (avec promo appliquée)
+            "prix_from",      # alias pour le front
+            "old_price_from", # ancien prix min si promo
+            "promo_now",      # True/False
+            "promo_fin",      # date de fin de promo (si dispo)
+            "image", "specs", "state",
         )
+
 
     def get_price(self, obj):
         prix = _product_min_price(obj)
@@ -233,6 +383,92 @@ class ProduitCardSerializer(I18nTranslateMixin, serializers.ModelSerializer):
     def get_state(self, obj):
         request = self.context.get("request")
         return _etat_label(obj.etat, request=request)
+    def get_prix_from(self, obj):
+        """
+        Même valeur que price, mais avec le nouveau nom attendu par le front.
+        """
+        prix = _product_min_price(obj)
+        return str(prix) if prix is not None else None
+
+    def get_old_price_from(self, obj):
+        now = timezone.now()
+        old_prices = []
+        for v in obj.variantes.all():
+            if (
+                v.promo_active
+                and v.prix_promo is not None
+                and v.prix is not None
+                and (not v.promo_debut or v.promo_debut <= now)
+                and (not v.promo_fin or now <= v.promo_fin)
+            ):
+                old_prices.append(v.prix)
+        return min(old_prices) if old_prices else None
+
+    # 👉 Remettre cette méthode AU BON NIVEAU (pas imbriquée !)
+    def get_promo_now(self, obj):
+        now = timezone.now()
+        for v in obj.variantes.all():
+            if (
+                v.promo_active
+                and v.prix_promo is not None
+                and (not v.promo_debut or v.promo_debut <= now)
+                and (not v.promo_fin or now <= v.promo_fin)
+            ):
+                return True
+        return False
+
+
+       
+
+    def get_prix_from(self, obj):
+        now = timezone.now()
+        prix_list = []
+        for v in obj.variantes.all():
+            # si promo valide → on prend le prix_promo
+            if (
+                v.promo_active
+                and v.prix_promo is not None
+                and (not v.promo_debut or v.promo_debut <= now)
+                and (not v.promo_fin or now <= v.promo_fin)
+            ):
+                prix_list.append(v.prix_promo)
+            elif v.prix is not None:
+                prix_list.append(v.prix)
+        return min(prix_list) if prix_list else None
+
+    def get_old_price_from(self, obj):
+        now = timezone.now()
+        old_prices = []
+        for v in obj.variantes.all():
+            if (
+                v.promo_active
+                and v.prix_promo is not None
+                and v.prix is not None
+                and (not v.promo_debut or v.promo_debut <= now)
+                and (not v.promo_fin or now <= v.promo_fin)
+            ):
+                old_prices.append(v.prix)
+        return min(old_prices) if old_prices else None
+    def get_promo_fin(self, obj):
+        """
+        Date de fin de promo (on prend la plus tardive des variantes en promo).
+        Utilisée pour "Offre valable jusqu'au ...".
+        """
+        now = timezone.now()
+        dates = []
+
+        for v in obj.variantes.all():
+            if not v.promo_active or v.prix_promo is None:
+                continue
+            if v.promo_debut and v.promo_debut > now:
+                continue
+            if v.promo_fin:
+                dates.append(v.promo_fin)
+
+        if not dates:
+            return None
+        # DRF sérialisera le datetime en ISO8601 → new Date(...) côté front
+        return max(dates)
 
 
 class ProduitsSerializer(I18nTranslateMixin, serializers.ModelSerializer):
@@ -245,18 +481,15 @@ class ProduitsSerializer(I18nTranslateMixin, serializers.ModelSerializer):
         "images": ["alt_text"],
     }
     variants_stock = serializers.SerializerMethodField() 
+    variantes = VarianteSerializer(many=True, read_only=True)  # 👈 AJOUT ICI
     images = ImageProduitSerializer(many=True, read_only=True)
     class Meta:
         model = Produits
         fields = '__all__'  # on garde tout
         # Si tu préfères être explicite:
         # fields = [..., 'variants_stock']
-
     def get_variants_stock(self, instance):
-        # renvoie [12, 5, 0, ...] (None conservé si tu veux)
-        return list(
-            instance.variantes.order_by("id").values_list("stock", flat=True)
-        )
+            return list(instance.variantes.order_by("id").values_list("stock", flat=True))
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -277,9 +510,9 @@ def _abs_media(request, path: str | None) -> str | None:
     base = request.build_absolute_uri(settings.MEDIA_URL)
     return f"{base.rstrip('/')}/{p.lstrip('/')}"
 
-class ArticleDashboardSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+class ArticleDashboardSerializer(serializers.ModelSerializer):
     # + traduire les champs de texte du blog
-    i18n_fields = ["titre", "slug", "extrait", "contenu"]
+    # i18n_fields = ["titre", "slug", "extrait", "contenu"]
     image = serializers.SerializerMethodField()
 
     class Meta:
@@ -312,9 +545,9 @@ def _abs_media(request, path: str | None) -> str | None:
     base = request.build_absolute_uri(settings.MEDIA_URL)
     return f"{base.rstrip('/')}/{p.lstrip('/')}"
 
-class ArticleEditSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+class ArticleEditSerializer( serializers.ModelSerializer):
     # + traduire aussi en mode “edit” (lecture)
-    i18n_fields = ["titre","slug", "extrait", "contenu"]
+    # i18n_fields = ["titre","slug", "extrait", "contenu"]
     # on expose "image" en lisant image_couverture
     image = serializers.SerializerMethodField()
 
@@ -339,9 +572,9 @@ class ArticleEditSerializer(I18nTranslateMixin, serializers.ModelSerializer):
                 clean[k] = v
         return clean
     
-class ArticleCreateSerializer(I18nTranslateMixin, serializers.ModelSerializer):
+class ArticleCreateSerializer(serializers.ModelSerializer):
     # + pour la réponse (to_representation) après création
-    i18n_fields = ["titre", "slug", "extrait", "contenu"]
+    # i18n_fields = ["titre", "slug", "extrait", "contenu"]
     image = serializers.CharField(allow_blank=True, allow_null=True, required=False)
 
     class Meta:

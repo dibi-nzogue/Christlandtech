@@ -29,7 +29,7 @@ const Dashboard: React.FC = () => {
   const fmt = (n?: number) => (typeof n === "number" ? n.toLocaleString("fr-FR") : "—");
 
   return (
-    <div className="mx-auto w-full px-6 sm:px-10 lg:px-20 py-10 bg-[#F4F5F8] h-full md:h-[100vh] overflow-hidden">
+      <div className="relative mx-auto w-full px-6 sm:px-10 lg:px-20 py-10 bg-[#F4F5F8] h-full md:h-[100vh] overflow-hidden">
       {/* ✅ Popup animé */}
       {flash && (
         <TopToast
@@ -39,7 +39,7 @@ const Dashboard: React.FC = () => {
         />
       )}
 
-      <div className="flex justify-between md:gap-10">
+      <div className="flex justify-between md:gap-10 ">
         <div className="md:fixed">
           <Sidebar />
         </div>
@@ -47,7 +47,8 @@ const Dashboard: React.FC = () => {
           <Header />
 
           {/* Statistiques */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-4 mt-4">
+         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4 mt-4">
+
             <StatCard
               icon="users"
               label="Total Utilisateurs"

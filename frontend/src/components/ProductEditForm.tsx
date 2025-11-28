@@ -24,6 +24,7 @@ type ProduitFormState = {
   dimensions: string;
   etat: "neuf" | "occasion" | "reconditionné";
   categorie: string;      // id ou slug (string)
+  sous_categorie: string;
   marque: string;         // id ou slug (string)
   marque_libre: string;
   est_actif: boolean;
@@ -65,6 +66,10 @@ type AttrMeta = {
   options?: { valeur: string; slug?: string }[] | string[];
 };
 
+
+
+
+
 /* ---------------- UI ---------------- */
 const Toast: React.FC<{ kind: "success" | "error"; msg: string; onClose(): void }> = ({
   kind, msg, onClose,
@@ -100,6 +105,8 @@ const ProductEditForm: React.FC = () => {
   const { data: marques } = useMarques();
   const { data: couleurs } = useCouleurs();
 
+  const [subCategories, setSubCategories] = useState<ComboOption[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ kind: "success" | "error"; msg: string } | null>(null);
@@ -112,7 +119,8 @@ const ProductEditForm: React.FC = () => {
     nom: "", slug: "", description_courte: "", description_long: "",
     garantie_mois: null, poids_grammes: null, dimensions: "",
     etat: "neuf", categorie: "", marque: "", marque_libre: "",
-    est_actif: true, visible: 1,
+    est_actif: true, visible: 1,  sous_categorie: "",
+
     variante_nom: "", sku: "", code_barres: "",
     prix: null, prix_promo: null, promo_active: false,
     promo_debut: "", promo_fin: "", stock: null,
@@ -128,15 +136,62 @@ const ProductEditForm: React.FC = () => {
   const toOptions = (rows: any[] | null | undefined): ComboOption[] =>
     (rows ?? []).map((r: any) => ({ id: r.id ?? r.slug ?? r.nom, label: r.nom ?? r.slug ?? String(r) }));
 
-  const categoryOptions = toOptions(categories);
-  const brandOptions    = toOptions(marques);
-  const colorOptions    = toOptions(couleurs);
+
+const brandOptions    = toOptions(marques);
+const colorOptions    = toOptions(couleurs);
+
+// 🔹 Catégories racines = celles sans parent_id
+const rootCategoryOptions: ComboOption[] = useMemo(() => {
+  if (!Array.isArray(categories)) return [];
+
+  const roots = (categories as any[]).filter((c) => {
+    const rawParent = (c as any).parent ?? (c as any).parent_id ?? null;
+
+    // si parent est un objet => on prend son id (ou son slug)
+    const parentId =
+      rawParent && typeof rawParent === "object"
+        ? (rawParent as any).id ?? (rawParent as any).slug ?? null
+        : rawParent;
+
+    return !parentId; // racine = pas de parent ID
+  });
+
+  return toOptions(roots);
+}, [categories]);
+
+
+
+const [variants, setVariants] = useState<any[]>([
+  {
+    variante_nom: "",
+    sku: "",
+    code_barres: "",
+    prix: null,
+    prix_promo: null,
+    promo_active: false,
+    promo_debut: "",
+    promo_fin: "",
+    stock: null,
+    prix_achat: null,
+    variante_poids_grammes: null,
+    couleur: "",
+    couleur_libre: "",
+    variante_est_actif: true,
+  },
+]);
+  const updateVariant = (index: number, key: string, value: any) => {
+  setVariants((prev) => {
+    const updated = [...prev];
+    updated[index][key] = value;
+    return updated;
+  });
+};
+
+const removeVariant = (index: number) => {
+  setVariants((prev) => prev.filter((_, i) => i !== index));
+};
 
   // ⚠️ pour retrouver la valeur, on compare id **ou** slug
-  const categoryValue =
-    categoryOptions.find(o => String(o.id) === String(formData.categorie)) ??
-    categoryOptions.find(o => String(o.label) === String(formData.categorie)) ?? // fallback au cas où tu stockes le nom
-    null;
 
   const brandValue =
     formData.marque === "__custom__"
@@ -157,7 +212,12 @@ const ProductEditForm: React.FC = () => {
          null);
 
   const onCategoryChange = (opt: ComboOption | null) =>
-    setFormData(p => ({ ...p, categorie: opt ? String(opt.id) : "" }));
+    setFormData((p) => ({
+      ...p,
+      categorie: opt ? String(opt.id) : "",
+      sous_categorie: "", // on reset la sous-catégorie quand on change de catégorie
+    }));
+
 
   const onBrandChange = (opt: ComboOption | null) => {
     if (!opt) return setFormData(p => ({ ...p, marque: "", marque_libre: "" }));
@@ -242,13 +302,122 @@ const ProductEditForm: React.FC = () => {
         // Essayez de demander un détail complet (ignoré si non supporté)
    // 1) charge le payload “edit”
 const prod: any = await getDashboardProduct(Number(id));
+// console.log("🟢 [Edit] Produit brut reçu :", prod);
+// console.log("👉 prod.categorie complet :", JSON.stringify(prod?.categorie, null, 2));
+// console.log("👉 prod.sous_categorie :", prod?.sous_categorie);
 
+// Charger les variantes si elles existent
+// Charger les variantes si elles existent
+setVariants(
+  Array.isArray(prod?.variants) && prod.variants.length
+    ? prod.variants.map((v: any) => ({
+        variante_nom: v.nom ?? "",
+        sku: v.sku ?? "",
+        code_barres: v.code_barres ?? "",
+        prix: v.prix ?? null,
+        prix_promo: v.prix_promo ?? null,
+        promo_active: !!v.promo_active,
+        promo_debut: v.promo_debut ? String(v.promo_debut).slice(0, 16) : "",
+        promo_fin:   v.promo_fin   ? String(v.promo_fin).slice(0, 16)   : "",
+        stock: v.stock ?? null,
+        prix_achat: v.prix_achat ?? null,
+        variante_poids_grammes: v.variante_poids_grammes ?? null,
+        couleur: v.couleur?.id ?? v.couleur?.slug ?? "",
+        couleur_libre: "",
+        variante_est_actif: !!v.variante_est_actif,
+      }))
+    : [
+        {
+          variante_nom: "",
+          sku: "",
+          code_barres: "",
+          prix: null,
+          prix_promo: null,
+          promo_active: false,
+          promo_debut: "",
+          promo_fin: "",
+          stock: null,
+          prix_achat: null,
+          variante_poids_grammes: null,
+          couleur: "",
+          couleur_libre: "",
+          variante_est_actif: true,
+        },
+      ]
+);
+
+// 2) variante unique (payload.variant)
 // 2) variante unique (payload.variant)
 const firstVar = prod?.variant ?? null;
 
-// 3) préremplissage “Produit”
+// 3) préremplissage “Produit” + catégorie / sous-catégorie
+// Backend DashboardProductEditDataView renvoie :
+// - categorie : objet {id, slug, nom, parent_id} (parent si sous-cat, sinon catégorie elle-même)
+// - sous_categorie : objet {id, slug, nom} ou null
+
+
+const rawCat = (prod as any)?.categorie ?? null;
+const rawSub = (prod as any)?.sous_categorie ?? null;
+
+let categorieVal = "";
+let sousCategorieVal = "";
+
+// 🔹 Catégorie : on prend juste l'id (ou la valeur brute si jamais)
+if (rawCat) {
+  if (typeof rawCat === "object") {
+    categorieVal = rawCat.id ? String(rawCat.id) : "";
+  } else {
+    categorieVal = String(rawCat);
+  }
+}
+
+// 🔹 Sous-catégorie : idem, id si objet
+if (rawSub) {
+  if (typeof rawSub === "object") {
+    sousCategorieVal = rawSub.id ? String(rawSub.id) : "";
+  } else {
+    sousCategorieVal = String(rawSub);
+  }
+}
+
+// 🔹 2) Catégorie (peut être un id, un slug ou un objet)
+if (rawCat) {
+  // a) cat = id ou slug
+  if (typeof rawCat === "number" || typeof rawCat === "string") {
+    categorieVal = String(rawCat);
+  }
+  // b) cat = objet {id, nom, slug, parent/parent_id?}
+  else if (typeof rawCat === "object") {
+    const catId = rawCat.id ?? rawCat.slug ?? "";
+    categorieVal = String(catId);
+
+    // 🟡 Ancien style : catégorie = enfant, parent ou parent_id = catégorie racine
+    // si pas encore de sous-catégorie déterminée
+    const rawParent = (rawCat as any).parent ?? (rawCat as any).parent_id ?? null;
+
+    const parentId =
+      rawParent && typeof rawParent === "object"
+        ? (rawParent as any).id ?? (rawParent as any).slug ?? null
+        : rawParent;
+
+    if (!sousCategorieVal && parentId) {
+      // parent = racine, enfant = sous-cat
+      categorieVal     = String(parentId);
+      sousCategorieVal = String(rawCat.id ?? rawCat.slug ?? "");
+    }
+  }
+}
+
+// 🔹 Si on a juste une catégorie et pas de sous-catégorie -> on laisse sousCategorieVal=""
+
+
+// console.log("✅ categorieVal calculée :", categorieVal);
+// console.log("✅ sousCategorieVal calculée :", sousCategorieVal);
+
+
 setFormData((p) => ({
   ...p,
+  // ---------- Produit ----------
   nom: prod?.nom ?? "",
   slug: prod?.slug ?? "",
   description_courte: prod?.description_courte ?? "",
@@ -257,12 +426,16 @@ setFormData((p) => ({
   poids_grammes: prod?.poids_grammes ?? null,
   dimensions: prod?.dimensions ?? "",
   etat: prod?.etat ?? "neuf",
-  // ⚠️ catégorie: id prioritaire, sinon slug
-  categorie: prod?.categorie?.id ?? prod?.categorie?.slug ?? "",
+
+  // ✅ on utilise les valeurs calculées
+  categorie: categorieVal,
+  sous_categorie: sousCategorieVal,
+
   // ⚠️ marque: id prioritaire, sinon slug/nom
   marque: prod?.marque?.id ?? prod?.marque?.slug ?? prod?.marque?.nom ?? "",
   est_actif: !!prod?.est_actif,
   visible: (prod?.visible ?? 1) as 0 | 1,
+
   // ---------- Variante ----------
   variante_nom: firstVar?.nom ?? "",
   sku: firstVar?.sku ?? "",
@@ -276,10 +449,12 @@ setFormData((p) => ({
   prix_achat: firstVar?.prix_achat ?? null,
   variante_poids_grammes: firstVar?.variante_poids_grammes ?? null,
   variante_est_actif: !!firstVar?.variante_est_actif,
+
   // Couleur: id > slug > label
   couleur: firstVar?.couleur?.id ?? firstVar?.couleur?.slug ?? firstVar?.couleur ?? "",
   couleur_libre: "",
 }));
+
 
 // 4) images
 setImages(
@@ -316,15 +491,45 @@ setVarAttrs(toMap(prod?.variant_attributes ?? []));
     return () => { mounted = false; };
   }, [id]);
 
+
+  // 🔹 Met à jour la liste des sous-catégories dès que la catégorie change
+useEffect(() => {
+  if (!Array.isArray(categories)) return;
+  if (!formData.categorie) {
+    setSubCategories([]);
+    return;
+  }
+
+  const selectedId = String(formData.categorie);
+
+  const children = (categories as any[]).filter((c) => {
+    const rawParent = (c as any).parent ?? (c as any).parent_id ?? null;
+
+    // parent peut être un id OU un objet { id, ... }
+    const parentId =
+      rawParent && typeof rawParent === "object"
+        ? (rawParent as any).id ?? (rawParent as any).slug ?? null
+        : rawParent;
+
+    return parentId != null && String(parentId) === selectedId;
+  });
+
+  setSubCategories(toOptions(children));
+}, [categories, formData.categorie]);
+
+
   // Slug de catégorie pour charger les filtres (spécifications)
   const selectedCategorySlug = useMemo(() => {
-    if (!formData?.categorie || !Array.isArray(categories)) return "";
-    // on accepte id OU slug : essaye d’abord par id, sinon par slug
-    const byId = categories.find((c: any) => String(c.id) === String(formData.categorie));
+    if (!Array.isArray(categories)) return "";
+    const target = formData.sous_categorie || formData.categorie;
+    if (!target) return "";
+
+    const byId = (categories as any[]).find((c) => String(c.id) === String(target));
     if (byId) return byId.slug ?? "";
-    const bySlug = categories.find((c: any) => String(c.slug) === String(formData.categorie));
+
+    const bySlug = (categories as any[]).find((c) => String(c.slug) === String(target));
     return bySlug?.slug ?? "";
-  }, [formData?.categorie, categories]);
+  }, [formData.sous_categorie, formData.categorie, categories]);
 
   const { data: filters } = useFilters({
     category: selectedCategorySlug || undefined,
@@ -336,17 +541,47 @@ setVarAttrs(toMap(prod?.variant_attributes ?? []));
 
   /* ---------- Validation & Submit ---------- */
   const validateRequired = (): string | null => {
-    if (!formData.nom.trim()) return "Le nom du produit est requis.";
-    if (formData.visible !== 0 && formData.visible !== 1) return "Visible doit être 1 (oui) ou 0 (non).";
-    if (formData.prix == null) return "Le prix de la variante est requis.";
-    if (!formData.marque && !formData.marque_libre.trim()) return "La marque est requise.";
-    if (!formData.categorie) return "La catégorie est requise.";
-    const valid = images.filter((i) => i.url && i.url.trim() !== "");
-    if (valid.length === 0) return "Au moins une image est requise.";
-    if (!valid.some((i) => i.principale)) return "Choisis une image principale.";
-    if (images.some((i) => i._uploading)) return "Patiente, une image est encore en cours d’upload.";
-    return null;
-  };
+  if (!formData.nom.trim()) {
+    return "Veuillez renseigner le nom du produit.";
+  }
+
+  // ✅ Description courte obligatoire
+  if (!formData.description_courte.trim()) {
+    return "Veuillez renseigner la description courte du produit.";
+  }
+
+  if (formData.visible !== 0 && formData.visible !== 1) {
+    return "Veuillez indiquer si le produit doit être visible sur le site (oui ou non).";
+  }
+
+  if (formData.prix == null) {
+    return "Veuillez renseigner le prix de vente du produit.";
+  }
+
+  if (!formData.marque && !formData.marque_libre.trim()) {
+    return "Veuillez sélectionner ou saisir une marque.";
+  }
+
+  if (!formData.categorie) {
+    return "Veuillez sélectionner une catégorie pour ce produit.";
+  }
+
+  const valid = images.filter((i) => i.url && i.url.trim() !== "");
+  if (valid.length === 0) {
+    return "Veuillez ajouter au moins une image pour ce produit.";
+  }
+
+  if (!valid.some((i) => i.principale)) {
+    return "Veuillez définir une image principale pour ce produit.";
+  }
+
+  if (images.some((i) => i._uploading)) {
+    return "Une image est encore en cours d’upload, veuillez patienter.";
+  }
+
+  return null;
+};
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -377,6 +612,7 @@ setVarAttrs(toMap(prod?.variant_attributes ?? []));
           return { code, type, value: strVal };
         });
 
+
     const product_attributes = toAttrArray(prodAttrs);
     const variant_attributes = toAttrArray(varAttrs);
 
@@ -390,6 +626,7 @@ setVarAttrs(toMap(prod?.variant_attributes ?? []));
       dimensions: formData.dimensions,
       etat: formData.etat,
       categorie: formData.categorie || null,
+      sous_categorie: formData.sous_categorie || null,  // 🔹 ajouté
       marque: marqueValue,
       est_actif: !!formData.est_actif,
       visible: formData.visible ?? 1,
@@ -411,6 +648,15 @@ setVarAttrs(toMap(prod?.variant_attributes ?? []));
 
       product_attributes,
       variant_attributes,
+     variants: variants.map((v) => ({
+  ...v,
+  couleur: v.couleur_libre || v.couleur || null,
+  promo_debut: v.promo_debut || null,
+  promo_fin: v.promo_fin || null,
+  prix: v.prix ?? null,
+  prix_promo: v.prix_promo ?? null,
+  stock: v.stock ?? 0,
+})),
       images: imagesPayload,
     };
 
@@ -501,83 +747,349 @@ setVarAttrs(toMap(prod?.variant_attributes ?? []));
 
   /* ---------- UI ---------- */
 return (
-  <div
-    className="
-      bg-gray-50 rounded-xl shadow-lg w-full lg:w-5/5
-      h-full overflow-y-auto overscroll-contain
-      pr-2 pb-6
-    "
-  >
-      {toast && <Toast kind={toast.kind} msg={toast.msg} onClose={() => setToast(null)} />}
+  <div className="bg-gray-50 rounded-xl shadow-lg w-full lg:w-5/5 h-full flex flex-col">
+    {toast && (
+      <Toast
+        kind={toast.kind}
+        msg={toast.msg}
+        onClose={() => setToast(null)}
+      />
+    )}
 
-      <form onSubmit={handleSubmit} className="rounded-2xl p-6 space-y-6">
+    <form
+      onSubmit={handleSubmit}
+      className="p-6 space-y-6 flex-1 overflow-y-auto overscroll-contain"
+    >
         {/* ===== Produit ===== */}
         <div className="grid grid-cols-2 gap-4">
-          <input name="nom" value={formData.nom} onChange={handleChange} placeholder="Nom du produit *" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-          <input name="slug" value={formData.slug} onChange={handleChange} placeholder="Slug (auto si vide)" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-
-          <input name="description_courte" value={formData.description_courte} onChange={handleChange} placeholder="Description courte" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-          <input type="number" name="garantie_mois" value={formData.garantie_mois ?? ""} onChange={handleChange} placeholder="Garantie (mois)" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-
-          <input type="number" step="0.01" name="poids_grammes" value={formData.poids_grammes ?? ""} onChange={handleChange} placeholder="Poids (g)" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-          <input name="dimensions" value={formData.dimensions} onChange={handleChange} placeholder="Dimensions" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-
-          <ComboCreate options={etatOptions} value={etatValue} onChange={onEtatChange} placeholder="-- État * --" allowCreate={false} className="w-full" menuClassName="z-50" />
-          <ComboCreate options={categoryOptions} value={categoryValue} onChange={onCategoryChange} placeholder="-- Choisir une catégorie * --" allowCreate={false} className="w-full" menuClassName="z-50" />
-
-          <ComboCreate options={brandOptions} value={brandValue} onChange={onBrandChange} placeholder="-- Choisir une marque * --" allowCreate className="w-full" menuClassName="z-50" />
-
-          <div className="flex items-center gap-4 col-span-2">
-            <label className="inline-flex items-center gap-2">
-              <input type="checkbox" name="est_actif" checked={formData.est_actif} onChange={handleChange} className="w-5 h-5 outline-[#00A9DC]" />
-              <span className="text-gray-700">Produit actif</span>
+          {/* Nom produit */}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="nom" className="text-sm text-gray-700">
+              Nom du produit *
             </label>
-            <select name="visible" value={formData.visible ?? ""} onChange={handleChange} className="border rounded-lg p-2 bg-gray-100 w-40 outline-[#00A9DC]">
-              <option value="">Visible…</option>
-              <option value={1}>1 (oui)</option>
-              <option value={0}>0 (non)</option>
-            </select>
+            <input
+              id="nom"
+              name="nom"
+              value={formData.nom}
+              onChange={handleChange}
+              placeholder="Nom du produit *"
+              className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+            />
           </div>
-        </div>
 
-        <textarea name="description_long" value={formData.description_long} onChange={handleChange} placeholder="Description longue" className="border rounded-lg p-3 bg-gray-100 w-full h-28 resize-none outline-[#00A9DC]" />
+  {/* Slug
+  <div className="flex flex-col gap-1">
+    <label htmlFor="slug" className="text-sm text-gray-700">
+      Slug
+    </label>
+    <input
+      id="slug"
+      name="slug"
+      value={formData.slug}
+      onChange={handleChange}
+      placeholder="Slug (auto si vide)"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div> */}
+
+  {/* Description courte */}
+  <div className="flex flex-col gap-1">
+    <label htmlFor="description_courte" className="text-sm text-gray-700">
+      Description courte
+    </label>
+    <input
+      id="description_courte"
+      name="description_courte"
+      value={formData.description_courte}
+      onChange={handleChange}
+      placeholder="Description courte"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div>
+
+  {/* Garantie (mois) */}
+  <div className="flex flex-col gap-1">
+    <label htmlFor="garantie_mois" className="text-sm text-gray-700">
+      Garantie (mois)
+    </label>
+    <input
+      id="garantie_mois"
+      type="number"
+      name="garantie_mois"
+      value={formData.garantie_mois ?? "" }
+      onChange={handleChange}
+      placeholder="Garantie (mois)"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div>
+
+  {/* Poids */}
+  <div className="flex flex-col gap-1">
+    <label htmlFor="poids_grammes" className="text-sm text-gray-700">
+      Poids (g)
+    </label>
+    <input
+      id="poids_grammes"
+      type="number"
+      step="0.01"
+      name="poids_grammes"
+      value={formData.poids_grammes ?? ""}
+      onChange={handleChange}
+      placeholder="Poids (g)"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div>
+
+  {/* Dimensions */}
+  <div className="flex flex-col gap-1">
+    <label htmlFor="dimensions" className="text-sm text-gray-700">
+      Dimensions
+    </label>
+    <input
+      id="dimensions"
+      name="dimensions"
+      value={formData.dimensions}
+      onChange={handleChange}
+      placeholder="Dimensions"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div>
+
+  {/* État */}
+  <div className="flex flex-col gap-1">
+    <label className="text-sm text-gray-700">
+      État *
+    </label>
+    <ComboCreate
+      options={etatOptions}
+      value={etatValue}
+      onChange={onEtatChange}
+      placeholder="-- État * --"
+      allowCreate={false}
+      className="w-full"
+      menuClassName="z-50"
+    />
+  </div>
+
+   {/* Catégorie */}
+  <div className="flex flex-col gap-1">
+    <label className="text-sm text-gray-700">Catégorie *</label>
+    <ComboCreate
+      options={rootCategoryOptions}
+      value={
+        rootCategoryOptions.find((o) => String(o.id) === String(formData.categorie)) ||
+        null
+      }
+      onChange={onCategoryChange}
+      placeholder="-- Choisir une catégorie * --"
+      allowCreate={false}
+      className="w-full"
+      menuClassName="z-50"
+    />
+  </div>
+{/* Sous-catégorie */}
+<div className="flex flex-col gap-1">
+  <label className="text-sm text-gray-700">Sous-catégorie</label>
+  <ComboCreate
+    options={subCategories}
+    value={
+      subCategories.find(
+        (o) => String(o.id) === String(formData.sous_categorie)
+      ) ??
+      subCategories.find(
+        (o) =>
+          o.label &&
+          o.label.toLowerCase() ===
+            String(formData.sous_categorie).toLowerCase()
+      ) ??
+      null
+    }
+    onChange={(opt) =>
+      setFormData((p) => ({
+        ...p,
+        sous_categorie: opt ? String(opt.id) : "",
+      }))
+    }
+    placeholder="-- Choisir une sous-catégorie --"
+    allowCreate={false}
+    className="w-full"
+    menuClassName="z-50"
+  />
+</div>
+
+
+
+  {/* Marque */}
+  <div className="flex flex-col gap-1 col-span-2">
+    <label className="text-sm text-gray-700">
+      Marque *
+    </label>
+    <ComboCreate
+      options={brandOptions}
+      value={brandValue}
+      onChange={onBrandChange}
+      placeholder="-- Choisir une marque * --"
+      allowCreate
+      className="w-full"
+      menuClassName="z-50"
+    />
+  </div>
+
+<div className="flex items-center gap-4 col-span-2">
+  <label className="inline-flex items-center gap-2">
+    <input
+      type="checkbox"
+      name="est_actif"
+      checked={formData.est_actif}
+      onChange={handleChange}
+      className="w-5 h-5 outline-[#00A9DC]"
+    />
+    <span className="text-gray-700">Produit actif</span>
+  </label>
+
+  <div className="flex items-center gap-2">
+    <label htmlFor="visible" className="text-sm text-gray-700">
+      Visible
+    </label>
+    <select
+      id="visible"
+      name="visible"
+      value={formData.visible ?? ""}
+      onChange={handleChange}
+      className="border rounded-lg p-2 bg-gray-100 w-40 outline-[#00A9DC]"
+    >
+      <option value="">Visible…</option>
+      <option value={1}>1 (oui)</option>
+      <option value={0}>0 (non)</option>
+    </select>
+  </div>
+</div>
+
+</div>
+
+
+  <div className="flex flex-col gap-1">
+  <label htmlFor="description_long" className="text-sm text-gray-700">
+    Description longue
+  </label>
+  <textarea
+    id="description_long"
+    name="description_long"
+    value={formData.description_long}
+    onChange={handleChange}
+    placeholder="Description longue"
+    className="border rounded-lg p-3 bg-gray-100 w-full h-28 resize-none outline-[#00A9DC]"
+  />
+</div>
+
 
         {/* ===== Images ===== */}
         <div>
           <h3 className="text-lg font-semibold mb-2">Images *</h3>
           <div className="space-y-3">
             {images.map((img, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-                <div className="col-span-5">
-                  <input type="file" accept="image/*" onChange={(e) => onSelectFile(idx, e.target.files?.[0] ?? null)} className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-                </div>
-                <div className="col-span-3">
-                  <input type="text" placeholder="Alt text" value={img.alt_text || ""} onChange={(e) => updateImage(idx, { alt_text: e.target.value })} className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-                </div>
-                <div className="col-span-2">
-                  <input type="number" placeholder="Position" value={img.position ?? ""} onChange={(e) => updateImage(idx, { position: e.target.value === "" ? null : Number(e.target.value) })} className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-                </div>
-                <div className="col-span-1 flex items-center">
-                  <label className="inline-flex items-center gap-2">
-                    <input type="radio" name="principale" checked={!!img.principale} onChange={() => setPrincipale(idx)} className="w-5 h-5 outline-[#00A9DC]" />
-                    <span className="text-gray-700 text-sm">Principale</span>
-                  </label>
-                </div>
-                <div className="col-span-1 flex justify-end">
-                  <button type="button" onClick={() => removeImage(idx)} className="px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300" disabled={images.length <= 1} title={images.length <= 1 ? "Au moins 1 image requise" : "Supprimer"}>-</button>
-                </div>
-                <div className="col-span-12 text-sm">
-                  {img._uploading && <span className="text-gray-600">Téléversement en cours…</span>}
-                  {!img._uploading && img.url && (
-                    <div className="flex items-center gap-3">
-                      <img src={img.url} alt={img.alt_text || ""} className="h-16 w-16 object-cover rounded-md border" />
-                      <span className="text-gray-700 break-all">{img.url}</span>
-                    </div>
-                  )}
-                  {img._error && <span className="text-rose-600">{img._error}</span>}
-                </div>
-              </div>
-            ))}
+  <div
+    key={idx}
+    className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start"
+  >
+    {/* Input fichier */}
+    <div className="col-span-1 md:col-span-5">
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) =>
+          onSelectFile(idx, e.target.files?.[0] ?? null)
+        }
+        className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+      />
+    </div>
+
+    {/* Alt text */}
+    <div className="col-span-1 md:col-span-3">
+      <input
+        type="text"
+        placeholder="Alt text"
+        value={img.alt_text || ""}
+        onChange={(e) =>
+          updateImage(idx, { alt_text: e.target.value })
+        }
+        className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+      />
+    </div>
+
+    {/* Position */}
+    <div className="col-span-1 md:col-span-2">
+      <input
+        type="number"
+        placeholder="Position"
+        value={img.position ?? ""}
+        onChange={(e) =>
+          updateImage(idx, {
+            position:
+              e.target.value === "" ? null : Number(e.target.value),
+          })
+        }
+        className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+      />
+    </div>
+
+    {/* Radio principale */}
+    <div className="col-span-1 md:col-span-1 flex items-center">
+      <label className="inline-flex items-center gap-2">
+        <input
+          type="radio"
+          name="principale"
+          checked={!!img.principale}
+          onChange={() => setPrincipale(idx)}
+          className="w-5 h-5 outline-[#00A9DC]"
+        />
+        <span className="text-gray-700 text-sm">Principale</span>
+      </label>
+    </div>
+
+    {/* Bouton supprimer */}
+    <div className="col-span-1 md:col-span-1 flex justify-end">
+      <button
+        type="button"
+        onClick={() => removeImage(idx)}
+        className="px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+        disabled={images.length <= 1}
+        title={
+          images.length <= 1
+            ? "Au moins 1 image requise"
+            : "Supprimer"
+        }
+      >
+        -
+      </button>
+    </div>
+
+    {/* Aperçu + messages */}
+    <div className="col-span-1 md:col-span-12 text-sm">
+      {img._uploading && (
+        <span className="text-gray-600">
+          Téléversement en cours…
+        </span>
+      )}
+      {!img._uploading && img.url && (
+        <div className="flex items-center gap-3 mt-1">
+          <img
+            src={img.url}
+            alt={img.alt_text || ""}
+            className="h-16 w-16 object-cover rounded-md border"
+          />
+          <span className="text-gray-700 break-all">
+            {img.url}
+          </span>
+        </div>
+      )}
+      {img._error && (
+        <span className="text-rose-600">{img._error}</span>
+      )}
+    </div>
+  </div>
+))}
+
           </div>
           <div className="mt-3">
             <button type="button" onClick={addImage} className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">+ Ajouter une image</button>
@@ -585,40 +1097,466 @@ return (
         </div>
 
         {/* ===== Variante ===== */}
-        <h3 className="text-lg font-semibold mt-2">Variante</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <input name="variante_nom" value={formData.variante_nom} onChange={handleChange} placeholder="Nom de la variante (optionnel)" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-          <ComboCreate options={colorOptions} value={colorValue} onChange={onColorChange} placeholder="-- Couleur (optionnel) --" allowCreate className="w-full" menuClassName="z-50" />
 
-          <input name="sku" value={formData.sku} onChange={handleChange} placeholder="SKU (optionnel)" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-          <input name="code_barres" value={formData.code_barres} onChange={handleChange} placeholder="Code-barres (optionnel)" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
+      <h3 className="text-lg font-semibold mt-2">Variante</h3>
+<div className="grid grid-cols-2 gap-4">
+  {/* Nom variante */}
+  <div className="flex flex-col gap-1">
+    <label htmlFor="variante_nom" className="text-sm text-gray-700">
+      Nom de la variante
+    </label>
+    <input
+      id="variante_nom"
+      name="variante_nom"
+      value={formData.variante_nom}
+      onChange={handleChange}
+      placeholder="Nom de la variante (optionnel)"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div>
 
-          <input type="number" step="0.01" name="prix" value={formData.prix ?? ""} onChange={handleChange} placeholder="Prix normal *" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-          <input type="number" step="0.01" name="prix_promo" value={formData.prix_promo ?? ""} onChange={handleChange} placeholder="Prix promo (optionnel)" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
+  {/* Couleur */}
+  <div className="flex flex-col gap-1">
+    <label className="text-sm text-gray-700">
+      Couleur
+    </label>
+    <ComboCreate
+      options={colorOptions}
+      value={colorValue}
+      onChange={onColorChange}
+      placeholder="-- Couleur (optionnel) --"
+      allowCreate
+      className="w-full"
+      menuClassName="z-50"
+    />
+  </div>
 
-          <DateTimePicker label="Début promo" name="promo_debut" value={formData.promo_debut} onChange={(n, v) => setFormData(p => ({ ...p, [n]: v }))} className="w-full" />
-          <DateTimePicker label="Fin promo"   name="promo_fin"   value={formData.promo_fin}   onChange={(n, v) => setFormData(p => ({ ...p, [n]: v }))} className="w-full" />
+  {/* SKU */}
+  <div className="flex flex-col gap-1">
+    <label htmlFor="sku" className="text-sm text-gray-700">
+      SKU
+    </label>
+    <input
+      id="sku"
+      name="sku"
+      value={formData.sku}
+      onChange={handleChange}
+      placeholder="SKU (optionnel)"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div>
 
-          <input type="number" name="stock" value={formData.stock ?? ""} onChange={handleChange} placeholder="Stock (optionnel)" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-          <input type="number" step="0.01" name="prix_achat" value={formData.prix_achat ?? ""} onChange={handleChange} placeholder="Prix d’achat (optionnel)" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
-          <input type="number" step="0.01" name="variante_poids_grammes" value={formData.variante_poids_grammes ?? ""} onChange={handleChange} placeholder="Poids variante (g) (optionnel)" className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]" />
+  {/* Code-barres */}
+  <div className="flex flex-col gap-1">
+    <label htmlFor="code_barres" className="text-sm text-gray-700">
+      Code-barres
+    </label>
+    <input
+      id="code_barres"
+      name="code_barres"
+      value={formData.code_barres}
+      onChange={handleChange}
+      placeholder="Code-barres (optionnel)"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div>
 
-          <label className="inline-flex items-center gap-2">
-            <input type="checkbox" name="promo_active" checked={formData.promo_active} onChange={handleChange} className="w-5 h-5 outline-[#00A9DC]" />
-            <span className="text-gray-700">Promotion active</span>
-          </label>
-          <label className="inline-flex items-center gap-2">
-            <input type="checkbox" name="variante_est_actif" checked={formData.variante_est_actif} onChange={handleChange} className="w-5 h-5 outline-[#00A9DC]" />
-            <span className="text-gray-700">Variante active</span>
-          </label>
+  {/* Prix normal */}
+  <div className="flex flex-col gap-1">
+    <label htmlFor="prix" className="text-sm text-gray-700">
+      Prix normal *
+    </label>
+    <input
+      id="prix"
+      type="number"
+      step="0.01"
+      name="prix"
+      value={formData.prix ?? ""}
+      onChange={handleChange}
+      placeholder="Prix normal *"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div>
+
+  {/* Prix promo */}
+  <div className="flex flex-col gap-1">
+    <label htmlFor="prix_promo" className="text-sm text-gray-700">
+      Prix promo
+    </label>
+    <input
+      id="prix_promo"
+      type="number"
+      step="0.01"
+      name="prix_promo"
+      value={formData.prix_promo ?? ""}
+      onChange={handleChange}
+      placeholder="Prix promo (optionnel)"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div>
+
+  {/* Dates promo */}
+  <div className="flex flex-col gap-1">
+    <DateTimePicker
+      label="Début promo"
+      name="promo_debut"
+      value={formData.promo_debut}
+      onChange={(n, v) => setFormData(p => ({ ...p, [n]: v }))}
+      className="w-full"
+    />
+  </div>
+  <div className="flex flex-col gap-1">
+    <DateTimePicker
+      label="Fin promo"
+      name="promo_fin"
+      value={formData.promo_fin}
+      onChange={(n, v) => setFormData(p => ({ ...p, [n]: v }))}
+      className="w-full"
+    />
+  </div>
+
+  {/* Stock */}
+  <div className="flex flex-col gap-1">
+    <label htmlFor="stock" className="text-sm text-gray-700">
+      Stock
+    </label>
+    <input
+      id="stock"
+      type="number"
+      name="stock"
+      value={formData.stock ?? ""}
+      onChange={handleChange}
+      placeholder="Stock (optionnel)"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div>
+
+  {/* Prix d'achat */}
+  <div className="flex flex-col gap-1">
+    <label htmlFor="prix_achat" className="text-sm text-gray-700">
+      Prix d’achat
+    </label>
+    <input
+      id="prix_achat"
+      type="number"
+      step="0.01"
+      name="prix_achat"
+      value={formData.prix_achat ?? ""}
+      onChange={handleChange}
+      placeholder="Prix d’achat (optionnel)"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div>
+
+  {/* Poids variante */}
+  <div className="flex flex-col gap-1">
+    <label htmlFor="variante_poids_grammes" className="text-sm text-gray-700">
+      Poids variante (g)
+    </label>
+    <input
+      id="variante_poids_grammes"
+      type="number"
+      step="0.01"
+      name="variante_poids_grammes"
+      value={formData.variante_poids_grammes ?? ""}
+      onChange={handleChange}
+      placeholder="Poids variante (g) (optionnel)"
+      className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+    />
+  </div>
+
+  {/* Checkboxes */}
+  <label className="inline-flex items-center gap-2">
+    <input
+      type="checkbox"
+      name="promo_active"
+      checked={formData.promo_active}
+      onChange={handleChange}
+      className="w-5 h-5 outline-[#00A9DC]"
+    />
+    <span className="text-gray-700">Promotion active</span>
+  </label>
+
+  <label className="inline-flex items-center gap-2">
+    <input
+      type="checkbox"
+      name="variante_est_actif"
+      checked={formData.variante_est_actif}
+      onChange={handleChange}
+      className="w-5 h-5 outline-[#00A9DC]"
+    />
+    <span className="text-gray-700">Variante active</span>
+  </label>
+</div>
+
+{/* === Gestion des Variantes (même design que ProductForm) === */}
+<div className="mt-4">
+  {/* Titre */}
+  <div className="flex items-center justify-between">
+    <h4 className="text-md font-semibold">Variantes</h4>
+  </div>
+
+  {/* Liste des variantes */}
+  {variants.length > 0 && (
+    <div className="mt-3 space-y-4">
+      {variants.map((v, index) => (
+        <div
+          key={index}
+          className="border rounded-xl bg-white/70 p-4 shadow-sm space-y-4"
+        >
+          {/* Titre + Bouton supprimer */}
+          <div className="flex justify-between items-center">
+            <span className="font-medium text-gray-800">
+              Variante {index + 1}
+            </span>
+            {variants.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeVariant(index)}
+                className="px-2 py-1 text-xs rounded-lg bg-gray-200 hover:bg-gray-300"
+              >
+                Supprimer
+              </button>
+            )}
+          </div>
+
+          {/* Champ Variante */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Nom variante */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-700">Nom variante</label>
+              <input
+                type="text"
+                value={v.variante_nom}
+                onChange={(e) =>
+                  updateVariant(index, "variante_nom", e.target.value)
+                }
+                className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+                placeholder="Nom variante"
+              />
+            </div>
+
+            {/* Couleur */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-700">Couleur</label>
+              <ComboCreate
+                options={colorOptions}
+                value={
+                  v.couleur === "__custom__"
+                    ? v.couleur_libre
+                      ? { id: "__custom__", label: v.couleur_libre }
+                      : null
+                    : colorOptions.find(
+                        (o) => String(o.id) === String(v.couleur)
+                      ) ?? null
+                }
+                onChange={(opt) => {
+                  if (!opt) {
+                    updateVariant(index, "couleur", "");
+                    updateVariant(index, "couleur_libre", "");
+                    return;
+                  }
+                  if (
+                    colorOptions.some(
+                      (o) => String(o.id) === String(opt.id)
+                    )
+                  ) {
+                    updateVariant(index, "couleur", String(opt.id ?? ""));
+                    updateVariant(index, "couleur_libre", "");
+                  } else {
+                    updateVariant(index, "couleur", "__custom__");
+                    updateVariant(index, "couleur_libre", opt.label);
+                  }
+                }}
+                allowCreate
+                placeholder="-- Couleur --"
+                className="w-full"
+                menuClassName="z-50"
+              />
+            </div>
+
+            {/* SKU */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-700">SKU</label>
+              <input
+                type="text"
+                value={v.sku}
+                onChange={(e) => updateVariant(index, "sku", e.target.value)}
+                className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+                placeholder="SKU"
+              />
+            </div>
+
+            {/* Code barres */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-700">Code-barres</label>
+              <input
+                type="text"
+                value={v.code_barres}
+                onChange={(e) =>
+                  updateVariant(index, "code_barres", e.target.value)
+                }
+                className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+                placeholder="Code-barres"
+              />
+            </div>
+
+            {/* Prix */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-700">Prix *</label>
+              <input
+                type="number"
+                step="0.01"
+                value={v.prix ?? ""}
+                onChange={(e) =>
+                  updateVariant(index, "prix", Number(e.target.value))
+                }
+                className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+                placeholder="Prix normal *"
+              />
+            </div>
+
+            {/* Prix promo */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-700">Prix promo</label>
+              <input
+                type="number"
+                step="0.01"
+                value={v.prix_promo ?? ""}
+                onChange={(e) =>
+                  updateVariant(index, "prix_promo", Number(e.target.value))
+                }
+                className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+                placeholder="Prix promo"
+              />
+            </div>
+
+            {/* Dates promo */}
+            <DateTimePicker
+              label="Début promo"
+              name="promo_debut"
+              value={v.promo_debut}
+              onChange={(_, val) => updateVariant(index, "promo_debut", val)}
+            />
+
+            <DateTimePicker
+              label="Fin promo"
+              name="promo_fin"
+              value={v.promo_fin}
+              onChange={(_, val) => updateVariant(index, "promo_fin", val)}
+            />
+
+            {/* Stock */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-700">Stock</label>
+              <input
+                type="number"
+                value={v.stock ?? ""}
+                onChange={(e) =>
+                  updateVariant(index, "stock", Number(e.target.value))
+                }
+                className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+                placeholder="Stock"
+              />
+            </div>
+
+            {/* Poids */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-700">Poids (g)</label>
+              <input
+                type="number"
+                value={v.variante_poids_grammes ?? ""}
+                onChange={(e) =>
+                  updateVariant(
+                    index,
+                    "variante_poids_grammes",
+                    Number(e.target.value)
+                  )
+                }
+                className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+                placeholder="Poids variante (g)"
+              />
+            </div>
+          </div>
+
+          {/* Checkboxes */}
+          <div className="flex items-center gap-6">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={v.promo_active}
+                onChange={(e) =>
+                  updateVariant(index, "promo_active", e.target.checked)
+                }
+                className="w-5 h-5 outline-[#00A9DC]"
+              />
+              Promo active
+            </label>
+
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={v.variante_est_actif}
+                onChange={(e) =>
+                  updateVariant(
+                    index,
+                    "variante_est_actif",
+                    e.target.checked
+                  )
+                }
+                className="w-5 h-5 outline-[#00A9DC]"
+              />
+              Variante active
+            </label>
+          </div>
         </div>
+      ))}
+    </div>
+  )}
+
+  {/* Bouton AJOUTER toujours à la fin */}
+  <div className="mt-4 flex justify-end">
+    <button
+      type="button"
+      onClick={() =>
+        setVariants((prev) => [
+          ...prev,
+          {
+            variante_nom: "",
+            sku: "",
+            code_barres: "",
+            prix: null,
+            prix_promo: null,
+            promo_active: false,
+            promo_debut: "",
+            promo_fin: "",
+            stock: null,
+            prix_achat: null,
+            variante_poids_grammes: null,
+            couleur: "",
+            couleur_libre: "",
+            variante_est_actif: true,
+          },
+        ])
+      }
+      className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700"
+    >
+      + Ajouter une variante
+    </button>
+  </div>
+</div>
+
+
+
 
         {/* ===== Spécifications dynamiques ===== */}
         <div className="mt-6">
           <h3 className="text-lg font-semibold">Spécifications</h3>
 
           {!attrsProduct.length && !attrsVariant.length && (
-            <p className="text-sm text-gray-500 mt-1">Aucun attribut pour cette catégorie.</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Aucun attribut pour cette catégorie.
+            </p>
           )}
 
           {!!attrsProduct.length && (
@@ -628,10 +1566,18 @@ return (
                 {attrsProduct.map((a) => (
                   <div key={`p_${a.code}`} className="flex flex-col gap-1">
                     <label className="text-sm text-gray-700">
-                      {a.libelle} <span className="text-gray-400">({a.code})</span>
+                      {a.libelle}{" "}
+                      <span className="text-gray-400">({a.code})</span>
                     </label>
-                    {renderAttrInput("product", a, prodAttrs[a.code], (v) =>
-                      setProdAttrs((m) => ({ ...m, [a.code]: v }))
+                    {renderAttrInput(
+                      "product",
+                      a,
+                      prodAttrs[a.code],
+                      (v) =>
+                        setProdAttrs((m) => ({
+                          ...m,
+                          [a.code]: v,
+                        }))
                     )}
                   </div>
                 ))}
@@ -646,10 +1592,18 @@ return (
                 {attrsVariant.map((a) => (
                   <div key={`v_${a.code}`} className="flex flex-col gap-1">
                     <label className="text-sm text-gray-700">
-                      {a.libelle} <span className="text-gray-400">({a.code})</span>
+                      {a.libelle}{" "}
+                      <span className="text-gray-400">({a.code})</span>
                     </label>
-                    {renderAttrInput("variant", a, varAttrs[a.code], (v) =>
-                      setVarAttrs((m) => ({ ...m, [a.code]: v }))
+                    {renderAttrInput(
+                      "variant",
+                      a,
+                      varAttrs[a.code],
+                      (v) =>
+                        setVarAttrs((m) => ({
+                          ...m,
+                          [a.code]: v,
+                        }))
                     )}
                   </div>
                 ))}
@@ -657,6 +1611,8 @@ return (
             </div>
           )}
         </div>
+
+
 
         <div className="flex justify-end">
           <button type="submit" disabled={submitting} className="bg-[#00A9DC] disabled:opacity-60 text-white px-5 py-2 rounded-lg hover:bg-[#0797c4] transition">

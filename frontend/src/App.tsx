@@ -12,6 +12,8 @@ import AddProduct from "./pages/AddProduct";
 import AddArticle from "./pages/AddArticle";
 import UpdateProduct from "./pages/UpdateProduct";
 import UpdateArticle from "./pages/UpdateArticle";
+import UpdateCathegorie from "./pages/UpdateCathegorie";
+import AddCathegorie from "./pages/AddCathegorie";
 // import Assistance from "./pages/Assistance";
 // import Contact from "./pages/Contact";
 import PrivateRoute from "./components/PrivateRoute";
@@ -34,12 +36,14 @@ const App: React.FC = () => {
         <Route path="/Dashboard/Ajouter_article" element={<PrivateRoute><AddArticle /></PrivateRoute> } />
         <Route path="/Dashboard/Modifier/:id" element={<PrivateRoute><UpdateProduct /></PrivateRoute>} />
         <Route path="/Dashboard/Articles/:id/edit" element={<PrivateRoute><UpdateArticle /></PrivateRoute> } />
+        <Route path="/Dashboard/Categories/:id/edit"element={<PrivateRoute><UpdateCathegorie /></PrivateRoute> }/>
         {/* Redirections utiles (majuscules / anciennes URLs) */}
         <Route path="/Connexion" element={<Navigate to="/dashboard/connexion" replace />} />
         <Route path="/Sighup" element={<Navigate to="/dashboard/inscription" replace />} />
         <Route path="/Dashboard/Connexion" element={<Navigate to="/dashboard/connexion" replace />} />
         <Route path="/Dashboard/Sighup" element={<Navigate to="/dashboard/inscription" replace />} />
-        <Route path="/Dashboard" element={<Navigate to="/dashboard" replace />} />
+       <Route path="/Dashboard/Ajouter_categorie"element={<PrivateRoute><AddCathegorie /></PrivateRoute>} />
+
 
         {/* 404 */}
         <Route path="*" element={<Navigate to="/" replace />} />

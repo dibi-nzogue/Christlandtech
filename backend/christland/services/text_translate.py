@@ -1,57 +1,101 @@
 # christland/services/text_translate.py
-import hashlib
-from django.core.cache import cache
+
+from __future__ import annotations
+
+import logging
+from typing import Optional
+
+from django.conf import settings
 from christland.models import TextTranslation
 
-def _norm_lang(lang: str | None) -> str:
-    lang = (lang or "fr").split(",")[0].split("-")[0].lower()
-    return lang or "fr"
+from googletrans import Translator  # pip install googletrans==4.0.0rc1
+
+logger = logging.getLogger(__name__)
+
+# Crée un traducteur global (réutilisé)
+_translator = Translator()
 
 
-def _make_cache_key(src: str, dst: str, text: str) -> str:
+def _call_external_translation_api(
+    text: str,
+    source_lang: str,
+    target_lang: str,
+) -> str:
     """
-    On hash le texte pour éviter les caractères interdits
-    dans certaines backends (memcached).
+    Appelle Google Translate via la librairie googletrans.
+    Pas besoin de clé d'API, mais c'est non-officiel (peut casser si Google change son HTML).
     """
-    digest = hashlib.md5(text.encode("utf-8")).hexdigest()
-    return f"txt:{src}:{dst}:{digest}"
+
+    try:
+        # googletrans utilise codes courts : 'fr', 'en', 'es', ...
+        src = source_lang or "auto"
+        dest = target_lang or "en"
+
+        result = _translator.translate(text, src=src, dest=dest)
+        translated = (result.text or "").strip()
+        return translated or text
+    except Exception:
+        logger.exception("Erreur lors de l'appel à googletrans")
+        return text
 
 
 def translate_text(
-    text: str,
-    target_lang: str,
+    text: Optional[str],
+    target_lang: str = "en",
     source_lang: str = "fr",
 ) -> str:
+    """
+    1) Normalise texte + codes langue.
+    2) Si source_lang == target_lang → renvoie le texte tel quel.
+    3) Cherche dans TextTranslation (cache).
+    4) Si trouvé → renvoie translated_text.
+    5) Sinon → appelle googletrans, stocke dans TextTranslation, renvoie.
+    """
+
+    # 0) Normalisation
+    text = (text or "").strip()
     if not text:
-        return ""
-
-    src = _norm_lang(source_lang)
-    dst = _norm_lang(target_lang)
-
-    if src == dst:
         return text
 
-    cache_key = _make_cache_key(src, dst, text)
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
+    target_lang = (target_lang or "").split(",")[0].split("-")[0].lower()
+    source_lang = (source_lang or "").split(",")[0].split("-")[0].lower()
 
-    # 1) chercher dans TextTranslation
-    entry = (
-        TextTranslation.objects
-        .filter(
-            source_lang=src,
-            target_lang=dst,
+    # 1) Même langue → pas de traduction
+    if target_lang == source_lang:
+        return text
+
+    # 2) Cache
+    try:
+        cached = TextTranslation.objects.filter(
             source_text=text,
-        )
-        .order_by("-id")
-        .first()
+            source_lang=source_lang,
+            target_lang=target_lang,
+        ).first()
+    except Exception:
+        logger.exception("Erreur en lisant TextTranslation")
+        return text
+
+    if cached and (cached.translated_text or "").strip():
+        return cached.translated_text
+
+    # 3) Appel provider (googletrans)
+    translated = _call_external_translation_api(
+        text=text,
+        source_lang=source_lang,
+        target_lang=target_lang,
     )
 
-    if entry:
-        cache.set(cache_key, entry.translated_text, 24 * 3600)  # 24h
-        return entry.translated_text
+    translated = (translated or "").strip() or text
 
-    # 2) pas de traduction dispo → on renvoie le texte original
-    cache.set(cache_key, text, 5 * 60)  # 5 min
-    return text
+    # 4) Sauvegarde en cache
+    try:
+        TextTranslation.objects.update_or_create(
+            source_text=text,
+            source_lang=source_lang,
+            target_lang=target_lang,
+            defaults={"translated_text": translated},
+        )
+    except Exception:
+        logger.exception("Erreur en écrivant dans TextTranslation")
+
+    return translated

@@ -4,7 +4,7 @@ import Slider from "react-slick";
 import { motion, useInView } from "framer-motion";
 import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
-import { useTopCategories, type ApiCategory } from "../hooks/useFetchQuery";
+import { useTopCategories1, type ApiCategory } from "../hooks/useFetchQuery";
 
 // ✅ Fallback inline
 const FALLBACK_SVG =
@@ -28,7 +28,7 @@ const CategoriesCarousel: React.FC = () => {
   const { t } = useTranslation();
   const sliderRef = useRef<Slider | null>(null);
 
-  const { data: cats, loading, error } = useTopCategories({ level: 1 });
+  const { data: cats, loading, error } = useTopCategories1();
   const items: ApiCategory[] = cats ?? [];
 
   /** ========= Slider vraiment responsive ========= */

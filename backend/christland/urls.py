@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.decorators.csrf import csrf_exempt  # ⬅️ AJOUTER ÇA
 from .views import (
     CategoryProductList, CategoryFilters,CategoryListPublic, ProductMiniView,CategoryListDashboard,
     BlogHeroView, BlogPostsView, LatestProductsView, ContactMessageView,
@@ -7,7 +8,7 @@ from .views import (
     DashboardProductEditDataView, ProductClickView, RefreshView,
     MostDemandedProductsView, DashboardArticlesListCreateView, DashboardArticleDetailView,
     DashboardArticleEditView, BlogLatestView, AdminGlobalSearchView,
-    DashboardStatsView, LoginView, MeView, RegisterView
+    DashboardStatsView, LoginView, MeView, RegisterView,DashboardCategoryListCreateView,DashboardCategoryDetailView,CategoryListTop, DashboardCategoriesSelectView, DashboardCategoriesTreeView,
 )
 
 app_name = "christland"
@@ -24,6 +25,7 @@ urlpatterns = [
     path("api/catalog/products/<int:pk>/click/", ProductClickView.as_view(), name="product-click"),
     path("api/catalog/products/most-demanded/", MostDemandedProductsView.as_view(), name="products-most-demanded"),
     path("api/catalog/products/latest/", LatestProductsView.as_view(), name="latest-products"),
+    
 
     # Blog
     path("api/blog/hero/", BlogHeroView.as_view(), name="api_blog_hero"),
@@ -34,12 +36,13 @@ urlpatterns = [
     path("api/contact/messages/", ContactMessageView.as_view(), name="contact-messages"),
 
     # Uploads
-    path("api/uploads/images/", UploadProductImageView.as_view(), name="upload-product-image"),
+    path("api/uploads/images/",csrf_exempt(UploadProductImageView.as_view()), name="upload-product-image"),
 
     # Public auth
     path("api/dashboard/auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/dashboard/auth/me/", MeView.as_view(), name="auth-me"),
     path("api/dashboard/auth/refresh/", RefreshView.as_view(), name="auth-refresh"),
+    path("api/catalog/categories/top/", CategoryListTop.as_view()),
 
     # Dashboard
     path("api/dashboard/produits/", ProduitsListCreateView.as_view(), name="dashboard-produits-list-create"),
@@ -51,7 +54,12 @@ urlpatterns = [
     path("api/dashboard/search/", AdminGlobalSearchView.as_view(), name="admin-global-search"),
     path("api/dashboard/stats/", DashboardStatsView.as_view(), name="dashboard-stats"),
     path("api/dashboard/auth/register/", RegisterView.as_view(), name="auth-register"),
-
+    path( "api/dashboard/categories/manage/", DashboardCategoryListCreateView.as_view(),name="dashboard-categories-manage",),
+    path("api/dashboard/categories/manage/<int:pk>/", DashboardCategoryDetailView.as_view(),name="dashboard-category-detail", ),
     # Création produit simplifiée
     path("api/produits/ajouter/", AddProductWithVariantView.as_view(), name="add_product_with_variant"),
+    path( "api/dashboard/categories/select/", DashboardCategoriesSelectView.as_view(), name="dashboard-categories-select", ),
+    path( "api/dashboard/categories/tree/", DashboardCategoriesTreeView.as_view(), name="dashboard-categories-tree",),
+
+    
 ]
