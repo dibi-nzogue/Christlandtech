@@ -17,39 +17,28 @@ import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 load_dotenv(BASE_DIR / ".env")
 
-# 🔐 Secret key et debug
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "changeme-in-prod"  # valeur par défaut si pas de .env (à éviter en prod)
-)
-
+SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-prod")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-# 🔐 Hosts autorisés
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "testserver",
-    "dibiyes.cluster024.hosting.ovh.net",  # 🔁 URL technique OVH
+    "dibiyes.cluster024.hosting.ovh.net",
 ]
 
-
-# Application definition
-
-INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    "rest_framework", "corsheaders", 
-    "christland.apps.ChristlandConfig",
-    'csp',
-]
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME", "christland"),
+        "USER": os.getenv("DB_USER", "postgres"),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": os.getenv("DB_HOST", "localhost"),
+        "PORT": os.getenv("DB_PORT", "5432"),
+    }
+}
 
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
