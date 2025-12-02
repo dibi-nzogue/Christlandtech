@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  useCategories,
+  useDashboardCategories,
   useMarques,
   useCouleurs,
   useFilters,
@@ -101,7 +101,7 @@ const etatOptions: ComboOption[] = [
 const ProductEditForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: categories } = useCategories();
+  const { data: categories } = useDashboardCategories();
   const { data: marques } = useMarques();
   const { data: couleurs } = useCouleurs();
 

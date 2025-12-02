@@ -21,7 +21,7 @@ from rest_framework.decorators import api_view
 import logging
 logger = logging.getLogger(__name__)
 from decimal import Decimal, InvalidOperation
-import requests
+# import requests
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.core.cache import cache
 from datetime import datetime
@@ -41,7 +41,7 @@ from django.core.cache import cache
 from christland.services.i18n_translate import translate_field_for_instance
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .auth_jwt import JWTAuthentication, make_access_token, make_refresh_token, decode_jwt_raw
-import jwt
+# import jwt
 from django.db.models import Sum
 from django.utils.text import slugify
 from christland.services.text_translate import translate_text
@@ -2096,10 +2096,16 @@ class AddProductWithVariantView(APIView):
         return ctx
     
     def post(self, request, *args, **kwargs):
-        try:
-            payload = json.loads(request.body.decode("utf-8"))
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "JSON invalide"}, status=400)
+        
+
+        # ✅ Utiliser directement les données déjà parsées par DRF
+        # (NE PLUS LIRE request.body)
+        if isinstance(request.data, dict):
+            payload = request.data.copy()
+        else:
+            # au cas où ce soit un QueryDict
+            payload = dict(request.data)
+
 
         # ===== CATEGORIE / SOUS-CATEGORIE =====
         raw_sub = payload.get("sous_categorie")
@@ -2233,9 +2239,33 @@ class AddProductWithVariantView(APIView):
         marque, marque_note = _resolve_marque_verbose(marque_raw)
         if not marque:
             return JsonResponse({"field": "marque", "error": "Marque introuvable/invalid."}, status=400)
+        
+        # ===== VÉRIFIER SI LE PRODUIT EXISTE DÉJÀ (même nom + même marque + même catégorie) =====
+        duplicate_msg = (
+            "Un produit avec ce nom existe déjà. "
+            "Veuillez le modifier dans la liste des produits "
+            "si vous avez de nouveaux éléments à ajouter."
+        )
+
+        existing_qs = Produits.objects.filter(nom__iexact=nom)
+
+        # si on a réussi à résoudre la marque, on filtre aussi par marque
+        if marque:
+            existing_qs = existing_qs.filter(marque=marque)
+
+        # si une catégorie est trouvée, on filtre aussi par catégorie
+        if categorie:
+            existing_qs = existing_qs.filter(categorie=categorie)
+
+        if existing_qs.exists():
+            return JsonResponse({"error": duplicate_msg}, status=400)
+        
 
         # ===== SLUG PRODUIT =====
-        slug = (payload.get("slug") or "").strip() or slugify(nom)
+               # ===== SLUG PRODUIT =====
+        raw_slug = (payload.get("slug") or "").strip()
+        slug = slugify(raw_slug or nom) or "produit"
+
 
         # ===== CHAMPS VARIANTE SUPPLÉMENTAIRES =====
         promo_debut = _parse_dt_local(payload.get("promo_debut"))

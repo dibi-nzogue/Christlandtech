@@ -3,7 +3,7 @@ import React, { useMemo, useState } from "react";
 import {
   createProductWithVariant,
   useFilters, 
-  useCategories,
+  useDashboardCategories,
   useMarques,
   useCouleurs,
   uploadProductImage,
@@ -94,7 +94,11 @@ const Toast: React.FC<{ kind: "success" | "error"; msg: string; onClose(): void 
 
 const ProductForm: React.FC = () => {
    const navigate = useNavigate();
-  const { data: categories } = useCategories();
+  const { data: categories } =useDashboardCategories();
+  React.useEffect(() => {
+  console.log("📦 [DEBUG] CATEGORIES DANS ProductForm :", categories);
+}, [categories]);
+
   const { data: marques } = useMarques();
   const { data: couleurs } = useCouleurs();
  const [extraVariants, setExtraVariants] = useState<VarianteFormRow[]>([]);
@@ -590,6 +594,8 @@ couleur:
 
   try {
     setSubmitting(true);
+    // console.log("[DEBUG] PAYLOAD /produits/ajouter :", payload);
+
     const res = await createProductWithVariant(payload as any);
 
     let successMsg = "Votre produit a bien été enregistré.";

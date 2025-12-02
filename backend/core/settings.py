@@ -18,18 +18,23 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+load_dotenv(BASE_DIR / ".env")
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+# 🔐 Secret key et debug
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    "changeme-in-prod"  # valeur par défaut si pas de .env (à éviter en prod)
+)
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-$zz0ih&=(@xu^omym6s^vr(_g64vgilne!9_(%y091*m6@gmy1'
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS =  ["testserver", "localhost", "127.0.0.1"]
-
+# 🔐 Hosts autorisés
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "testserver",
+    "dibiyes.cluster024.hosting.ovh.net",  # 🔁 URL technique OVH
+]
 
 
 # Application definition
@@ -95,7 +100,6 @@ I18N_TARGET_LANGS = ["en"]
 # Active / désactive la traduction automatique à chaque save
 AUTO_BUILD_TRANSLATIONS = True  # True en dev si tu veux, False en prod si tu préfères
 
-
 # import environ, os
 # env = environ.Env(DEBUG=(bool, False))
 # environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
@@ -135,26 +139,29 @@ AUTO_BUILD_TRANSLATIONS = True  # True en dev si tu veux, False en prod si tu pr
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'christland',          # 🔁 remplace par le nom de ta base
-        'USER': 'postgres',
-        'PASSWORD': 'Admin1234',  # 🔁 ton nouveau mot de passe
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }}
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME", "christland"),
+        "USER": os.getenv("DB_USER", "postgres"),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": os.getenv("DB_HOST", "localhost"),
+        "PORT": os.getenv("DB_PORT", "5432"),
+    }
+}
+
 
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",   # Vite dev
-    # Ajoute ici ton domaine de prod plus tard
+    "http://localhost:5173",   # dev React
+    "https://dibiyes.cluster024.hosting.ovh.net",  # prod OVH sans domaine
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
+    "https://dibiyes.cluster024.hosting.ovh.net",
 ]
+
 
 CORS_ALLOW_HEADERS = [
     "accept",

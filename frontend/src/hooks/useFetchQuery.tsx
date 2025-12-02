@@ -1129,3 +1129,25 @@ export async function createDashboardCategory(payload: any) {
 
   return body as ApiCategory;
 }
+
+
+/** Hook liste paginée des catégories du dashboard (retourne un tableau) */
+/** Hook pour récupérer TOUTES les catégories (non paginées) pour les selects */
+export function useDashboardCategories(params: DashboardListParams = {}) {
+  return useFetchQuery<ApiCategory[]>(
+    api("/api/dashboard/categories/select/"),   // ⬅️ on passe sur la vue SELECT
+    {
+      params,
+      keepPreviousData: true,
+      debounceMs: 100,
+      enabled: auth.isLoggedIn(),
+      deps: [auth.access],
+      fetchInit: { headers: auth.bearerHeader() },
+      // la vue /select/ renvoie déjà un tableau brut
+      select: (raw: any) =>
+        Array.isArray(raw)
+          ? (raw as ApiCategory[])
+          : ((raw ?? []) as ApiCategory[]),
+    }
+  );
+}
