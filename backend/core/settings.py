@@ -391,17 +391,17 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "core.wsgi.application"
 
-# === BASE DE DONNÉES (LOCAL UNIQUEMENT) ===
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "christland",
-        "USER": "postgres",
-        "PASSWORD": "Admin1234",
-        "HOST": "localhost",
-        "PORT": "5432",
-    }
-}
+# # === BASE DE DONNÉES (LOCAL UNIQUEMENT) ===
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": "christland",
+#         "USER": "postgres",
+#         "PASSWORD": "Admin1234",
+#         "HOST": "localhost",
+#         "PORT": "5432",
+#     }
+# }
 
 # === CONTENT SECURITY POLICY ===
 CONTENT_SECURITY_POLICY = {
