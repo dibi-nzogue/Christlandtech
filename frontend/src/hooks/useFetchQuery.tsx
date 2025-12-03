@@ -6,13 +6,47 @@ import { getUiLang } from "../i18nLang";
 /* =========================================================
    🔌 API helper SANS connexion (pas de token/interceptor)
 ========================================================= */
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
-const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? "/christland";
-// ✅ Active si ton API attend ?lang=fr|en dans l'URL
+// src/hooks/useFetchQuery.tsx
+
+const isProd = window.location.hostname !== "localhost";
 const SEND_LANG_IN_QUERY = true;
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  (isProd
+    ? "https://christlandtech.onrender.com"        // backend en prod
+    : "http://127.0.0.1:8000");                    // backend en local
+
+const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? "/christland";
 
 export const api = (p: string) => `${API_BASE}${API_PREFIX}${p}`;
 
+/* =========================================================
+   🌆 Gestion des URL d'images / fichiers
+========================================================= */
+
+const MEDIA_BASE =
+  import.meta.env.VITE_MEDIA_BASE ||
+  (isProd
+    ? "https://christlandtech.onrender.com"        // prod
+    : "http://127.0.0.1:8000");                    // local
+
+export function media(src?: string | null): string {
+  if (!src) return "";
+
+  // 1) Cas le plus important : les vieilles URL 127.0.0.1 venant de la BDD
+  if (src.startsWith("http://127.0.0.1:8000")) {
+    return src.replace("http://127.0.0.1:8000", MEDIA_BASE);
+  }
+
+  // 2) Si c'est déjà une URL absolue http(s), on ne touche pas
+  if (src.startsWith("http://") || src.startsWith("https://")) {
+    return src;
+  }
+
+  // 3) Sinon, c'est un chemin relatif du style "/media/..." ou "media/..."
+  const clean = src.startsWith("/") ? src : `/${src}`;
+  return `${MEDIA_BASE}${clean}`;
+}
 /* =========================================================
    Types API
 ========================================================= */

@@ -4,9 +4,13 @@ import Slider from "react-slick";
 import { motion, useInView } from "framer-motion";
 import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
-import { useTopCategories1, type ApiCategory } from "../hooks/useFetchQuery";
+import {
+  useTopCategories1,
+  type ApiCategory,
+  media, // ✅ helper pour corriger les URLs d'images
+} from "../hooks/useFetchQuery";
 
-// ✅ Fallback inline
+// ✅ Fallback inline SVG si pas d'image
 const FALLBACK_SVG =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(`
@@ -32,40 +36,38 @@ const CategoriesCarousel: React.FC = () => {
   const items: ApiCategory[] = cats ?? [];
 
   /** ========= Slider vraiment responsive ========= */
-  // remplace entièrement ton const settings = { ... } par :
-const settings = {
-  dots: false,
-  infinite: false,
-  speed: 400,
-  swipeToSlide: true,
-  variableWidth: false,
-  centerMode: false,
-  adaptiveHeight: false,
+  const settings = {
+    dots: false,
+    infinite: false,
+    speed: 400,
+    swipeToSlide: true,
+    variableWidth: false,
+    centerMode: false,
+    adaptiveHeight: false,
 
-  // ✅ Desktop / md+ : 4 cartes
-  slidesToShow: 4,
-  slidesToScroll: 1,
+    // ✅ Desktop / md+ : 4 cartes
+    slidesToShow: 4,
+    slidesToScroll: 1,
 
-  responsive: [
-    // < 768px (en dessous de md) : 2 cartes
-    {
-      breakpoint: 768,
-      settings: {
-        slidesToShow: 2,
-        slidesToScroll: 1,
+    responsive: [
+      // < 768px (en dessous de md) : 2 cartes
+      {
+        breakpoint: 768,
+        settings: {
+          slidesToShow: 2,
+          slidesToScroll: 1,
+        },
       },
-    },
-    // < 480px : 1 carte
-    {
-      breakpoint: 480,
-      settings: {
-        slidesToShow: 1,
-        slidesToScroll: 1,
+      // < 480px : 1 carte
+      {
+        breakpoint: 480,
+        settings: {
+          slidesToShow: 1,
+          slidesToScroll: 1,
+        },
       },
-    },
-  ],
-};
-
+    ],
+  };
 
   // Framer Motion
   const ref = useRef(null);
@@ -130,51 +132,57 @@ const settings = {
         {/* Carousel */}
         {!loading && items.length > 0 && (
           <Slider ref={sliderRef} {...settings}>
-            {items.map((cat, i) => (
-              <div key={cat.id} className="px-2 sm:px-3">
-                <motion.div
-                  custom={i}
-                  variants={cardVariants}
-                  initial="hidden"
-                  animate={isInView ? "visible" : "hidden"}
-                  className="relative flex h-full flex-col items-center 
-                             rounded-xl bg-gray-50 p-5 sm:p-6 shadow-md hover:shadow-lg"
-                >
-                  {/* Image */}
-                  <div className="relative aspect-square w-24 md:w-28 lg:w-32 overflow-hidden rounded-lg ring-1 ring-gray-200 bg-white/70">
-                    <motion.img
-                      src={cat.image_url || FALLBACK_SVG}
-                      alt={cat.nom}
-                      className="absolute inset-0 h-full w-full object-cover"
-                      initial={{ scale: 0.94, opacity: 0 }}
-                      animate={isInView ? { scale: 1, opacity: 1 } : {}}
-                      transition={{ duration: 0.45, delay: i * 0.06 }}
-                      loading="lazy"
-                      decoding="async"
-                      onError={(e) => {
-                        const img = e.currentTarget as HTMLImageElement;
-                        if (img.src !== FALLBACK_SVG) img.src = FALLBACK_SVG;
-                      }}
-                    />
-                  </div>
+            {items.map((cat, i) => {
+              // ✅ Corrige l'URL de l'image (local/prod + vieux liens 127.0.0.1)
+              const imgSrc = media(cat.image_url) || FALLBACK_SVG;
 
-                 {/* Titre : parfaitement centré dans sa zone */}
-<div className="mt-3 w-full px-2 min-h-[56px] sm:min-h-[56px] flex items-center justify-center">
-  <p
-    className="text-center
-               text-[13px] sm:text-sm md:text-base leading-snug
-               break-words hyphens-none sm:hyphens-auto
-               overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical]
-               [WebkitLineClamp:3] sm:[WebkitLineClamp:2]"
-    title={cat.nom}
-  >
-    {cat.nom}
-  </p>
-</div>
+              return (
+                <div key={cat.id} className="px-2 sm:px-3">
+                  <motion.div
+                    custom={i}
+                    variants={cardVariants}
+                    initial="hidden"
+                    animate={isInView ? "visible" : "hidden"}
+                    className="relative flex h-full flex-col items-center 
+                               rounded-xl bg-gray-50 p-5 sm:p-6 shadow-md hover:shadow-lg"
+                  >
+                    {/* Image */}
+                    <div className="relative aspect-square w-24 md:w-28 lg:w-32 overflow-hidden rounded-lg ring-1 ring-gray-200 bg-white/70">
+                      <motion.img
+                        src={imgSrc}
+                        alt={cat.nom}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        initial={{ scale: 0.94, opacity: 0 }}
+                        animate={isInView ? { scale: 1, opacity: 1 } : {}}
+                        transition={{ duration: 0.45, delay: i * 0.06 }}
+                        loading="lazy"
+                        decoding="async"
+                        onError={(e) => {
+                          const img = e.currentTarget as HTMLImageElement;
+                          if (img.src !== FALLBACK_SVG) {
+                            img.src = FALLBACK_SVG;
+                          }
+                        }}
+                      />
+                    </div>
 
-                </motion.div>
-              </div>
-            ))}
+                    {/* Titre : centré */}
+                    <div className="mt-3 w-full px-2 min-h-[56px] sm:min-h-[56px] flex items-center justify-center">
+                      <p
+                        className="text-center
+                                   text-[13px] sm:text-sm md:text-base leading-snug
+                                   break-words hyphens-none sm:hyphens-auto
+                                   overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical]
+                                   [WebkitLineClamp:3] sm:[WebkitLineClamp:2]"
+                        title={cat.nom}
+                      >
+                        {cat.nom}
+                      </p>
+                    </div>
+                  </motion.div>
+                </div>
+              );
+            })}
           </Slider>
         )}
 

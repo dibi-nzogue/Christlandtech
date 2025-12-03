@@ -1,6 +1,6 @@
 // src/components/PostsSection.tsx
 import React from "react";
-import { useBlogPosts } from "../hooks/useFetchQuery";
+import { useBlogPosts, media } from "../hooks/useFetchQuery"; // ✅ import media
 import { motion } from "framer-motion";
 import type { Variants, Transition } from "framer-motion";
 
@@ -16,16 +16,24 @@ const FALLBACK_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='16'%3EImage%20indisponible%3C/text%3E%3C/svg%3E";
 
 // Transitions/variants
-const TWEEN_SLOW: Transition = { type: "tween", duration: 0.7, ease: [0.22, 1, 0.36, 1] };
+const TWEEN_SLOW: Transition = {
+  type: "tween",
+  duration: 0.7,
+  ease: [0.22, 1, 0.36, 1],
+};
 
 const pageEnter: Variants = {
   hidden: { opacity: 0, y: 12 },
-  show:   { opacity: 1, y: 0, transition: TWEEN_SLOW },
+  show: { opacity: 1, y: 0, transition: TWEEN_SLOW },
 };
 
 const cardFadeUpOnView: Variants = {
   hidden: { opacity: 0, y: 16 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+  },
 };
 
 /* --- Carte TOP : horizontale dès md --- */
@@ -48,7 +56,6 @@ const CardTop: React.FC<{ post: Post }> = ({ post }) => (
         overflow-hidden rounded-xl border border-gray-100
         group
       "
-      // (optionnel) rôle pour accessibilité
       role="img"
       aria-label={post.title}
       title={post.title}
@@ -62,6 +69,12 @@ const CardTop: React.FC<{ post: Post }> = ({ post }) => (
           group-hover:scale-110
         "
         loading="lazy"
+        onError={(e) => {
+          const img = e.currentTarget as HTMLImageElement;
+          if (img.src !== FALLBACK_IMG) {
+            img.src = FALLBACK_IMG;
+          }
+        }}
       />
     </div>
 
@@ -123,6 +136,12 @@ const CardBottom: React.FC<{ post: Post }> = ({ post }) => (
           group-hover:scale-110
         "
         loading="lazy"
+        onError={(e) => {
+          const img = e.currentTarget as HTMLImageElement;
+          if (img.src !== FALLBACK_IMG) {
+            img.src = FALLBACK_IMG;
+          }
+        }}
       />
     </div>
 
@@ -162,7 +181,8 @@ const PostsSection: React.FC = () => {
     const items = data?.top ?? [];
     return items.map((a) => ({
       id: a.id,
-      image: a.image || FALLBACK_IMG,
+      // ✅ on passe l’URL par media() pour enlever 127.0.0.1 et coller la bonne base (local/prod)
+      image: media(a.image) || FALLBACK_IMG,
       title: a.excerpt || "",
       excerpt: a.content || "",
     }));
@@ -172,7 +192,7 @@ const PostsSection: React.FC = () => {
     const items = data?.bottom ?? [];
     return items.map((a) => ({
       id: a.id,
-      image: a.image || FALLBACK_IMG,
+      image: media(a.image) || FALLBACK_IMG,
       title: a.excerpt || "",
       excerpt: a.content || "",
     }));
@@ -194,7 +214,11 @@ const PostsSection: React.FC = () => {
         Nos poste
       </h2>
 
-      {error && <div className="mt-3 text-sm text-red-600">Impossible de charger les posts.</div>}
+      {error && (
+        <div className="mt-3 text-sm text-red-600">
+          Impossible de charger les posts.
+        </div>
+      )}
 
       {/* 4 du haut */}
       <div className="mt-5 space-y-6">
@@ -205,9 +229,11 @@ const PostsSection: React.FC = () => {
 
       {/* 2 du bas */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {(loading && postsBottom.length === 0 ? [] : postsBottom).map((post) => (
-          <CardBottom key={post.id} post={post} />
-        ))}
+        {(loading && postsBottom.length === 0 ? [] : postsBottom).map(
+          (post) => (
+            <CardBottom key={post.id} post={post} />
+          ),
+        )}
       </div>
     </motion.section>
   );
