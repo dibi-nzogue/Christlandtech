@@ -412,24 +412,6 @@ AUTO_BUILD_TRANSLATIONS = True
 
 # === CORS / CSRF (LOCAL + PROD) ===
 
-# En local (DEBUG=True) : on ouvre pour éviter les blocages pendant le dev
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    # En prod : on limite aux origines connues
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:5173",                      # si tu gardes un front dev
-        # "https://dibiyes.cluster024.hosting.ovh.net", # OVH
-        "https://christlandtech.onrender.com",        # Render backend
-        "https://christlandtech-frontend.onrender.com",
-    ]
-
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    # "https://dibiyes.cluster024.hosting.ovh.net",
-    "https://christlandtech.onrender.com",
-    "https://christlandtech-frontend.onrender.com",
-]
 
 CORS_ALLOW_HEADERS = [
     "accept",
@@ -441,8 +423,28 @@ CORS_ALLOW_HEADERS = [
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
-    "x-lang",  # pour ta logique de traduction
+    "x-lang",
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    # "https://dibiyes.cluster024.hosting.ovh.net",
+    "https://christlandtech.onrender.com",
+    "https://christlandtech-frontend.onrender.com",
+]
+
+
+# En local (DEBUG=True) : on ouvre pour éviter les blocages pendant le dev
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    # En prod : on limite aux origines connues
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:5173",                      # si tu gardes un front dev
+        # "https://dibiyes.cluster024.hosting.ovh.net", # OVH
+        "https://christlandtech-frontend.onrender.com",
+    ]
+
 
 # === Validation mot de passe ===
 AUTH_PASSWORD_VALIDATORS = [
