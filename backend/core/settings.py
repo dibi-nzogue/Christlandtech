@@ -293,66 +293,58 @@
 
 
 """
-Django settings for core project (LOCAL DEV).
+Django settings for core project.
 
-Utilise PostgreSQL en local :
-  - DB_NAME = christland
-  - USER    = postgres
-  - PASS    = Admin1234
-  - HOST    = localhost
-  - PORT    = 5432
+- Utilise PostgreSQL via les variables d'environnement (.env)
+- Local :
+    DB_NAME = christland
+    DB_USER = postgres
+    DB_PASSWORD = Admin1234
+    DB_HOST = localhost
+    DB_PORT = 5432
 """
 
-from pathlib import Path
-import os
-
-# Chemin de base du projet
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
-
+# === Chemins ===
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+# Charge le fichier .env situé dans backend/.env
+load_dotenv(BASE_DIR / ".env")
 
-DEBUG = os.getenv("DEBUG") == "True"
+# === Sécurité / Debug ===
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-insecure-key")
+DEBUG = os.getenv("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = os.getenv(
     "ALLOWED_HOSTS",
-    "localhost,127.0.0.1,christlandtech.onrender.com"
+    "localhost,127.0.0.1,christlandtech.onrender.com",
 ).split(",")
 
-
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "christlandtech.onrender.com"
-]
-
-
+# === Base de données (local ou Render selon .env) ===
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME"),
+        "USER": os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD"),
+        "HOST": os.getenv("DB_HOST"),
+        "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
 
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# === Fichiers statiques & médias ===
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-
 # === APPS ===
 INSTALLED_APPS = [
-    # Apps Django de base
+    # Django
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -360,12 +352,12 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    # Apps tierces
+    # Tiers
     "rest_framework",
     "corsheaders",
     "csp",
 
-    # Ton app principale
+    # App principale
     "christland",
 ]
 
@@ -384,7 +376,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "core.urls"
 
-# === TEMPLATES ===
+# === Templates ===
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -402,19 +394,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "core.wsgi.application"
 
-# # === BASE DE DONNÉES (LOCAL UNIQUEMENT) ===
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": "christland",
-#         "USER": "postgres",
-#         "PASSWORD": "Admin1234",
-#         "HOST": "localhost",
-#         "PORT": "5432",
-#     }
-# }
-
-# === CONTENT SECURITY POLICY ===
+# === Content Security Policy (CSP) ===
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": ("'self'",),
@@ -426,23 +406,29 @@ CONTENT_SECURITY_POLICY = {
     }
 }
 
-# === TRADUCTION / I18N INTERNE ===
+# === Traduction interne ===
 I18N_TARGET_LANGS = ["en"]
-AUTO_BUILD_TRANSLATIONS = True  # tu ajusteras pour la prod si besoin
+AUTO_BUILD_TRANSLATIONS = True
 
-# === MEDIA ===
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# === CORS / CSRF (LOCAL + PROD) ===
 
-# === CORS / CSRF (LOCAL + OVH PLUS TARD) ===
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",   # dev React
-    "https://dibiyes.cluster024.hosting.ovh.net",  # prod OVH sans domaine (quand ce sera prêt)
-]
+# En local (DEBUG=True) : on ouvre pour éviter les blocages pendant le dev
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    # En prod : on limite aux origines connues
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:5173",                      # si tu gardes un front dev
+        # "https://dibiyes.cluster024.hosting.ovh.net", # OVH
+        "https://christlandtech.onrender.com",        # Render backend
+        "https://christlandtech-frontend.onrender.com",
+    ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
-    "https://dibiyes.cluster024.hosting.ovh.net",
+    # "https://dibiyes.cluster024.hosting.ovh.net",
+    "https://christlandtech.onrender.com",
+    "https://christlandtech-frontend.onrender.com",
 ]
 
 CORS_ALLOW_HEADERS = [
@@ -455,10 +441,10 @@ CORS_ALLOW_HEADERS = [
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
-    "x-lang",  # ← pour ta traduction
+    "x-lang",  # pour ta logique de traduction
 ]
 
-# === VALIDATION MOT DE PASSE ===
+# === Validation mot de passe ===
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -474,13 +460,13 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# === INTERNATIONALISATION ===
+# === Internationalisation ===
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# === EMAIL (OVH – MARCHE AUSSI EN LOCAL) ===
+# === Email (OVH – à passer en variables d'env plus tard) ===
 CONTACT_INBOX = "info@christland.tech"
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -488,11 +474,11 @@ EMAIL_HOST = "ssl0.ovh.net"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "info@christland.tech"
-EMAIL_HOST_PASSWORD = "TON_MOT_DE_PASSE_ICI"  # à mettre dans un vrai .env plus tard
+EMAIL_HOST_PASSWORD = "TON_MOT_DE_PASSE_ICI"  # à mettre dans .env plus tard
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 EMAIL_TIMEOUT = 20
 
-# === STATIC ===
+# === Static (déjà défini plus haut, on garde) ===
 STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -506,7 +492,7 @@ REST_FRAMEWORK = {
     ),
 }
 
-# === CACHE ===
+# === Cache ===
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
@@ -514,6 +500,8 @@ CACHES = {
     }
 }
 
+# Si tu veux un jour :
+# LIBRETRANSLATE_URL = os.getenv("LIBRETRANSLATE_URL", "https://libretranslate.com")
 
 # Si tu veux réactiver plus tard :
 # LIBRETRANSLATE_URL = "https://libretranslate.com"
