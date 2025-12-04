@@ -182,10 +182,17 @@ class CategorieMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
     # + traduire le nom de catégorie
     i18n_fields = ["nom"]
     parent_slug = serializers.CharField(source="parent.slug", read_only=True)
+    image_url = serializers.SerializerMethodField()  # 👈 nouveau
 
     class Meta:
         model = Categories
-        fields = ("id", "nom", "slug", "parent_slug")
+        fields = ("id", "nom", "slug", "parent_slug", "image_url")
+
+    def get_image_url(self, obj):
+        request = self.context.get("request")
+        # obj.image_url contient "images/achat/..." ou "media/..."
+        return _abs_media(request, getattr(obj, "image_url", None))
+
 
 class CategoryDashboardSerializer(serializers.ModelSerializer):
     # on veut traduire nom + description
@@ -501,15 +508,6 @@ class ProduitsSerializer(I18nTranslateMixin, serializers.ModelSerializer):
         )
         return data
     
-def _abs_media(request, path: str | None) -> str | None:
-    if not path:
-        return None
-    p = str(path).strip()
-    if p.lower().startswith(("http://", "https://", "data:")):
-        return p
-    base = request.build_absolute_uri(settings.MEDIA_URL)
-    return f"{base.rstrip('/')}/{p.lstrip('/')}"
-
 class ArticleDashboardSerializer(serializers.ModelSerializer):
     # + traduire les champs de texte du blog
     # i18n_fields = ["titre", "slug", "extrait", "contenu"]
@@ -539,11 +537,31 @@ class ArticleDashboardSerializer(serializers.ModelSerializer):
 def _abs_media(request, path: str | None) -> str | None:
     if not path:
         return None
+
     p = str(path).strip()
+
+    # 🔹 1) Traiter les anciennes URLs complètes locales
+    LOCAL_PREFIXES = (
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+        "http://0.0.0.0:8000",
+    )
+
+    for pref in LOCAL_PREFIXES:
+        if p.startswith(pref):
+            # on garde uniquement le chemin, ex: "/media/..." ou "/images/achat/..."
+            p = p[len(pref):] or ""
+            break
+
+    # 🔹 2) Si c'est encore une URL absolue http(s)/data externe -> on la laisse telle quelle
     if p.lower().startswith(("http://", "https://", "data:")):
         return p
+
+    # 🔹 3) Sinon, c'est un chemin relatif → on le colle derrière MEDIA_URL
+    # ex: path = "images/achat/x.webp" -> "/media/images/achat/x.webp"
     base = request.build_absolute_uri(settings.MEDIA_URL)
     return f"{base.rstrip('/')}/{p.lstrip('/')}"
+
 
 class ArticleEditSerializer( serializers.ModelSerializer):
     # + traduire aussi en mode “edit” (lecture)

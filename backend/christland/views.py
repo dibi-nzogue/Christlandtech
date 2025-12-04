@@ -614,8 +614,10 @@ class CategoryListDashboard(CategoryListBase):
     permission_classes = [IsAuthenticated]          # ✅ protégé
     authentication_classes = [JWTAuthentication]
 
-    class CategoryListTop(APIView):
-        """
+   
+
+class CategoryListTop(APIView):
+    """
     GET /christland/api/catalog/categories/top/
     👉 Ne renvoie que les catégories parents (niveau 1), sans sous-catégories
     """
@@ -634,53 +636,12 @@ class CategoryListDashboard(CategoryListBase):
         )
         data = serializer.data
 
-        # 🔗 Absolutiser image_url et ajouter position
-        def abs_media(path):
-            if not path:
-                return None
-            p = str(path).strip()
-            if p.lower().startswith(("http://", "https://")):
-                return p
-            base = request.build_absolute_uri(settings.MEDIA_URL)
-            return f"{base.rstrip('/')}/{p.lstrip('/')}"
-
+        # Ajouter position + parent_id (même si parent_id est None ici)
         for item, c in zip(data, qs):
-            item["image_url"] = abs_media(getattr(c, "image_url", None))
             item["position"] = getattr(c, "position", None)
-            item["parent_id"] = c.parent_id  # toujours None ici
+            item["parent_id"] = c.parent_id
 
         return Response(data)
-
-
-class CategoryListTop(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        qs = (
-            Categories.objects
-            .filter(est_actif=True, parent__isnull=True)
-            .order_by("nom")
-        )
-
-        rows = []
-        for c in qs:
-            # c.image_url contient maintenant "media/..." ou "images/achat/..."
-            if c.image_url:
-                # on s'assure qu'il y a un "/" devant
-                path = "/" + c.image_url.lstrip("/")
-                image_abs = request.build_absolute_uri(path)
-            else:
-                image_abs = None
-
-            rows.append({
-                "id": c.id,
-                "nom": c.nom or "",
-                "slug": c.slug or "",
-                "description": c.description or "",
-                "image_url": image_abs,   # 👈 IMPORTANT
-            })
-
-        return Response(rows)
 
 
 
