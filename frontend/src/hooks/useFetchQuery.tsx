@@ -24,8 +24,6 @@ export const api = (p: string) => `${API_BASE}${API_PREFIX}${p}`;
    🌆 Gestion des URL d'images / fichiers
 ========================================================= */
 
-// src/hooks/useFetchQuery.tsx
-
 const MEDIA_BASE =
   import.meta.env.VITE_MEDIA_BASE ||
   (isProd
@@ -35,26 +33,20 @@ const MEDIA_BASE =
 export function media(src?: string | null): string {
   if (!src) return "";
 
-  // 1) Normaliser les vieilles URLs localhost
+  // 1) Cas le plus important : les vieilles URL 127.0.0.1 venant de la BDD
   if (src.startsWith("http://127.0.0.1:8000")) {
-    src = src.replace("http://127.0.0.1:8000", MEDIA_BASE);
+    return src.replace("http://127.0.0.1:8000", MEDIA_BASE);
   }
 
-  // 2) Normaliser les URLs HTTP de ton domaine Render
-  if (src.startsWith("http://christlandtech.onrender.com")) {
-    src = src.replace("http://christlandtech.onrender.com", MEDIA_BASE);
-  }
-
-  // 3) Si c'est déjà une URL absolue http(s), on ne touche plus
+  // 2) Si c'est déjà une URL absolue http(s), on ne touche pas
   if (src.startsWith("http://") || src.startsWith("https://")) {
     return src;
   }
 
-  // 4) Sinon, chemin relatif (/media/... ou media/...)
+  // 3) Sinon, c'est un chemin relatif du style "/media/..." ou "media/..."
   const clean = src.startsWith("/") ? src : `/${src}`;
   return `${MEDIA_BASE}${clean}`;
 }
-
 /* =========================================================
    Types API
 ========================================================= */

@@ -132,49 +132,57 @@ const CategoriesCarousel: React.FC = () => {
         {/* Carousel */}
         {!loading && items.length > 0 && (
           <Slider ref={sliderRef} {...settings}>
-           
-{items.map((cat, i) => {
-  // 🔧 On récupère image_url OU image (au cas où la vue renvoie encore "image")
-  const rawImage = (cat as any).image_url || (cat as any).image || null;
+            {items.map((cat, i) => {
+              // ✅ on utilise bien image_url renvoyé par le backend
+              const imgSrc = media(cat.image_url ?? undefined) || FALLBACK_SVG;
 
-  // ✅ On passe toujours par le helper media()
-  const imgSrc = media(rawImage || undefined) || FALLBACK_SVG;
+              return (
+                <div key={cat.id} className="px-2 sm:px-3">
+                  <motion.div
+                    custom={i}
+                    variants={cardVariants}
+                    initial="hidden"
+                    animate={isInView ? "visible" : "hidden"}
+                    className="relative flex h-full flex-col items-center 
+                               rounded-xl bg-gray-50 p-5 sm:p-6 shadow-md hover:shadow-lg"
+                  >
+                    {/* Image */}
+                    <div className="relative aspect-square w-24 md:w-28 lg:w-32 overflow-hidden rounded-lg ring-1 ring-gray-200 bg-white/70">
+                      <motion.img
+                        src={imgSrc}
+                        alt={cat.nom}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        initial={{ scale: 0.94, opacity: 0 }}
+                        animate={isInView ? { scale: 1, opacity: 1 } : {}}
+                        transition={{ duration: 0.45, delay: i * 0.06 }}
+                        loading="lazy"
+                        decoding="async"
+                        onError={(e) => {
+                          const img = e.currentTarget as HTMLImageElement;
+                          if (img.src !== FALLBACK_SVG) {
+                            img.src = FALLBACK_SVG;
+                          }
+                        }}
+                      />
+                    </div>
 
-  return (
-    <div key={cat.id} className="px-2 sm:px-3">
-      <motion.div
-        custom={i}
-        variants={cardVariants}
-        initial="hidden"
-        animate={isInView ? "visible" : "hidden"}
-        className="relative flex h-full flex-col items-center 
-                   rounded-xl bg-gray-50 p-5 sm:p-6 shadow-md hover:shadow-lg"
-      >
-        {/* Image */}
-        <div className="relative aspect-square w-24 md:w-28 lg:w-32 overflow-hidden rounded-lg ring-1 ring-gray-200 bg-white/70">
-          <motion.img
-            src={imgSrc}
-            alt={cat.nom}
-            className="absolute inset-0 h-full w-full object-cover"
-            initial={{ scale: 0.94, opacity: 0 }}
-            animate={isInView ? { scale: 1, opacity: 1 } : {}}
-            transition={{ duration: 0.45, delay: i * 0.06 }}
-            loading="lazy"
-            decoding="async"
-            onError={(e) => {
-              const img = e.currentTarget as HTMLImageElement;
-              if (img.src !== FALLBACK_SVG) {
-                img.src = FALLBACK_SVG;
-              }
-            }}
-          />
-        </div>
-
-        {/* ... le reste inchangé ... */}
-      </motion.div>
-    </div>
-  );
-})}
+                    {/* Titre : centré */}
+                    <div className="mt-3 w-full px-2 min-h-[56px] sm:min-h-[56px] flex items-center justify-center">
+                      <p
+                        className="text-center
+                                   text-[13px] sm:text-sm md:text-base leading-snug
+                                   break-words hyphens-none sm:hyphens-auto
+                                   overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical]
+                                   [WebkitLineClamp:3] sm:[WebkitLineClamp:2]"
+                        title={cat.nom}
+                      >
+                        {cat.nom}
+                      </p>
+                    </div>
+                  </motion.div>
+                </div>
+              );
+            })}
           </Slider>
         )}
 
