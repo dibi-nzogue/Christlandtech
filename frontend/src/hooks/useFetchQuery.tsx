@@ -40,7 +40,12 @@ export function buildImageUrlForBrowser(raw?: string | null): string | null {
     url = url.replace("http://127.0.0.1:8000", MEDIA_BASE);
   }
 
-  // 2) relative "/media/..." ou "media/..."
+  // 1bis) si jamais tu as déjà stocké l'host prod en base
+  if (url.startsWith("https://christlandtech.onrender.com")) {
+    url = url.replace("https://christlandtech.onrender.com", MEDIA_BASE);
+  }
+
+  // 2) fichiers media classiques
   if (url.startsWith("/media/")) {
     return `${MEDIA_BASE}${url}`;
   }
@@ -48,9 +53,18 @@ export function buildImageUrlForBrowser(raw?: string | null): string | null {
     return `${MEDIA_BASE}/${url}`;
   }
 
-  // 3) sinon : on considère que c’est déjà une URL correcte (https…)
+  // 3) tes fichiers sont dans "images/..."
+  if (url.startsWith("/images/")) {
+    return `${MEDIA_BASE}${url}`;
+  }
+  if (url.startsWith("images/")) {
+    return `${MEDIA_BASE}/${url}`;
+  }
+
+  // 4) sinon : on considère que c’est déjà une URL complète (https://...)
   return url;
 }
+
 /* =========================================================
    Types API
 ========================================================= */
