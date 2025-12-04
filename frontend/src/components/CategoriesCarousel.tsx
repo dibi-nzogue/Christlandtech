@@ -119,6 +119,7 @@ const CategoriesCarousel: React.FC = () => {
         {loading && (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
+              
               <div key={i} className="px-2 sm:px-3">
                 <div className="flex flex-col items-center rounded-xl bg-gray-50 p-6 shadow">
                   <div className="mb-3 aspect-square w-24 rounded-lg bg-gray-200" />
@@ -133,6 +134,7 @@ const CategoriesCarousel: React.FC = () => {
         {!loading && items.length > 0 && (
           <Slider ref={sliderRef} {...settings}>
             {items.map((cat, i) => {
+               console.log("CAT TOP:", cat);   // 👈 temporaire pour debug
               // ✅ on utilise bien image_url renvoyé par le backend
              const imgSrc = media(cat.image_url || (cat as any).image || undefined) || FALLBACK_SVG;
 
