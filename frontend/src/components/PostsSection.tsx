@@ -11,7 +11,7 @@ type Post = {
   excerpt: string; // <- affichera "contenu"
 };
 
-// fallback très léger si l’API ne renvoie pas d’image
+// ✅ Fallback très léger si l’API ne renvoie pas d’image
 const FALLBACK_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='16'%3EImage%20indisponible%3C/text%3E%3C/svg%3E";
 
@@ -37,138 +37,148 @@ const cardFadeUpOnView: Variants = {
 };
 
 /* --- Carte TOP : horizontale dès md --- */
-const CardTop: React.FC<{ post: Post }> = ({ post }) => (
-  <motion.div
-    variants={cardFadeUpOnView}
-    initial="hidden"
-    whileInView="show"
-    viewport={{ once: true, amount: 0.25 }}
-    className="flex flex-col md:flex-row gap-4 sm:gap-5 p-3 rounded-xl bg-white transition h-full"
-  >
-    {/* DIV image = zone de hover-zoom (seulement l'image) */}
-    <div
-      className="
-        relative w-full aspect-[16/9]
-        sm:aspect-[16/9]
-        md:w-[230px] md:min-w-[230px] md:h-[150px] md:aspect-auto
-        lg:w-[260px] lg:min-w-[260px] lg:h-[160px]
-        xl:w-[300px] xl:min-w-[300px] xl:h-[180px]
-        overflow-hidden rounded-xl border border-gray-100
-        group
-      "
-      role="img"
-      aria-label={post.title}
-      title={post.title}
-    >
-      <img
-        src={post.image}
-        alt={post.title}
-        className="
-          absolute inset-0 h-full w-full object-cover
-          transform transition-transform duration-500 will-change-transform
-          group-hover:scale-110
-        "
-        loading="lazy"
-        onError={(e) => {
-          const img = e.currentTarget as HTMLImageElement;
-          if (img.src !== FALLBACK_IMG) {
-            img.src = FALLBACK_IMG;
-          }
-        }}
-      />
-    </div>
+const CardTop: React.FC<{ post: Post }> = ({ post }) => {
+  const imgSrc = post.image || FALLBACK_IMG;
 
-    <div className="flex-1 min-w-0">
-      <h3
+  return (
+    <motion.div
+      variants={cardFadeUpOnView}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, amount: 0.25 }}
+      className="flex flex-col md:flex-row gap-4 sm:gap-5 p-3 rounded-xl bg-white transition h-full"
+    >
+      {/* DIV image = zone de hover-zoom (seulement l'image) */}
+      <div
         className="
-          font-semibold text-gray-900 uppercase leading-snug break-words
-          text-[clamp(12px,2.5vw,14px)]
-          sm:text-[clamp(13px,2.1vw,15px)]
-          md:text-[14px]
-          lg:text-[15px]
+          relative w-full aspect-[16/9]
+          sm:aspect-[16/9]
+          md:w-[230px] md:min-w-[230px] md:h-[150px] md:aspect-auto
+          lg:w-[260px] lg:min-w-[260px] lg:h-[160px]
+          xl:w-[300px] xl:min-w-[300px] xl:h-[180px]
+          overflow-hidden rounded-xl border border-gray-100
+          group
         "
+        role="img"
+        aria-label={post.title}
+        title={post.title}
       >
-        {post.title}
-      </h3>
-      <p
-        className="
-          mt-2 sm:mt-3 text-gray-600 break-words leading-6
-          text-[clamp(12px,2.7vw,14px)]
-          sm:text-[clamp(12.5px,2.2vw,14.5px)]
-          md:text-[14px]
-          lg:text-[15px]
-        "
-      >
-        {post.excerpt}
-      </p>
-    </div>
-  </motion.div>
-);
+        <img
+          src={imgSrc}
+          alt={post.title}
+          className="
+            absolute inset-0 h-full w-full object-cover
+            transform transition-transform duration-500 will-change-transform
+            group-hover:scale-110
+          "
+          loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            const img = e.currentTarget as HTMLImageElement;
+            if (img.src !== FALLBACK_IMG) {
+              img.src = FALLBACK_IMG;
+            }
+          }}
+        />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <h3
+          className="
+            font-semibold text-gray-900 uppercase leading-snug break-words
+            text-[clamp(12px,2.5vw,14px)]
+            sm:text-[clamp(13px,2.1vw,15px)]
+            md:text-[14px]
+            lg:text-[15px]
+          "
+        >
+          {post.title}
+        </h3>
+        <p
+          className="
+            mt-2 sm:mt-3 text-gray-600 break-words leading-6
+            text-[clamp(12px,2.7vw,14px)]
+            sm:text-[clamp(12.5px,2.2vw,14.5px)]
+            md:text-[14px]
+            lg:text-[15px]
+          "
+        >
+          {post.excerpt}
+        </p>
+      </div>
+    </motion.div>
+  );
+};
 
 /* --- Carte BOTTOM : verticale jusqu’à lg, horizontale à partir de lg --- */
-const CardBottom: React.FC<{ post: Post }> = ({ post }) => (
-  <motion.div
-    variants={cardFadeUpOnView}
-    initial="hidden"
-    whileInView="show"
-    viewport={{ once: true, amount: 0.25 }}
-    className="flex flex-col lg:flex-row gap-4 sm:gap-5 p-3 rounded-xl bg-white transition h-full"
-  >
-    {/* DIV image = zone de hover-zoom (seulement l'image) */}
-    <div
-      className="
-        relative w-full aspect-[16/9]
-        lg:w-[260px] lg:min-w-[260px] lg:h-[160px] lg:aspect-auto
-        xl:w-[300px] xl:min-w-[300px] xl:h-[180px]
-        overflow-hidden rounded-xl border border-gray-100
-        group
-      "
-      role="img"
-      aria-label={post.title}
-      title={post.title}
-    >
-      <img
-        src={post.image}
-        alt={post.title}
-        className="
-          absolute inset-0 h-full w-full object-cover
-          transform transition-transform duration-500 will-change-transform
-          group-hover:scale-110
-        "
-        loading="lazy"
-        onError={(e) => {
-          const img = e.currentTarget as HTMLImageElement;
-          if (img.src !== FALLBACK_IMG) {
-            img.src = FALLBACK_IMG;
-          }
-        }}
-      />
-    </div>
+const CardBottom: React.FC<{ post: Post }> = ({ post }) => {
+  const imgSrc = post.image || FALLBACK_IMG;
 
-    <div className="flex-1 min-w-0">
-      <h3
+  return (
+    <motion.div
+      variants={cardFadeUpOnView}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, amount: 0.25 }}
+      className="flex flex-col lg:flex-row gap-4 sm:gap-5 p-3 rounded-xl bg-white transition h-full"
+    >
+      {/* DIV image = zone de hover-zoom (seulement l'image) */}
+      <div
         className="
-          font-semibold text-gray-900 uppercase leading-snug break-words
-          text-[clamp(12px,2.5vw,14px)]
-          md:text-[13px]
-          lg:text-[14px] 
+          relative w-full aspect-[16/9]
+          lg:w-[260px] lg:min-w-[260px] lg:h-[160px] lg:aspect-auto
+          xl:w-[300px] xl:min-w-[300px] xl:h-[180px]
+          overflow-hidden rounded-xl border border-gray-100
+          group
         "
+        role="img"
+        aria-label={post.title}
+        title={post.title}
       >
-        {post.title}
-      </h3>
-      <p
-        className="
-          mt-2 sm:mt-3 text-gray-600 break-words leading-6
-          text-[clamp(12px,2.7vw,14px)]
-          md:text-[13px]
-          lg:text-[14px]
-        "
-      >
-        {post.excerpt}
-      </p>
-    </div>
-  </motion.div>
-);
+        <img
+          src={imgSrc}
+          alt={post.title}
+          className="
+            absolute inset-0 h-full w-full object-cover
+            transform transition-transform duration-500 will-change-transform
+            group-hover:scale-110
+          "
+          loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            const img = e.currentTarget as HTMLImageElement;
+            if (img.src !== FALLBACK_IMG) {
+              img.src = FALLBACK_IMG;
+            }
+          }}
+        />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <h3
+          className="
+            font-semibold text-gray-900 uppercase leading-snug break-words
+            text-[clamp(12px,2.5vw,14px)]
+            md:text-[13px]
+            lg:text-[14px] 
+          "
+        >
+          {post.title}
+        </h3>
+        <p
+          className="
+            mt-2 sm:mt-3 text-gray-600 break-words leading-6
+            text-[clamp(12px,2.7vw,14px)]
+            md:text-[13px]
+            lg:text-[14px]
+          "
+        >
+          {post.excerpt}
+        </p>
+      </div>
+    </motion.div>
+  );
+};
 
 const PostsSection: React.FC = () => {
   const { data, loading, error } = useBlogPosts();
@@ -181,8 +191,8 @@ const PostsSection: React.FC = () => {
     const items = data?.top ?? [];
     return items.map((a) => ({
       id: a.id,
-      // ✅ on passe l’URL par media() pour enlever 127.0.0.1 et coller la bonne base (local/prod)
-      image: media(a.image) || FALLBACK_IMG,
+      // ✅ on passe par media() et on a un fallback sûr
+      image: media(a.image ?? undefined) || FALLBACK_IMG,
       title: a.excerpt || "",
       excerpt: a.content || "",
     }));
@@ -192,7 +202,7 @@ const PostsSection: React.FC = () => {
     const items = data?.bottom ?? [];
     return items.map((a) => ({
       id: a.id,
-      image: media(a.image) || FALLBACK_IMG,
+      image: media(a.image ?? undefined) || FALLBACK_IMG,
       title: a.excerpt || "",
       excerpt: a.content || "",
     }));
@@ -211,7 +221,8 @@ const PostsSection: React.FC = () => {
           text-[clamp(12px,2.2vw,16px)]
         "
       >
-        Nos poste
+        {/* petite correction de français */}
+        Nos articles
       </h2>
 
       {error && (

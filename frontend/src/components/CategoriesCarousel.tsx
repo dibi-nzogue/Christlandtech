@@ -133,8 +133,8 @@ const CategoriesCarousel: React.FC = () => {
         {!loading && items.length > 0 && (
           <Slider ref={sliderRef} {...settings}>
             {items.map((cat, i) => {
-              // ✅ Corrige l'URL de l'image (local/prod + vieux liens 127.0.0.1)
-              const imgSrc = media(cat.image_url) || FALLBACK_SVG;
+              // ✅ on utilise bien image_url renvoyé par le backend
+              const imgSrc = media(cat.image_url ?? undefined) || FALLBACK_SVG;
 
               return (
                 <div key={cat.id} className="px-2 sm:px-3">
