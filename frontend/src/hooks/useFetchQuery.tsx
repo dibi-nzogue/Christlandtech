@@ -30,22 +30,26 @@ const MEDIA_BASE =
     ? "https://christlandtech.onrender.com"        // prod
     : "http://127.0.0.1:8000");                    // local
 
-export function media(src?: string | null): string {
-  if (!src) return "";
+export function buildImageUrlForBrowser(raw?: string | null): string | null {
+  if (!raw) return null;
 
-  // 1) Cas le plus important : les vieilles URL 127.0.0.1 venant de la BDD
-  if (src.startsWith("http://127.0.0.1:8000")) {
-    return src.replace("http://127.0.0.1:8000", MEDIA_BASE);
+  let url = raw.trim();
+
+  // 1) ancien absolu local → on remplace l’hôte
+  if (url.startsWith("http://127.0.0.1:8000")) {
+    url = url.replace("http://127.0.0.1:8000", MEDIA_BASE);
   }
 
-  // 2) Si c'est déjà une URL absolue http(s), on ne touche pas
-  if (src.startsWith("http://") || src.startsWith("https://")) {
-    return src;
+  // 2) relative "/media/..." ou "media/..."
+  if (url.startsWith("/media/")) {
+    return `${MEDIA_BASE}${url}`;
+  }
+  if (url.startsWith("media/")) {
+    return `${MEDIA_BASE}/${url}`;
   }
 
-  // 3) Sinon, c'est un chemin relatif du style "/media/..." ou "media/..."
-  const clean = src.startsWith("/") ? src : `/${src}`;
-  return `${MEDIA_BASE}${clean}`;
+  // 3) sinon : on considère que c’est déjà une URL correcte (https…)
+  return url;
 }
 /* =========================================================
    Types API
@@ -67,7 +71,7 @@ export type ApiCategory = {
   parent?: number | null;
   parent_id?: number | null;
   parent_nom?: string;
-  image_url?: string;
+image_url: string | null;
   position?: number;
 };
 
@@ -380,12 +384,33 @@ export async function getFilters(params: { category?: string; subcategory?: stri
   return (await parseJsonSafe(res)) as FiltersPayload;
 }
 
+
+function mapApiProduct(raw: any): ApiProduct {
+  return {
+    ...raw,
+    // images = liste de { url, ... }
+    images: (raw.images ?? []).map((img: any) => ({
+      ...img,
+      url: buildImageUrlForBrowser(img.url) || "",
+    })),
+  };
+}
+
+
 export async function getProducts(params: Record<string, unknown>) {
   const url = api("/api/catalog/products/") + toQueryString(params);
   const res = await fetch(url, withJsonAccept());
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await parseJsonSafe(res)) as ApiPage<ApiProduct>;
+  const raw = (await parseJsonSafe(res)) as ApiPage<any>;
+
+  const mapped: ApiPage<ApiProduct> = {
+    ...raw,
+    results: (raw.results ?? []).map(mapApiProduct),
+  };
+
+  return mapped;
 }
+
 
 export async function authedFetch(input: string, init: RequestInit = {}) {
   // 1) access courant (même s’il est expiré, on tente 1er appel)
@@ -430,21 +455,39 @@ export async function authedFetch(input: string, init: RequestInit = {}) {
 }
 
 
+// Normalise une catégorie venant de l'API
+function mapCategory(raw: any): ApiCategory {
+  return {
+    ...raw,
+    image_url: buildImageUrlForBrowser(
+      raw.image_url || raw.image || raw.icon || null
+    ),
+  };
+}
+
 /* =========================================================
    Hooks “clé en main” pour tes composants
 ========================================================= */
+/** Catégories (liste générale) */
 export function useTopCategories(params: { level?: number } = {}) {
   return useFetchQuery<ApiCategory[]>(api("/api/catalog/categories/"), {
     params,
     keepPreviousData: true,
-    select: (raw: any) => (Array.isArray(raw) ? raw : raw?.results ?? []),
+    select: (raw: any) => {
+      const arr = Array.isArray(raw) ? raw : raw?.results ?? [];
+      return arr.map(mapCategory);
+    },
   });
 }
 
+/** Catégories "Top" pour le carousel de la home */
 export function useTopCategories1() {
   return useFetchQuery<ApiCategory[]>(api("/api/catalog/categories/top/"), {
     keepPreviousData: true,
-    select: (raw: any) => (Array.isArray(raw) ? raw : []),
+    select: (raw: any) => {
+      const arr = Array.isArray(raw) ? raw : raw?.results ?? [];
+      return arr.map(mapCategory);
+    },
   });
 }
 
@@ -462,8 +505,16 @@ export function useProducts(params: Record<string, any>) {
     params,
     keepPreviousData: true,
     debounceMs: 120,
+    select: (raw: any) => {
+      const page = raw as ApiPage<any>;
+      return {
+        ...page,
+        results: (page.results ?? []).map(mapApiProduct),
+      } as ApiPage<ApiProduct>;
+    },
   });
 }
+
 
 // --- Blog: types ---
 export type BlogHero = { title: string; slug: string };
@@ -482,8 +533,24 @@ export function useBlogHero() {
   return useFetchQuery<BlogHero>(api("/api/blog/hero/"), { keepPreviousData: true });
 }
 export function useBlogPosts() {
-  return useFetchQuery<BlogPostsPayload>(api("/api/blog/posts/"), { keepPreviousData: true });
+  return useFetchQuery<BlogPostsPayload>(api("/api/blog/posts/"), {
+    keepPreviousData: true,
+    select: (raw: any) => {
+      const top = (raw?.top ?? []).map((p: any) => ({
+        ...p,
+        image: buildImageUrlForBrowser(p.image),
+      }));
+      const bottom = (raw?.bottom ?? []).map((p: any) => ({
+        ...p,
+        image: buildImageUrlForBrowser(p.image),
+      }));
+      return { top, bottom } as BlogPostsPayload;
+    },
+  });
 }
+// petit alias pratique pour le front
+export const media = (raw?: string | null): string | null =>
+  buildImageUrlForBrowser(raw);
 
 
 // ➕ tout en bas de useFetchQuery.tsx (ou dans la section "Fonctions API simples")
@@ -551,11 +618,19 @@ export function useLatestProducts(opts?: {
 }) {
   return useFetchQuery<LatestProduct[]>(api("/api/catalog/products/latest/"), {
     keepPreviousData: true,
-    refreshMs: opts?.refreshMs ?? 30000, // 30s par défaut
+    refreshMs: opts?.refreshMs ?? 30000,
     refetchOnWindowFocus: opts?.refetchOnWindowFocus ?? true,
     refetchOnReconnect: opts?.refetchOnReconnect ?? true,
+    select: (raw: any) => {
+      const arr: LatestProduct[] = Array.isArray(raw) ? raw : raw?.results ?? [];
+      return arr.map((p) => ({
+        ...p,
+        image: buildImageUrlForBrowser(p.image),
+      }));
+    },
   });
 }
+
 // --- Contact: types ---
 export type ContactPayload = {
   nom: string;
