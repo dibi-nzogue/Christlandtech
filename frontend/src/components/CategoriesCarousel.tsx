@@ -134,7 +134,8 @@ const CategoriesCarousel: React.FC = () => {
           <Slider ref={sliderRef} {...settings}>
             {items.map((cat, i) => {
               // ✅ on utilise bien image_url renvoyé par le backend
-              const imgSrc = media(cat.image_url ?? undefined) || FALLBACK_SVG;
+             const imgSrc = media(cat.image_url || (cat as any).image || undefined) || FALLBACK_SVG;
+
 
               return (
                 <div key={cat.id} className="px-2 sm:px-3">
