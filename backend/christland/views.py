@@ -76,6 +76,25 @@ from django.db import IntegrityError, transaction
 from django.db.models import F
 from rest_framework import status, permissions
 from django.contrib.auth.hashers import check_password, make_password
+from urllib.parse import urlparse
+
+
+def normalize_image_url(raw):
+    if not raw:
+        return None
+
+    raw = str(raw).strip()
+
+    parsed = urlparse(raw)
+
+    # Si on reçoit une URL complète: http://127.0.0.1:8000/media/...
+    if parsed.scheme in ("http", "https"):
+        path = parsed.path or ""
+        # on retire le premier "/" pour stocker "media/..." ou "images/achat/..."
+        return path.lstrip("/") or None
+
+    # Sinon on considère que c'est déjà un chemin du style "images/achat/..."
+    return raw.lstrip("/")
 
 
 def _as_int(val):
@@ -2890,6 +2909,8 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
 
         # slug automatique simple
         slug_val = slugify(nom)
+        raw_image = request.data.get("image_url")
+        image_val = normalize_image_url(raw_image)
 
         cat = Categories.objects.create(
             nom=nom,
@@ -2898,8 +2919,9 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
             est_actif=est_actif,
             parent=parent,
             cree_le=timezone.now(),
-            image_url=request.data.get("image_url") or None,
+            image_url=image_val,
         )
+
 
         return Response(
             {
@@ -2984,7 +3006,12 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
         c.description = description
         c.est_actif = est_actif
         c.parent = parent
-        c.image_url = request.data.get("image_url") or c.image_url 
+        raw_image = request.data.get("image_url", None)
+        if raw_image is not None:
+            new_image = normalize_image_url(raw_image)
+            if new_image:
+                c.image_url = new_image
+
         # on recalcule le slug si vide
         if not c.slug:
             c.slug = slugify(nom)
