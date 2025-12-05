@@ -29,20 +29,20 @@ const App: React.FC = () => {
         <Route path="/Produits" element={<Produits  key={i18n.language} />} />
         <Route path="/Services" element={<Services   key={i18n.language}/>} />
         <Route path="/Assistance" element={<Assistance  key={i18n.language}/>} />
-        <Route path="/Dashboard/Sighup" element={<Sighup />} />
-        <Route path="/Dashboard/Connexion" element={<Connexion />} />
-        <Route path="/Dashboard"element={<PrivateRoute><Dashboard /></PrivateRoute> } />
-        <Route path="/Dashboard/Ajouter_produit" element={ <PrivateRoute><AddProduct /></PrivateRoute> } />
-        <Route path="/Dashboard/Ajouter_article" element={<PrivateRoute><AddArticle /></PrivateRoute> } />
-        <Route path="/Dashboard/Modifier/:id" element={<PrivateRoute><UpdateProduct /></PrivateRoute>} />
-        <Route path="/Dashboard/Articles/:id/edit" element={<PrivateRoute><UpdateArticle /></PrivateRoute> } />
-        <Route path="/Dashboard/Categories/:id/edit"element={<PrivateRoute><UpdateCathegorie /></PrivateRoute> }/>
+        <Route path="/dashboard/Sighup" element={<Sighup />} />
+        <Route path="/dashboard/Connexion" element={<Connexion />} />
+        <Route path="/dashboard"element={<PrivateRoute><Dashboard /></PrivateRoute> } />
+        <Route path="/dashboard/Ajouter_produit" element={ <PrivateRoute><AddProduct /></PrivateRoute> } />
+        <Route path="/dashboard/Ajouter_article" element={<PrivateRoute><AddArticle /></PrivateRoute> } />
+        <Route path="/dashboard/Modifier/:id" element={<PrivateRoute><UpdateProduct /></PrivateRoute>} />
+        <Route path="/dashboard/Articles/:id/edit" element={<PrivateRoute><UpdateArticle /></PrivateRoute> } />
+        <Route path="/dashboard/Categories/:id/edit"element={<PrivateRoute><UpdateCathegorie /></PrivateRoute> }/>
         {/* Redirections utiles (majuscules / anciennes URLs) */}
         <Route path="/Connexion" element={<Navigate to="/dashboard/connexion" replace />} />
         <Route path="/Sighup" element={<Navigate to="/dashboard/inscription" replace />} />
-        <Route path="/Dashboard/Connexion" element={<Navigate to="/dashboard/connexion" replace />} />
-        <Route path="/Dashboard/Sighup" element={<Navigate to="/dashboard/inscription" replace />} />
-       <Route path="/Dashboard/Ajouter_categorie"element={<PrivateRoute><AddCathegorie /></PrivateRoute>} />
+        <Route path="/dashboard/Connexion" element={<Navigate to="/dashboard/connexion" replace />} />
+        <Route path="/dashboard/Sighup" element={<Navigate to="/dashboard/inscription" replace />} />
+       <Route path="/dashboard/Ajouter_categorie"element={<PrivateRoute><AddCathegorie /></PrivateRoute>} />
 
 
         {/* 404 */}
