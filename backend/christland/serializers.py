@@ -539,28 +539,32 @@ def _abs_media(request, path: str | None) -> str | None:
         return None
 
     p = str(path).strip()
+    if not p:
+        return None
 
-    # 🔹 1) Traiter les anciennes URLs complètes locales
+    # 🔹 1) Enlever les anciens host locaux
     LOCAL_PREFIXES = (
         "http://127.0.0.1:8000",
         "http://localhost:8000",
         "http://0.0.0.0:8000",
     )
-
     for pref in LOCAL_PREFIXES:
         if p.startswith(pref):
-            # on garde uniquement le chemin, ex: "/media/..." ou "/images/achat/..."
             p = p[len(pref):] or ""
             break
 
-    # 🔹 2) Si c'est encore une URL absolue http(s)/data externe -> on la laisse telle quelle
+    # 🔹 2) Si c’est déjà une URL absolue http(s)/data → on laisse
     if p.lower().startswith(("http://", "https://", "data:")):
         return p
 
-    # 🔹 3) Sinon, c'est un chemin relatif → on le colle derrière MEDIA_URL
-    # ex: path = "images/achat/x.webp" -> "/media/images/achat/x.webp"
-    base = request.build_absolute_uri(settings.MEDIA_URL)
+    # 🔹 3) Chemin relatif → on colle derrière MEDIA_URL
+    if request is not None:
+        base = request.build_absolute_uri(settings.MEDIA_URL)
+    else:
+        base = settings.MEDIA_URL
+
     return f"{base.rstrip('/')}/{p.lstrip('/')}"
+
 
 
 class ArticleEditSerializer( serializers.ModelSerializer):

@@ -94,7 +94,7 @@ export type ApiCategory = {
   parent?: number | null;
   parent_id?: number | null;
   parent_nom?: string;
-  image_url?: string;
+   image_url?: string | null;   // 👈 important
   position?: number;
 };
 

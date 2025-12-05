@@ -1,6 +1,6 @@
 // src/components/PostsSection.tsx
 import React from "react";
-import { useBlogPosts, media } from "../hooks/useFetchQuery"; // ✅ import media
+import { useBlogPosts} from "../hooks/useFetchQuery"; // ✅ import media
 import { motion } from "framer-motion";
 import type { Variants, Transition } from "framer-motion";
 
@@ -192,7 +192,8 @@ const PostsSection: React.FC = () => {
     return items.map((a) => ({
       id: a.id,
       // ✅ on passe par media() et on a un fallback sûr
-      image: media(a.image ?? undefined) || FALLBACK_IMG,
+      image: a.image || FALLBACK_IMG,
+
       title: a.excerpt || "",
       excerpt: a.content || "",
     }));
@@ -202,7 +203,8 @@ const PostsSection: React.FC = () => {
     const items = data?.bottom ?? [];
     return items.map((a) => ({
       id: a.id,
-      image: media(a.image ?? undefined) || FALLBACK_IMG,
+      image: a.image || FALLBACK_IMG,
+
       title: a.excerpt || "",
       excerpt: a.content || "",
     }));
