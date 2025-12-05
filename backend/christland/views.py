@@ -666,9 +666,11 @@ class ProductMiniView(APIView):
 
         # Image principale
         img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
-        img_url = None
+        img_url = ""
         if img and getattr(img, "url", None):
-            img_url = _abs_media(request, img.url)
+            img_url = str(img.url).strip()
+            if not img_url.lower().startswith(("http://", "https://", "data:")):
+                img_url = request.build_absolute_uri(img_url)
 
         # Référence (SKU ou slug)
         sku = (prod.variantes
@@ -1177,7 +1179,10 @@ class LatestProductsView(APIView):
             # ---------- Image principale ----------
             main_img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
             if main_img and main_img.url:
-                obj["image"] = _abs_media(request, main_img.url)
+                url = str(main_img.url).strip()
+                if not url.lower().startswith(("http://", "https://", "data:")):
+                    url = request.build_absolute_uri(url)
+                obj["image"] = url
             else:
                 obj["image"] = None
 
@@ -1762,15 +1767,12 @@ def _resolve_couleur(val):
         return Couleurs.objects.filter(slug=slug).first()
 
 
-from urllib.parse import urlparse
-
 def _clean_images_payload(images):
     """
     Accepte:
       - ["https://...jpg", ...] OU
       - [{url, alt_text?, position?, principale?}, ...]
     -> Nettoie, force une seule 'principale', normalise position->int|None
-       et NE GARDE EN BD QUE des chemins relatifs (pas d'URL http/https).
     """
     out = []
     for it in (images or []):
@@ -1794,19 +1796,7 @@ def _clean_images_payload(images):
         if not url:
             continue
 
-        # 🔒 Si c'est une URL complète (http/https), on la réduit à un chemin
-        parsed = urlparse(url)
-        if parsed.scheme in ("http", "https"):
-            url = normalize_image_url(url) or ""
-            if not url:
-                continue
-
-        out.append({
-            "url": url,                  # <= toujours un chemin relatif ici
-            "alt_text": alt,
-            "position": pos,
-            "principale": principale
-        })
+        out.append({"url": url, "alt_text": alt, "position": pos, "principale": principale})
 
     if not out:
         return []
@@ -1822,7 +1812,6 @@ def _clean_images_payload(images):
             else:
                 x["principale"] = False
     return out
-
 
 def _parse_dt_local(s: str | None):
     """
