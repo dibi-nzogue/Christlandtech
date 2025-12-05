@@ -8,7 +8,8 @@ import { getUiLang } from "../i18nLang";
 ========================================================= */
 // src/hooks/useFetchQuery.tsx
 
-const isProd = window.location.hostname !== "localhost";
+const isProd = import.meta.env.PROD;
+
 const SEND_LANG_IN_QUERY = true;
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -30,49 +31,49 @@ const MEDIA_BASE =
     ? "https://christlandtech.onrender.com"        // prod
     : "http://127.0.0.1:8000");                    // local
 
+// ✅ version simplifiée : gère local + prod sans se compliquer
 export function media(src?: string | null): string {
   if (!src) return "";
 
-  // Normalisation de la base
-  const base = MEDIA_BASE.replace(/\/+$/, "");
+  const s = src.trim();
+  if (!s) return "";
 
-  // Tous les vieux hosts locaux qu'on veut écraser
-  const LOCAL_PREFIXES = [
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-    "http://0.0.0.0:8000",
-  ];
+  // 👉 1) URL absolue (http/https)
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const u = new URL(s);
+      const LOCAL_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"];
 
-  // 1) Cas le plus critique : URL absolue vers le backend local
-  for (const p of LOCAL_PREFIXES) {
-    if (src.startsWith(p)) {
-      const suffix = src.slice(p.length); // ex: "/media/..."
-      return `${base}${suffix}`;
-    }
-  }
-
-  // 2) Autres URL absolues http(s)
-  if (src.startsWith("http://") || src.startsWith("https://")) {
-    // En prod, si c'est du HTTP clair, on force vers MEDIA_BASE (https)
-    if (isProd && src.startsWith("http://")) {
-      try {
-        const url = new URL(src);
-        const baseUrl = new URL(base);
-        // On garde le chemin / query / hash de l'URL d'origine
-        return `${baseUrl.origin}${url.pathname}${url.search}${url.hash}`;
-      } catch {
-        // Si jamais ça plante, on renvoie tel quel (au pire, on verra l'erreur)
-        return src;
+      // 🔹 Cas 1 : URL vers un host local
+      if (LOCAL_HOSTS.includes(u.hostname)) {
+        if (isProd) {
+          // On est en "prod" mais on a encore une URL locale -> on remappe vers MEDIA_BASE
+          const base = new URL(MEDIA_BASE);
+          return `${base.origin}${u.pathname}${u.search}${u.hash}`;
+        }
+        // En dev, on ne touche PAS du tout : on garde http://127.0.0.1:8000...
+        return s;
       }
+
+      // 🔹 Cas 2 : URL vers ton vrai backend -> on force https seulement si nécessaire
+      if (isProd && u.protocol === "http:" && u.hostname === "christlandtech.onrender.com") {
+        return `https://${u.host}${u.pathname}${u.search}${u.hash}`;
+      }
+
+      // 🔹 Cas 3 : autre domaine (CDN, image externe, etc.) -> on ne touche pas
+      return s;
+    } catch {
+      // Si jamais le parsing échoue, on renvoie tel quel
+      return s;
     }
-    // Sinon, on ne touche pas (ex: image externe déjà en https)
-    return src;
   }
 
-  // 3) Chemin relatif : "/media/..." ou "media/..."
-  const clean = src.startsWith("/") ? src : `/${src}`;
-  return `${base}${clean}`;
+  // 👉 2) Chemin relatif : "/media/..." ou "media/..."
+  const base = MEDIA_BASE.replace(/\/+$/, "");
+  const path = s.startsWith("/") ? s : `/${s}`;
+  return `${base}${path}`;
 }
+
 
 /* =========================================================
    Types API
