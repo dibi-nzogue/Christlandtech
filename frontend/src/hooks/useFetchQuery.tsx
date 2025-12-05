@@ -8,8 +8,7 @@ import { getUiLang } from "../i18nLang";
 ========================================================= */
 // src/hooks/useFetchQuery.tsx
 
-const isProd = import.meta.env.PROD;
-
+const isProd = window.location.hostname !== "localhost";
 const SEND_LANG_IN_QUERY = true;
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -31,22 +30,48 @@ const MEDIA_BASE =
     ? "https://christlandtech.onrender.com"        // prod
     : "http://127.0.0.1:8000");                    // local
 
-// ✅ version simplifiée : gère local + prod sans se compliquer
 export function media(src?: string | null): string {
   if (!src) return "";
 
-  const s = src.trim();
+  // Normalisation de la base
+  const base = MEDIA_BASE.replace(/\/+$/, "");
 
-  // 1) Si c'est déjà une URL complète, on NE TOUCHE PAS au host
-  if (/^https?:\/\//i.test(s)) {
-    // En prod, si c'est encore http, on force https
-    return isProd ? s.replace(/^http:\/\//i, "https://") : s;
+  // Tous les vieux hosts locaux qu'on veut écraser
+  const LOCAL_PREFIXES = [
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    "http://0.0.0.0:8000",
+  ];
+
+  // 1) Cas le plus critique : URL absolue vers le backend local
+  for (const p of LOCAL_PREFIXES) {
+    if (src.startsWith(p)) {
+      const suffix = src.slice(p.length); // ex: "/media/..."
+      return `${base}${suffix}`;
+    }
   }
 
-  // 2) Sinon, c'est un chemin relatif -> on colle MEDIA_BASE devant
-  const base = MEDIA_BASE.replace(/\/+$/, "");
-  const path = s.startsWith("/") ? s : `/${s}`;
-  return `${base}${path}`;
+  // 2) Autres URL absolues http(s)
+  if (src.startsWith("http://") || src.startsWith("https://")) {
+    // En prod, si c'est du HTTP clair, on force vers MEDIA_BASE (https)
+    if (isProd && src.startsWith("http://")) {
+      try {
+        const url = new URL(src);
+        const baseUrl = new URL(base);
+        // On garde le chemin / query / hash de l'URL d'origine
+        return `${baseUrl.origin}${url.pathname}${url.search}${url.hash}`;
+      } catch {
+        // Si jamais ça plante, on renvoie tel quel (au pire, on verra l'erreur)
+        return src;
+      }
+    }
+    // Sinon, on ne touche pas (ex: image externe déjà en https)
+    return src;
+  }
+
+  // 3) Chemin relatif : "/media/..." ou "media/..."
+  const clean = src.startsWith("/") ? src : `/${src}`;
+  return `${base}${clean}`;
 }
 
 /* =========================================================
