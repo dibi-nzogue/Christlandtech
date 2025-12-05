@@ -13,19 +13,19 @@ const RightPanel: React.FC = () => {
     <div className="space-y-4 w-full md:w-1/4">
       {/* Boutons */}
       <button
-        onClick={() => navigate("/Dashboard/Ajouter_produit")}
+        onClick={() => navigate("/dashboard/Ajouter_produit")}
         className="w-full bg-[#00A9DC] hover:bg-sky-600 text-white py-2 rounded-xl shadow text-sm"
       >
         Ajouter un produit
       </button>
       <button
-        onClick={() => navigate("/Dashboard/Ajouter_article")}
+        onClick={() => navigate("/dashboard/Ajouter_article")}
         className="w-full bg-[#00A9DC] hover:bg-sky-600 text-white py-2 rounded-xl shadow text-sm"
       >
         Ajouter un article
       </button>
       <button
-        onClick={() => navigate("/Dashboard/Ajouter_categorie")}
+        onClick={() => navigate("/ashboard/Ajouter_categorie")}
         className="w-full bg-[#00A9DC] hover:bg-sky-600 text-white py-2 rounded-xl shadow text-sm"
       >
         Ajouter une catégorie

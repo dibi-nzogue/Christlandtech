@@ -1008,6 +1008,24 @@ class DashboardArticlesListCreateView(generics.ListCreateAPIView):
             )
         return qs
 
+def perform_create(self, serializer):
+        """
+        Normalise l'URL de l'image pour ne stocker qu'un chemin relatif,
+        comme pour les catégories.
+        """
+        raw_image = (
+            self.request.data.get("image_couverture")
+            or self.request.data.get("image_url")
+            or self.request.data.get("image")
+        )
+
+        # si c'est une simple chaîne, on la nettoie
+        if isinstance(raw_image, str):
+            image_val = normalize_image_url(raw_image)
+            serializer.save(image_couverture=image_val)
+        else:
+            # au cas où tu changes plus tard pour un vrai upload de fichier
+            serializer.save()
 
 class DashboardArticleDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
@@ -1017,10 +1035,29 @@ class DashboardArticleDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ArticleDashboardSerializer
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
-        return ctx 
+        return ctx
+
+    # 👉 AJOUTE ÇA
+    def perform_update(self, serializer):
+        """
+        Normalise l'URL de l'image lors d'un update.
+        """
+        raw_image = (
+            self.request.data.get("image_couverture")
+            or self.request.data.get("image_url")
+            or self.request.data.get("image")
+        )
+
+        if isinstance(raw_image, str):
+            image_val = normalize_image_url(raw_image)
+            serializer.save(image_couverture=image_val)
+        else:
+            serializer.save()
+
 class DashboardArticleEditView(generics.RetrieveAPIView):
     """
     ✅ GET /christland/api/dashboard/articles/<id>/edit/

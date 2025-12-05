@@ -36,18 +36,44 @@ export function media(src?: string | null): string {
   if (!src) return "";
 
   const s = src.trim();
+  if (!s) return "";
 
-  // 1) Si c'est déjà une URL complète, on NE TOUCHE PAS au host
+  // 👉 1) URL absolue (http/https)
   if (/^https?:\/\//i.test(s)) {
-    // En prod, si c'est encore http, on force https
-    return isProd ? s.replace(/^http:\/\//i, "https://") : s;
+    try {
+      const u = new URL(s);
+      const LOCAL_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"];
+
+      // 🔹 Cas 1 : URL vers un host local
+      if (LOCAL_HOSTS.includes(u.hostname)) {
+        if (isProd) {
+          // On est en "prod" mais on a encore une URL locale -> on remappe vers MEDIA_BASE
+          const base = new URL(MEDIA_BASE);
+          return `${base.origin}${u.pathname}${u.search}${u.hash}`;
+        }
+        // En dev, on ne touche PAS du tout : on garde http://127.0.0.1:8000...
+        return s;
+      }
+
+      // 🔹 Cas 2 : URL vers ton vrai backend -> on force https seulement si nécessaire
+      if (isProd && u.protocol === "http:" && u.hostname === "christlandtech.onrender.com") {
+        return `https://${u.host}${u.pathname}${u.search}${u.hash}`;
+      }
+
+      // 🔹 Cas 3 : autre domaine (CDN, image externe, etc.) -> on ne touche pas
+      return s;
+    } catch {
+      // Si jamais le parsing échoue, on renvoie tel quel
+      return s;
+    }
   }
 
-  // 2) Sinon, c'est un chemin relatif -> on colle MEDIA_BASE devant
+  // 👉 2) Chemin relatif : "/media/..." ou "media/..."
   const base = MEDIA_BASE.replace(/\/+$/, "");
   const path = s.startsWith("/") ? s : `/${s}`;
   return `${base}${path}`;
 }
+
 
 /* =========================================================
    Types API

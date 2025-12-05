@@ -1,3 +1,4 @@
+// src/App.tsx
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Accueil from "./pages/Accueil";
@@ -14,38 +15,85 @@ import UpdateProduct from "./pages/UpdateProduct";
 import UpdateArticle from "./pages/UpdateArticle";
 import UpdateCathegorie from "./pages/UpdateCathegorie";
 import AddCathegorie from "./pages/AddCathegorie";
-// import Assistance from "./pages/Assistance";
-// import Contact from "./pages/Contact";
 import PrivateRoute from "./components/PrivateRoute";
 import { useTranslation } from "react-i18next";
 
 const App: React.FC = () => {
-   const { i18n } = useTranslation();
+  const { i18n } = useTranslation();
+
   return (
     <main className="">
-      <Routes  key={i18n.language}>
-        <Route path="/" element={<Accueil key={i18n.language}/>} />
-        <Route path="/a-propos" element={<About  key={i18n.language}/>} /> 
-        <Route path="/Produits" element={<Produits  key={i18n.language} />} />
-        <Route path="/Services" element={<Services   key={i18n.language}/>} />
-        <Route path="/Assistance" element={<Assistance  key={i18n.language}/>} />
-        <Route path="/Dashboard/Sighup" element={<Sighup />} />
-        <Route path="/Dashboard/Connexion" element={<Connexion />} />
-        <Route path="/Dashboard"element={<PrivateRoute><Dashboard /></PrivateRoute> } />
-        <Route path="/Dashboard/Ajouter_produit" element={ <PrivateRoute><AddProduct /></PrivateRoute> } />
-        <Route path="/Dashboard/Ajouter_article" element={<PrivateRoute><AddArticle /></PrivateRoute> } />
-        <Route path="/Dashboard/Modifier/:id" element={<PrivateRoute><UpdateProduct /></PrivateRoute>} />
-        <Route path="/Dashboard/Articles/:id/edit" element={<PrivateRoute><UpdateArticle /></PrivateRoute> } />
-        <Route path="/Dashboard/Categories/:id/edit"element={<PrivateRoute><UpdateCathegorie /></PrivateRoute> }/>
-        {/* Redirections utiles (majuscules / anciennes URLs) */}
-          <Route path="/dashboard/inscription" element={<Sighup />} />
-         <Route path="/dashboard/connexion" element={<Connexion />} />
-        {/* <Route path="/Dashboard/Connexion" element={<Navigate to="/dashboard/connexion" replace />} />
-        <Route path="/Dashboard/Sighup" element={<Navigate to="/dashboard/inscription" replace />} /> */}
-       <Route path="/Dashboard/Ajouter_categorie"element={<PrivateRoute><AddCathegorie /></PrivateRoute>} />
+      <Routes key={i18n.language}>
+        {/* Public */}
+        <Route path="/" element={<Accueil key={i18n.language} />} />
+        <Route path="/a-propos" element={<About key={i18n.language} />} />
+        <Route path="/produits" element={<Produits key={i18n.language} />} />
+        <Route path="/services" element={<Services key={i18n.language} />} />
+        <Route path="/assistance" element={<Assistance key={i18n.language} />} />
 
+        {/* Auth */}
+        <Route path="/dashboard/inscription" element={<Sighup />} />
+        <Route path="/dashboard/connexion" element={<Connexion />} />
 
-        {/* 404 */}
+        {/* Dashboard privé */}
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
+              <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard/ajouter-produit"
+          element={
+            <PrivateRoute>
+              <AddProduct />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard/ajouter-article"
+          element={
+            <PrivateRoute>
+              <AddArticle />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard/modifier/:id"
+          element={
+            <PrivateRoute>
+              <UpdateProduct />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard/articles/:id/edit"
+          element={
+            <PrivateRoute>
+              <UpdateArticle />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard/categories/:id/edit"
+          element={
+            <PrivateRoute>
+              <UpdateCathegorie />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard/ajouter-categorie"
+          element={
+            <PrivateRoute>
+              <AddCathegorie />
+            </PrivateRoute>
+          }
+        />
+
+        {/* 404 → retour accueil */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </main>

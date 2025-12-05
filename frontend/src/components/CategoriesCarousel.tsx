@@ -134,7 +134,7 @@ const CategoriesCarousel: React.FC = () => {
         {!loading && items.length > 0 && (
           <Slider ref={sliderRef} {...settings}>
             {items.map((cat, i) => {
-          // console.log("CAT TOP:", cat);   // tu peux le laisser en commentaire
+           console.log("CAT TOP:", cat);   // tu peux le laisser en commentaire
 
           // 👉 on prend l’URL brute renvoyée par l’API
           const rawImage = cat.image_url || (cat as any).image || "";

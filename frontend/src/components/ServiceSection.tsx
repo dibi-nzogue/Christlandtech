@@ -37,7 +37,7 @@ const ServiceSection: React.FC = () => {
 
         {/* Bouton cliquable */}
         <motion.div
-          onClick={() => navigate("/Services")}
+          onClick={() => navigate("/services")}
           className="pt-10 md:pt-20 text-white flex items-center justify-center gap-3 md:gap-5 cursor-pointer relative group"
           initial={{ opacity: 0, y: 50 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}

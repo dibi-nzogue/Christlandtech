@@ -437,7 +437,7 @@ const tabBaseCls =
             <Plus
               className="text-[#00A9DC] cursor-pointer"
               size={18}
-              onClick={() => navigate(`/Dashboard/Modifier/${p.id}`)}
+             onClick={() => navigate(`/dashboard/modifier/${p.id}`)}
             />
           </td>
           <td className="py-1.5 md:py-2 px-2 md:px-4">
@@ -479,7 +479,7 @@ const tabBaseCls =
             <Plus
               className="text-[#00A9DC] cursor-pointer"
               size={18}
-              onClick={() => navigate(`/Dashboard/Articles/${a.id}/edit`)}
+              onClick={() => navigate(`/dashboard/Articles/${a.id}/edit`)}
             />
           </td>
           <td className="py-1.5 md:py-2 px-2 md:px-4">
@@ -541,7 +541,7 @@ const tabBaseCls =
             <Plus
               className="text-[#00A9DC] cursor-pointer"
               size={18}
-              onClick={() => navigate(`/Dashboard/Categories/${parent.id}/edit`)}
+              onClick={() => navigate(`/dashboard/Categories/${parent.id}/edit`)}
             />
 
           </td>
@@ -583,7 +583,7 @@ const tabBaseCls =
                <Plus
                 className="text-[#00A9DC] cursor-pointer"
                 size={18}
-                onClick={() => navigate(`/Dashboard/Categories/${child.id}/edit`)}
+                onClick={() => navigate(`/dashboard/Categories/${child.id}/edit`)}
               />
 
               </td>
