@@ -8,7 +8,8 @@ import { getUiLang } from "../i18nLang";
 ========================================================= */
 // src/hooks/useFetchQuery.tsx
 
-const isProd = window.location.hostname !== "localhost";
+const isProd = import.meta.env.PROD;
+
 const SEND_LANG_IN_QUERY = true;
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -30,41 +31,23 @@ const MEDIA_BASE =
     ? "https://christlandtech.onrender.com"        // prod
     : "http://127.0.0.1:8000");                    // local
 
+// ✅ version simplifiée : gère local + prod sans se compliquer
 export function media(src?: string | null): string {
   if (!src) return "";
 
-  let url = src.trim();
-  const base = MEDIA_BASE.replace(/\/+$/, "");
+  const s = src.trim();
 
-  // 🔁 1) URL absolue (http/https)
-  if (/^https?:\/\//i.test(url)) {
-    try {
-      const u = new URL(url);
-
-      // 👉 hosts considérés comme "locaux"
-      const LOCAL_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"];
-
-      // 🎯 Si on est en prod ET que l'URL pointe vers un host local,
-      // on remappe vers MEDIA_BASE (ton backend Render)
-      if (isProd && LOCAL_HOSTS.includes(u.hostname)) {
-        const b = new URL(base);
-        return `${b.origin}${u.pathname}${u.search}${u.hash}`;
-      }
-
-      // Sinon : on garde le même host mais on force https
-      const protocol = u.protocol === "http:" ? "https:" : u.protocol;
-      return `${protocol}//${u.host}${u.pathname}${u.search}${u.hash}`;
-    } catch {
-      // En cas de bug de parsing : fallback -> forcer https "bêtement"
-      return url.replace(/^http:\/\//i, "https://");
-    }
+  // 1) Si c'est déjà une URL complète, on NE TOUCHE PAS au host
+  if (/^https?:\/\//i.test(s)) {
+    // En prod, si c'est encore http, on force https
+    return isProd ? s.replace(/^http:\/\//i, "https://") : s;
   }
 
-  // 🔁 2) Chemin relatif : "/media/..." ou "media/..."
-  const cleanPath = url.startsWith("/") ? url : `/${url}`;
-  return `${base}${cleanPath}`;
+  // 2) Sinon, c'est un chemin relatif -> on colle MEDIA_BASE devant
+  const base = MEDIA_BASE.replace(/\/+$/, "");
+  const path = s.startsWith("/") ? s : `/${s}`;
+  return `${base}${path}`;
 }
-
 
 /* =========================================================
    Types API

@@ -38,10 +38,10 @@ const App: React.FC = () => {
         <Route path="/Dashboard/Articles/:id/edit" element={<PrivateRoute><UpdateArticle /></PrivateRoute> } />
         <Route path="/Dashboard/Categories/:id/edit"element={<PrivateRoute><UpdateCathegorie /></PrivateRoute> }/>
         {/* Redirections utiles (majuscules / anciennes URLs) */}
-        <Route path="/Connexion" element={<Navigate to="/dashboard/connexion" replace />} />
-        <Route path="/Sighup" element={<Navigate to="/dashboard/inscription" replace />} />
-        <Route path="/Dashboard/Connexion" element={<Navigate to="/dashboard/connexion" replace />} />
-        <Route path="/Dashboard/Sighup" element={<Navigate to="/dashboard/inscription" replace />} />
+          <Route path="/dashboard/inscription" element={<Sighup />} />
+         <Route path="/dashboard/connexion" element={<Connexion />} />
+        {/* <Route path="/Dashboard/Connexion" element={<Navigate to="/dashboard/connexion" replace />} />
+        <Route path="/Dashboard/Sighup" element={<Navigate to="/dashboard/inscription" replace />} /> */}
        <Route path="/Dashboard/Ajouter_categorie"element={<PrivateRoute><AddCathegorie /></PrivateRoute>} />
 
 

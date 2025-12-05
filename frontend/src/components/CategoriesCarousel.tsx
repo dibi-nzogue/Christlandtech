@@ -134,11 +134,13 @@ const CategoriesCarousel: React.FC = () => {
         {!loading && items.length > 0 && (
           <Slider ref={sliderRef} {...settings}>
             {items.map((cat, i) => {
-console.log("CAT TOP:", cat);   // 👈 garder en commentaire au besoin
+          // console.log("CAT TOP:", cat);   // tu peux le laisser en commentaire
 
-  // ✅ on utilise bien image_url renvoyé par le backend + helper media()
-  const rawImage = cat.image_url || (cat as any).image || "";
-  const imgSrc = rawImage ? media(rawImage) || FALLBACK_SVG : FALLBACK_SVG;
+          // 👉 on prend l’URL brute renvoyée par l’API
+          const rawImage = cat.image_url || (cat as any).image || "";
+
+          // 👉 on laisse media() construire l’URL finale (local + prod)
+          const imgSrc = rawImage ? media(rawImage) : FALLBACK_SVG;
 
 
               return (

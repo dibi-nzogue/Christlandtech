@@ -1,6 +1,6 @@
 // src/components/PostsSection.tsx
 import React from "react";
-import { useBlogPosts, media} from "../hooks/useFetchQuery"; // ✅ import media
+import { useBlogPosts, media } from "../hooks/useFetchQuery";
 import { motion } from "framer-motion";
 import type { Variants, Transition } from "framer-motion";
 
@@ -187,10 +187,11 @@ const PostsSection: React.FC = () => {
   // image  <- image (image_couverture côté API)
   // title  <- extrait
   // excerpt<- contenu
- const postsTop: Post[] = React.useMemo(() => {
+const postsTop: Post[] = React.useMemo(() => {
   const items = data?.top ?? [];
   return items.map((a) => {
-    const img = a.image ? media(a.image) : "";
+    const rawImage = a.image || "";
+    const img = rawImage ? media(rawImage) : "";
     return {
       id: a.id,
       image: img || FALLBACK_IMG,
@@ -200,16 +201,21 @@ const PostsSection: React.FC = () => {
   });
 }, [data?.top]);
 
-  const postsBottom: Post[] = React.useMemo(() => {
-    const items = data?.bottom ?? [];
-    return items.map((a) => ({
-      id: a.id,
-      image: a.image || FALLBACK_IMG,
 
+const postsBottom: Post[] = React.useMemo(() => {
+  const items = data?.bottom ?? [];
+  return items.map((a) => {
+    const rawImage = a.image || "";
+    const img = rawImage ? media(rawImage) : "";
+    return {
+      id: a.id,
+      image: img || FALLBACK_IMG,
       title: a.excerpt || "",
       excerpt: a.content || "",
-    }));
-  }, [data?.bottom]);
+    };
+  });
+}, [data?.bottom]);
+
 
   return (
     <motion.section
