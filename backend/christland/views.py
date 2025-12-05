@@ -2514,22 +2514,21 @@ def _prod_img(request, produit):
     """
     Renvoie l’URL absolue de l’image principale du produit.
     """
+    # Essaye d’abord via la relation ImagesProduits (principale=True)
     img = produit.images.filter(principale=True).first() or produit.images.first()
-    if not img:
-        return None
-
-    # priorité aux FileField si présents
-    for field in ("fichier", "image", "photo", "fichier_image"):
-        f = getattr(img, field, None)
-        if f and hasattr(f, "url"):
-            return request.build_absolute_uri(f.url) if request else f.url
-
-    val = getattr(img, "url", None)
-    if not val:
-        return None
-
-    return _abs_media(request, val)
-
+    if img:
+        # Si c’est un FileField, prends son .url
+        for field in ("fichier", "image", "photo", "fichier_image"):
+            f = getattr(img, field, None)
+            if f and hasattr(f, "url"):
+                return request.build_absolute_uri(f.url) if request else f.url
+        # sinon tente d’utiliser le champ texte 'url'
+        val = getattr(img, "url", None)
+        if val:
+            if val.startswith("http"):
+                return val
+            return request.build_absolute_uri(f"{settings.MEDIA_URL}{val}") if request else f"{settings.MEDIA_URL}{val}"
+    return None
     
 class AdminGlobalSearchView(APIView):
     """
