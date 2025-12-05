@@ -48,7 +48,7 @@ const ArticleForm: React.FC = () => {
       setForm({ slug: "", extrait: "", contenu: "", image: "" });
 
       // ✅ Redirection vers Dashboard + onglet Articles + flash message
-      navigate("/Dashboard?tab=articles", {
+      navigate("/dashboard?tab=articles", {
         state: { flash: "Article créé avec succès ✅" },
         replace: true,
       });

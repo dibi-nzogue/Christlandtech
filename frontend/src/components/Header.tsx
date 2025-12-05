@@ -20,10 +20,10 @@ const Header: React.FC = () => {
     const query = q.trim();
     if (!query) {
       // 👇 Si le champ est vide, retour à /Dashboard sans paramètres
-      navigate("/Dashboard", { replace: true });
+      navigate("/dashboard", { replace: true });
       return;
     }
-    navigate(`/Dashboard?q=${encodeURIComponent(query)}&page=1`, {
+    navigate(`/dashboard?q=${encodeURIComponent(query)}&page=1`, {
       replace: true,
       state: { fromSearch: true },
     });
@@ -34,7 +34,7 @@ const Header: React.FC = () => {
     if (q.trim().length === 0) {
       const params = new URLSearchParams(location.search);
       if (params.has("q")) {
-        navigate("/Dashboard", { replace: true });
+        navigate("/dashboard", { replace: true });
       }
     }
   }, [q, navigate, location.search]);

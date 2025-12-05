@@ -25,7 +25,7 @@ const RightPanel: React.FC = () => {
         Ajouter un article
       </button>
       <button
-        onClick={() => navigate("/ashboard/Ajouter_categorie")}
+        onClick={() => navigate("/dashboard/Ajouter_categorie")}
         className="w-full bg-[#00A9DC] hover:bg-sky-600 text-white py-2 rounded-xl shadow text-sm"
       >
         Ajouter une catégorie

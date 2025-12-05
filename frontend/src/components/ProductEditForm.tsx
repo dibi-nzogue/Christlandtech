@@ -663,7 +663,7 @@ useEffect(() => {
     try {
       setSubmitting(true);
       await updateDashboardProductDeep(Number(id), payload);
-      navigate("/Dashboard", { replace: true, state: { flash: "Produit mis à jour ✅" } });
+      navigate("/dashboard", { replace: true, state: { flash: "Produit mis à jour ✅" } });
 
     } catch (err: any) {
       setToast({ kind: "error", msg: err?.message || "Échec de la mise à jour." });

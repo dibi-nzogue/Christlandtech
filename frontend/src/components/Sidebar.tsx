@@ -40,8 +40,8 @@ const Sidebar: React.FC = () => {
         <div
           title="Tableau de bord"
           aria-label="Tableau de bord"
-          onClick={() => go("/Dashboard")}
-          className={itemCls(pathname === "/Dashboard")}
+          onClick={() => go("/dashboard")}
+          className={itemCls(pathname === "/dashboard")}
         >
           <Home size={22} />
         </div>
@@ -49,8 +49,8 @@ const Sidebar: React.FC = () => {
         <div
           title="Statistiques"
           aria-label="Statistiques"
-          onClick={() => go("/Dashboard")}
-          className={itemCls(pathname.startsWith("/Dashboard/stats"))}
+          onClick={() => go("/dashboard")}
+          className={itemCls(pathname.startsWith("/dashboard/stats"))}
         >
           <BarChart2 size={22} />
         </div>
@@ -58,8 +58,8 @@ const Sidebar: React.FC = () => {
         <div
           title="Paramètres"
           aria-label="Paramètres"
-          onClick={() => go("/Dashboard")}
-          className={itemCls(pathname.startsWith("/Dashboard/settings"))}
+          onClick={() => go("/dashboard")}
+          className={itemCls(pathname.startsWith("/dashboard/settings"))}
         >
           <Settings size={22} />
         </div>
@@ -67,8 +67,8 @@ const Sidebar: React.FC = () => {
         <div
           title="Créer un compte"
           aria-label="Créer un compte"
-          onClick={() => go("/Dashboard/Sighup")}
-          className={itemCls(pathname === "/Dashboard/Sighup")}
+          onClick={() => go("/dashboard/Sighup")}
+          className={itemCls(pathname === "/dashboard/Sighup")}
         >
           <UserPlus size={22} />
         </div>

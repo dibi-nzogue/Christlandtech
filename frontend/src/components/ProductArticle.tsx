@@ -119,7 +119,7 @@ const ProductArticle: React.FC = () => {
 
       await updateDashboardArticle(Number(id), payload);
       setOk("Article mis à jour ✅");
-      setTimeout(() => navigate("/Dashboard", { replace: true }), 800);
+      setTimeout(() => navigate("/dashboard", { replace: true }), 800);
     } catch (e: any) {
       setError(e?.message || "Échec de la mise à jour.");
     } finally {

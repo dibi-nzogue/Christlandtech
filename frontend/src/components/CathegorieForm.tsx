@@ -218,7 +218,7 @@ const CathegorieForm: React.FC = () => {
       });
 
       setTimeout(() => {
-        navigate("/Dashboard?tab=categories", {
+        navigate("/dashboard?tab=categories", {
           replace: true,
           state: { flash: "Catégorie créée ✅" },
         });

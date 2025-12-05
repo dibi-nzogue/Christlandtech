@@ -612,7 +612,10 @@ couleur:
     window.dispatchEvent(new CustomEvent("product:created"));
 
     // 🔀 redirection Dashboard
-    navigate("/Dashboard");
+   navigate("/dashboard", {
+  state: { flash: successMsg },
+  replace: true,
+});
 
     // (facultatif, vu qu’on quitte la page)
     setFormData({

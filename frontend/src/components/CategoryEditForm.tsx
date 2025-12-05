@@ -308,7 +308,7 @@ if (isRootCategory && newSubCategories.length > 0) {
 }
 
       setTimeout(() => {
-        navigate("/Dashboard?tab=categories", {
+        navigate("/dashboard?tab=categories", {
           replace: true,
           state: { flash: "Catégorie mise à jour ✅" },
         });
