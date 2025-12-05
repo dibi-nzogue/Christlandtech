@@ -17,28 +17,39 @@
 
 # # Build paths inside the project like this: BASE_DIR / 'subdir'.
 # BASE_DIR = Path(__file__).resolve().parent.parent
+
 # load_dotenv(BASE_DIR / ".env")
 
-# SECRET_KEY = os.getenv("SECRET_KEY", "changeme-in-prod")
+# # 🔐 Secret key et debug
+# SECRET_KEY = os.getenv(
+#     "SECRET_KEY",
+#     "changeme-in-prod"  # valeur par défaut si pas de .env (à éviter en prod)
+# )
+
 # DEBUG = os.getenv("DEBUG", "False") == "True"
 
+# # 🔐 Hosts autorisés
 # ALLOWED_HOSTS = [
 #     "localhost",
 #     "127.0.0.1",
 #     "testserver",
-#     "dibiyes.cluster024.hosting.ovh.net",
+#     "dibiyes.cluster024.hosting.ovh.net",  # 🔁 URL technique OVH
 # ]
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": os.getenv("DB_NAME", "christland"),
-#         "USER": os.getenv("DB_USER", "postgres"),
-#         "PASSWORD": os.getenv("DB_PASSWORD", ""),
-#         "HOST": os.getenv("DB_HOST", "localhost"),
-#         "PORT": os.getenv("DB_PORT", "5432"),
-#     }
-# }
+
+# # Application definition
+
+# INSTALLED_APPS = [
+#     'django.contrib.admin',
+#     'django.contrib.auth',
+#     'django.contrib.contenttypes',
+#     'django.contrib.sessions',
+#     'django.contrib.messages',
+#     'django.contrib.staticfiles',
+#     "rest_framework", "corsheaders", 
+#     "christland.apps.ChristlandConfig",
+#     'csp',
+# ]
 
 # CONTENT_SECURITY_POLICY = {
 #     "DIRECTIVES": {
@@ -64,28 +75,6 @@
 # ]
 
 # ROOT_URLCONF = 'core.urls'
-
-
-
-# INSTALLED_APPS = [
-#     # Apps Django de base
-#     "django.contrib.admin",
-#     "django.contrib.auth",
-#     "django.contrib.contenttypes",
-#     "django.contrib.sessions",
-#     "django.contrib.messages",
-#     "django.contrib.staticfiles",
-
-#     # Apps tierces
-#     "rest_framework",
-#     "corsheaders",
-#     "csp",
-
-#     # Ton app principale
-#     "christland",
-# ]
-
-
 
 # TEMPLATES = [
 #     {
@@ -288,7 +277,8 @@
 # }
 
 
-# # LIBRETRANSLATE_URL = "https://libretranslate.com"
+# LIBRETRANSLATE_URL = "https://libretranslate.com"
+
 
 
 

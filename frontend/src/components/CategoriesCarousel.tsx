@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import {
   useTopCategories1,
   type ApiCategory,
- 
+  media, // ✅ helper pour corriger les URLs d'images
 } from "../hooks/useFetchQuery";
 
 // ✅ Fallback inline SVG si pas d'image
@@ -134,10 +134,11 @@ const CategoriesCarousel: React.FC = () => {
         {!loading && items.length > 0 && (
           <Slider ref={sliderRef} {...settings}>
             {items.map((cat, i) => {
-               console.log("CAT TOP:", cat);   // 👈 temporaire pour debug
-              // ✅ on utilise bien image_url renvoyé par le backend
-              const imgSrc = cat.image_url || FALLBACK_SVG;
+console.log("CAT TOP:", cat);   // 👈 garder en commentaire au besoin
 
+  // ✅ on utilise bien image_url renvoyé par le backend + helper media()
+  const rawImage = cat.image_url || (cat as any).image || "";
+  const imgSrc = rawImage ? media(rawImage) || FALLBACK_SVG : FALLBACK_SVG;
 
 
               return (

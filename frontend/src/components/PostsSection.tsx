@@ -1,6 +1,6 @@
 // src/components/PostsSection.tsx
 import React from "react";
-import { useBlogPosts} from "../hooks/useFetchQuery"; // ✅ import media
+import { useBlogPosts, media} from "../hooks/useFetchQuery"; // ✅ import media
 import { motion } from "framer-motion";
 import type { Variants, Transition } from "framer-motion";
 
@@ -187,17 +187,18 @@ const PostsSection: React.FC = () => {
   // image  <- image (image_couverture côté API)
   // title  <- extrait
   // excerpt<- contenu
-  const postsTop: Post[] = React.useMemo(() => {
-    const items = data?.top ?? [];
-    return items.map((a) => ({
+ const postsTop: Post[] = React.useMemo(() => {
+  const items = data?.top ?? [];
+  return items.map((a) => {
+    const img = a.image ? media(a.image) : "";
+    return {
       id: a.id,
-      // ✅ on passe par media() et on a un fallback sûr
-      image: a.image || FALLBACK_IMG,
-
+      image: img || FALLBACK_IMG,
       title: a.excerpt || "",
       excerpt: a.content || "",
-    }));
-  }, [data?.top]);
+    };
+  });
+}, [data?.top]);
 
   const postsBottom: Post[] = React.useMemo(() => {
     const items = data?.bottom ?? [];

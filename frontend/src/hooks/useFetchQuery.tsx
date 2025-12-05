@@ -33,46 +33,38 @@ const MEDIA_BASE =
 export function media(src?: string | null): string {
   if (!src) return "";
 
-  // Normalisation de la base
+  let url = src.trim();
   const base = MEDIA_BASE.replace(/\/+$/, "");
 
-  // Tous les vieux hosts locaux qu'on veut écraser
-  const LOCAL_PREFIXES = [
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-    "http://0.0.0.0:8000",
-  ];
+  // 🔁 1) URL absolue (http/https)
+  if (/^https?:\/\//i.test(url)) {
+    try {
+      const u = new URL(url);
 
-  // 1) Cas le plus critique : URL absolue vers le backend local
-  for (const p of LOCAL_PREFIXES) {
-    if (src.startsWith(p)) {
-      const suffix = src.slice(p.length); // ex: "/media/..."
-      return `${base}${suffix}`;
-    }
-  }
+      // 👉 hosts considérés comme "locaux"
+      const LOCAL_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"];
 
-  // 2) Autres URL absolues http(s)
-  if (src.startsWith("http://") || src.startsWith("https://")) {
-    // En prod, si c'est du HTTP clair, on force vers MEDIA_BASE (https)
-    if (isProd && src.startsWith("http://")) {
-      try {
-        const url = new URL(src);
-        const baseUrl = new URL(base);
-        // On garde le chemin / query / hash de l'URL d'origine
-        return `${baseUrl.origin}${url.pathname}${url.search}${url.hash}`;
-      } catch {
-        // Si jamais ça plante, on renvoie tel quel (au pire, on verra l'erreur)
-        return src;
+      // 🎯 Si on est en prod ET que l'URL pointe vers un host local,
+      // on remappe vers MEDIA_BASE (ton backend Render)
+      if (isProd && LOCAL_HOSTS.includes(u.hostname)) {
+        const b = new URL(base);
+        return `${b.origin}${u.pathname}${u.search}${u.hash}`;
       }
+
+      // Sinon : on garde le même host mais on force https
+      const protocol = u.protocol === "http:" ? "https:" : u.protocol;
+      return `${protocol}//${u.host}${u.pathname}${u.search}${u.hash}`;
+    } catch {
+      // En cas de bug de parsing : fallback -> forcer https "bêtement"
+      return url.replace(/^http:\/\//i, "https://");
     }
-    // Sinon, on ne touche pas (ex: image externe déjà en https)
-    return src;
   }
 
-  // 3) Chemin relatif : "/media/..." ou "media/..."
-  const clean = src.startsWith("/") ? src : `/${src}`;
-  return `${base}${clean}`;
+  // 🔁 2) Chemin relatif : "/media/..." ou "media/..."
+  const cleanPath = url.startsWith("/") ? url : `/${url}`;
+  return `${base}${cleanPath}`;
 }
+
 
 /* =========================================================
    Types API
