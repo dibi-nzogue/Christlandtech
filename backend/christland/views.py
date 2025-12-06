@@ -80,21 +80,41 @@ from urllib.parse import urlparse
 
 
 def normalize_image_url(raw):
+    """
+    Normalise une URL d'image pour la stocker en base:
+    - http://127.0.0.1:8000/media/uploads/xxx.jpg -> 'uploads/xxx.jpg'
+    - /media/uploads/xxx.jpg                      -> 'uploads/xxx.jpg'
+    - images/achat/truc.jpg                       -> 'images/achat/truc.jpg'
+    - /images/achat/truc.jpg                      -> 'images/achat/truc.jpg'
+    """
     if not raw:
         return None
 
     raw = str(raw).strip()
-
     parsed = urlparse(raw)
 
-    # Si on reçoit une URL complète: http://127.0.0.1:8000/media/...
+    # 1) on récupère un chemin "nu"
     if parsed.scheme in ("http", "https"):
         path = parsed.path or ""
-        # on retire le premier "/" pour stocker "media/..." ou "images/achat/..."
-        return path.lstrip("/") or None
+    else:
+        path = raw
 
-    # Sinon on considère que c'est déjà un chemin du style "images/achat/..."
-    return raw.lstrip("/")
+    path = path.strip()
+
+    # 2) on enlève le préfixe MEDIA_URL si présent (ex: "/media/")
+    media_prefix = getattr(settings, "MEDIA_URL", "/media/") or "/media/"
+    # s'assurer qu'il commence par "/" et sans "/" final
+    if not media_prefix.startswith("/"):
+        media_prefix = "/" + media_prefix
+    media_prefix = media_prefix.rstrip("/")
+
+    if path.startswith(media_prefix):
+        path = path[len(media_prefix):]
+
+    # 3) on enlève les "/" de début restants
+    path = path.lstrip("/")
+
+    return path or None
 
 
 def _as_int(val):
@@ -1736,16 +1756,17 @@ def _clean_images_payload(images):
       - ["https://...jpg", ...] OU
       - [{url, alt_text?, position?, principale?}, ...]
     -> Nettoie, force une seule 'principale', normalise position->int|None
+       et normalise aussi l'URL pour NE PAS stocker http://127.0.0.1:8000/...
     """
     out = []
     for it in (images or []):
         if isinstance(it, str):
-            url = it.strip()
+            url_raw = it.strip()
             alt = ""
             pos = None
             principale = False
         elif isinstance(it, dict):
-            url = (it.get("url") or "").strip()
+            url_raw = (it.get("url") or "").strip()
             alt = (it.get("alt_text") or "").strip()
             pos = it.get("position", None)
             try:
@@ -1756,10 +1777,17 @@ def _clean_images_payload(images):
         else:
             continue
 
+        # ✅ ICI on normalise l'URL pour enlever http://127.0.0.1:8000 + /media/
+        url = normalize_image_url(url_raw)
         if not url:
             continue
 
-        out.append({"url": url, "alt_text": alt, "position": pos, "principale": principale})
+        out.append({
+            "url": url,
+            "alt_text": alt,
+            "position": pos,
+            "principale": principale,
+        })
 
     if not out:
         return []
@@ -1774,7 +1802,9 @@ def _clean_images_payload(images):
                 seen = True
             else:
                 x["principale"] = False
+
     return out
+
 
 def _parse_dt_local(s: str | None):
     """
