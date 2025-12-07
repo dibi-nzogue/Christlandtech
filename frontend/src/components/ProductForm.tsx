@@ -96,7 +96,7 @@ const ProductForm: React.FC = () => {
    const navigate = useNavigate();
   const { data: categories } =useDashboardCategories();
   React.useEffect(() => {
-  console.log("📦 [DEBUG] CATEGORIES DANS ProductForm :", categories);
+ 
 }, [categories]);
 
   const { data: marques } = useMarques();
