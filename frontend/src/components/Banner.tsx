@@ -12,7 +12,7 @@ const Banner = ({label}: BannerProps) => {
   return (
     <div className='bg-[#DEDBDB] bg-opacity-[65%] p-5 md:p-8 mt-5 lg:mt-10 rounded-xl'>
         <div 
-            onClick={() => navigate('dashboard')}
+            onClick={() => navigate('/dashboard')}
             className='flex justify-center md:justify-start items-center gap-5'
         >
             <div className='cursor-pointer flex items-center gap-2 font-bold'>

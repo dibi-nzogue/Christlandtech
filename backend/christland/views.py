@@ -142,12 +142,8 @@ def _descendants_ids(cat: Categories) -> list[int]:
 
 def _product_main_image_url(request, prod: Produits) -> str | None:
     img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
-    if not img or not getattr(img, "url", None):
-        return None
-    url = str(img.url).strip()
-    if url.lower().startswith(("http://", "https://", "data:")):
-        return url
-    return request.build_absolute_uri(url)
+    return _abs_media(request, img.url if img else None)
+
 
 
 def _image_accessor_name() -> str:
@@ -686,11 +682,7 @@ class ProductMiniView(APIView):
 
         # Image principale
         img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
-        img_url = ""
-        if img and getattr(img, "url", None):
-            img_url = str(img.url).strip()
-            if not img_url.lower().startswith(("http://", "https://", "data:")):
-                img_url = request.build_absolute_uri(img_url)
+        img_url = _abs_media(request, img.url if img else None) or ""
 
         # Référence (SKU ou slug)
         sku = (prod.variantes
@@ -1161,13 +1153,8 @@ class LatestProductsView(APIView):
 
             # ---------- Image principale ----------
             main_img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
-            if main_img and main_img.url:
-                url = str(main_img.url).strip()
-                if not url.lower().startswith(("http://", "https://", "data:")):
-                    url = request.build_absolute_uri(url)
-                obj["image"] = url
-            else:
-                obj["image"] = None
+            obj["image"] = _abs_media(request, main_img.url if main_img else None)
+
 
             # ---------- Prix min ----------
           # On garde le price calculé par le serializer
@@ -2493,24 +2480,9 @@ class MostDemandedProductsView(APIView):
 
 
 def _prod_img(request, produit):
-    """
-    Renvoie l’URL absolue de l’image principale du produit.
-    """
-    # Essaye d’abord via la relation ImagesProduits (principale=True)
     img = produit.images.filter(principale=True).first() or produit.images.first()
-    if img:
-        # Si c’est un FileField, prends son .url
-        for field in ("fichier", "image", "photo", "fichier_image"):
-            f = getattr(img, field, None)
-            if f and hasattr(f, "url"):
-                return request.build_absolute_uri(f.url) if request else f.url
-        # sinon tente d’utiliser le champ texte 'url'
-        val = getattr(img, "url", None)
-        if val:
-            if val.startswith("http"):
-                return val
-            return request.build_absolute_uri(f"{settings.MEDIA_URL}{val}") if request else f"{settings.MEDIA_URL}{val}"
-    return None
+    return _abs_media(request, getattr(img, "url", None)) if img else None
+
     
 class AdminGlobalSearchView(APIView):
     """
