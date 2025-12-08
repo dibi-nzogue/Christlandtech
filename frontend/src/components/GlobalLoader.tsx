@@ -28,7 +28,7 @@ const GlobalLoader: React.FC = () => {
             Chargement de la page en cours...
           </p>
           <p className="text-[11px] text-slate-400/70">
-            Merci de patienter, nous récupérons vos données.
+            Merci de patienter
           </p>
         </div>
 
