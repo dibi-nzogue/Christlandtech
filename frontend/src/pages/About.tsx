@@ -7,8 +7,15 @@ import ContactSection from '../components/ContactSection';
 import BoardManage from '../components/BoardManage';
 import StatsSection from '../components/StatsSection';
 
+import GlobalLoader from "../components/GlobalLoader";
+import { useGlobalLoading } from "../hooks/useFetchQuery";
+
 const About: React.FC = () => {
+  const isLoading = useGlobalLoading();   // 👈 écoute le loader global
+
   return (
+     <>
+      {isLoading && <GlobalLoader />}     {/* 👈 overlay partout tant qu'il y a des fetchs */}
     <div>
         <Navbar />
         <HeroAbout />
@@ -18,6 +25,7 @@ const About: React.FC = () => {
         <Footer />
         <ScrollToTopButton />
     </div>
+    </>
   )
 }
 

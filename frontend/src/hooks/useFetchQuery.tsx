@@ -75,6 +75,51 @@ export function media(src?: string | null): string {
 }
 
 
+
+
+// 🔭 Loader global : nombre de requêtes en cours
+let globalRequests = 0;
+
+type GlobalListener = (isLoading: boolean) => void;
+const globalListeners = new Set<GlobalListener>();
+
+function notifyGlobal() {
+  const isLoading = globalRequests > 0;
+  globalListeners.forEach((fn) => fn(isLoading));
+}
+
+function startGlobalLoading() {
+  globalRequests += 1;
+  notifyGlobal();
+}
+
+function stopGlobalLoading() {
+  globalRequests = Math.max(0, globalRequests - 1);
+  notifyGlobal();
+}
+
+/** Permet de s'abonner au loader global */
+export function subscribeGlobalLoading(fn: GlobalListener): () => void {
+  globalListeners.add(fn);
+  return () => {
+    globalListeners.delete(fn); // on ignore le boolean
+  };
+}
+/** Hook React pour savoir s'il y a des fetchs en cours */
+export function useGlobalLoading() {
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = subscribeGlobalLoading(setLoading);
+    return unsubscribe;
+  }, []);
+
+  return loading;
+}
+
+
+
+
 /* =========================================================
    Types API
 ========================================================= */
@@ -289,49 +334,55 @@ export function useFetchQuery<T = any>(url: string, opts: UseFetchOptions<T> = {
   const intervalRef = useRef<number | null>(null);
 
   const run = useCallback(async () => {
-  if (!enabled || !url) return;
+    if (!enabled || !url) return;
 
-  abortRef.current?.abort();
-  const ctrl = new AbortController();
-  abortRef.current = ctrl;
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
 
-  if (!keepPreviousData || !memoryCache.has(key)) {
-    setState((s) => ({ ...s, loading: true, error: null }));
-  }
-
-  // FORCE ?lang=en (ou fr) dans TOUTES les requêtes – le backend le lit à 100%
-const qs = toQueryString({ ...params, lang: uiLang }, uiLang);
-  const requestInit = withJsonAccept(fetchInit); // withJsonAccept lit déjà getUiLang() à chaud
-
-  try {
-    const res = await fetchWithTimeout(url + qs, { ...requestInit, signal: ctrl.signal });
-
-    // ➜ Token expiré / invalide : logout + stop
-    if (res.status === 401) {
-      auth.logout();
-      return;
+    if (!keepPreviousData || !memoryCache.has(key)) {
+      setState((s) => ({ ...s, loading: true, error: null }));
     }
 
-    if (!res.ok) {
-      // essaie de parser du JSON pour remonter un message lisible
-      await parseJsonSafe(res);
-      throw new Error(`HTTP ${res.status}`);
+    // FORCE ?lang=en (ou fr) dans TOUTES les requêtes – le backend le lit à 100%
+    const qs = toQueryString({ ...params, lang: uiLang }, uiLang);
+    const requestInit = withJsonAccept(fetchInit); // withJsonAccept lit déjà getUiLang() à chaud
+
+    // 👉 toutes les requêtes démarrent le loader global
+    startGlobalLoading();
+
+    try {
+      const res = await fetchWithTimeout(url + qs, { ...requestInit, signal: ctrl.signal });
+
+      // ➜ Token expiré / invalide : logout + stop
+      if (res.status === 401) {
+        auth.logout();
+        return;
+      }
+
+      if (!res.ok) {
+        // essaie de parser du JSON pour remonter un message lisible
+        await parseJsonSafe(res);
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const raw = await parseJsonSafe(res);
+      const data = (select ? await (select as any)(raw) : raw) as T;
+
+      memoryCache.set(key, data);
+      setState({ data, loading: false, error: null });
+      onSuccess?.(data);
+    } catch (e: any) {
+      if (e?.name === "AbortError") return;
+      const msg = e?.message ?? "Network error";
+      setState((s) => ({ ...s, loading: false, error: msg }));
+      onError?.(msg);
+    } finally {
+      // 👉 même en cas d'erreur ou d'abort, on décrémente
+      stopGlobalLoading();
     }
+  }, [enabled, url, params, keepPreviousData, select, fetchInit, onSuccess, onError, uiLang, key]);
 
-    const raw = await parseJsonSafe(res);
-   const data = (select ? await (select as any)(raw) : raw) as T;
-
-
-    memoryCache.set(key, data);
-    setState({ data, loading: false, error: null });
-    onSuccess?.(data);
-  } catch (e: any) {
-    if (e?.name === "AbortError") return;
-    const msg = e?.message ?? "Network error";
-    setState((s) => ({ ...s, loading: false, error: msg }));
-    onError?.(msg);
-  }
-}, [enabled, url, params, keepPreviousData, select, fetchInit, onSuccess, onError, uiLang, key]);
 
 useEffect(() => {
   memoryCache.clear();

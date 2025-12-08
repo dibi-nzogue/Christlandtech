@@ -5,6 +5,7 @@ import { MdClose } from "react-icons/md";
 import iphone from "../assets/images/produits/sans-fond/Apple Iphone 15 Black Smartphone PNG _ TopPNG.png";
 import { useTranslation } from "react-i18next";
 // + ajoute le type
+import GlobalLoader from "../components/GlobalLoader";
 import { motion } from "framer-motion";
 import type { Variants, Transition } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
@@ -722,73 +723,91 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
             </aside>
 
             {/* Produits + pagination */}
+                       {/* Produits + pagination */}
             <main>
-              {productsLoading && <div className="py-10 text-center text-gray-500"></div>}
-
-              {!productsLoading && products.length === 0 && (
-                <div className="py-10 text-center text-gray-500">Aucun produit trouvé.</div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-                {products.map((p) => {
-                  const img = firstImageUrl(p) || FALLBACK_IMG;
-                  return (
-                  <ProductCard
-                  key={p.id}
-                  name={p.nom}
-                  // prix courant envoyé par l’API (peut être string -> Number)
-                  price={p?.prix_from != null ? Number(p.prix_from as any) : null}
-                  // ancien prix barré : UNIQUEMENT si la promo est active MAINTENANT
-                  oldPrice={
-                    p?.promo_now && p?.old_price_from != null
-                      ? Number(p.old_price_from as any)
-                      : null
-                  }
-                  img={img}
-                  desc={p.description_courte}
-                  promoNow={p.promo_now}             // ✅ nouveau
-                  promoFin={p.promo_fin ?? null} 
-                  onOrder={() => orderAndTrack(p, img)}
-                />
-
-                  );
-                })}
-              </div>
-
-              {(productPage?.count ?? 0) > 12 && (
-                <div className="mt-10 flex items-center justify-center gap-2">
-                  <button
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white hover:border-[#00A8E8]"
-                    onClick={() => goto(page - 1)}
-                    disabled={page === 1}
-                    aria-label="Page précédente"
-                  >
-                    <FiChevronLeft />
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .slice(0, 5)
-                    .map((n) => (
-                      <button
-                        key={n}
-                        onClick={() => goto(n)}
-                        className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-sm ${
-                          n === page ? `${ACCENT} ${ACCENT_HOVER}` : "bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
-                        }`}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  <button
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white hover:border-[#00A8E8]"
-                    onClick={() => goto(page + 1)}
-                    disabled={page === totalPages}
-                    aria-label="Page suivante"
-                  >
-                    <FiChevronRight />
-                  </button>
+              {/* 🔄 Loader pendant le chargement initial */}
+              {productsLoading && products.length === 0 && (
+                <div className="py-16 flex items-center justify-center">
+                  <GlobalLoader />
                 </div>
               )}
+
+              {/* 🟥 Message si aucun produit après chargement */}
+              {!productsLoading && products.length === 0 && (
+                <div className="py-10 text-center text-gray-500">
+                  {q
+                    ? "Aucun produit ne correspond à cette recherche."
+                    : "Aucun produit trouvé."}
+                </div>
+              )}
+
+              {/* ✅ Grille de produits (uniquement quand on a des données) */}
+              {!productsLoading && products.length > 0 && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+                    {products.map((p) => {
+                      const img = firstImageUrl(p) || FALLBACK_IMG;
+                      return (
+                        <ProductCard
+                          key={p.id}
+                          name={p.nom}
+                          price={
+                            p?.prix_from != null ? Number(p.prix_from as any) : null
+                          }
+                          oldPrice={
+                            p?.promo_now && p?.old_price_from != null
+                              ? Number(p.old_price_from as any)
+                              : null
+                          }
+                          img={img}
+                          desc={p.description_courte}
+                          promoNow={p.promo_now}
+                          promoFin={p.promo_fin ?? null}
+                          onOrder={() => orderAndTrack(p, img)}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {(productPage?.count ?? 0) > 12 && (
+                    <div className="mt-10 flex items-center justify-center gap-2">
+                      <button
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white hover:border-[#00A8E8]"
+                        onClick={() => goto(page - 1)}
+                        disabled={page === 1}
+                        aria-label="Page précédente"
+                      >
+                        <FiChevronLeft />
+                      </button>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .slice(0, 5)
+                        .map((n) => (
+                          <button
+                            key={n}
+                            onClick={() => goto(n)}
+                            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border text-sm ${
+                              n === page
+                                ? `${ACCENT} ${ACCENT_HOVER}`
+                                : "bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      <button
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white hover:border-[#00A8E8]"
+                        onClick={() => goto(page + 1)}
+                        disabled={page === totalPages}
+                        aria-label="Page suivante"
+                      >
+                        <FiChevronRight />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </main>
+
           </div>
         </div>
       </div>

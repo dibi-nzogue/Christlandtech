@@ -11,3 +11,22 @@ export default {
   plugins: [],
 }
 
+// tailwind.config.js
+module.exports = {
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    extend: {
+      keyframes: {
+        loaderSlide: {
+          "0%": { transform: "translateX(-100%)" },
+          "50%": { transform: "translateX(40%)" },
+          "100%": { transform: "translateX(120%)" },
+        },
+      },
+      animation: {
+        loaderSlide: "loaderSlide 1.2s ease-in-out infinite",
+      },
+    },
+  },
+  plugins: [],
+};

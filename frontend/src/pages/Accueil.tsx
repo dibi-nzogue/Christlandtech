@@ -1,21 +1,25 @@
+// src/pages/Accueil.tsx
 import React from "react";
 import Navbar from "../components/Navbar";
 import Sponsor from "../components/Sponsor";
 import HeroCarousel from "../components/HeroCarousel";
 import ContactSection from "../components/ContactSection";
 import ServiceSection from "../components/ServiceSection";
-import Footer from '../components/Footer';
+import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
 import CategoriesCarousel from "../components/CategoriesCarousel";
-import Nouveautes from '../components/Nouveautes';
-// import { useTranslation } from "react-i18next";
+import Nouveautes from "../components/Nouveautes";
+
+import GlobalLoader from "../components/GlobalLoader";
+import { useGlobalLoading } from "../hooks/useFetchQuery";
 
 const Accueil: React.FC = () => {
+  const isLoading = useGlobalLoading();   // 👈 écoute le loader global
 
-  // const { t } = useTranslation();
-
-  return ( 
+  return (
     <>
+      {isLoading && <GlobalLoader />}     {/* 👈 overlay partout tant qu'il y a des fetchs */}
+
       <Navbar />
       <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 pt-8 md:pt-28 lg:pt-32">
         <HeroCarousel />
@@ -24,7 +28,7 @@ const Accueil: React.FC = () => {
       <Sponsor />
       <Nouveautes />
       <ServiceSection />
-      <ContactSection id="contact"/>
+      <ContactSection id="contact" />
       <ScrollToTopButton />
       <Footer />
     </>
