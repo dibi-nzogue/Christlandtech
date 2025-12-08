@@ -468,7 +468,7 @@ import os
 
 # === Email / Contact ===
 
-CONTACT_INBOX = os.getenv("CONTACT_INBOX", "nyogue.dibiye@gmail.com")
+CONTACT_INBOX = os.getenv("CONTACT_INBOX", "nzogue.dibiye@gmail.com")
 
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
@@ -489,6 +489,8 @@ EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "20"))
 STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
 
 # === DRF ===
 REST_FRAMEWORK = {

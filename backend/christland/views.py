@@ -117,6 +117,31 @@ def normalize_image_url(raw):
     return path or None
 
 
+def _to_bool(raw, default=False):
+    """
+    Convertit proprement une valeur venant du front en booléen.
+    Accepte: True/False, 1/0, "true"/"false", "1"/"0", "on"/"off", "yes"/"no"
+    """
+    if raw is None:
+        return default
+
+    if isinstance(raw, bool):
+        return raw
+
+    if isinstance(raw, (int, float)):
+        return bool(raw)
+
+    s = str(raw).strip().lower()
+
+    if s in ("1", "true", "yes", "y", "on"):
+        return True
+    if s in ("0", "false", "no", "n", "off", ""):
+        return False
+
+    return default
+
+
+
 def _as_int(val):
     try:
         return int(val)
@@ -401,7 +426,7 @@ class CategoryProductList(generics.ListAPIView):
             serializer = self.get_serializer(queryset, many=True)
             response = Response(serializer.data)
 
-        cache.set(cache_key, response.data, 180)
+        cache.set(cache_key, response.data,5)
         return response
 
 
@@ -1213,7 +1238,7 @@ class LatestProductsView(APIView):
 
             results.append(obj)
 
-        cache.set(cache_key, results,20)
+        cache.set(cache_key, results,5)
         return Response(results)
 
 
@@ -1288,10 +1313,9 @@ class ContactMessageView(APIView):
                 headers={"Reply-To": email} if email else None,
             )
             # On n’échoue pas la requête si l’envoi mail tombe (logguez si besoin)
-            try:
-                mail.send(fail_silently=True)
-            except Exception:
-                pass
+            # TEMPORAIREMENT pour debug
+            mail.send(fail_silently=False)
+
 
         return Response({"ok": True, "message": "Message enregistré et envoyé."}, status=201)
 
@@ -1486,47 +1510,139 @@ class DashboardProductEditDataView(APIView):
 
         prod.save()
 
-        # ---- Variante (1re, créée si absente) ----
-        var = prod.variantes.order_by("id").first()
-        if not var:
-            var = VariantesProduits.objects.create(produit=prod, nom=prod.nom or "", prix=0)
+         # ---- VARIANTS (nouvelle gestion complète) ----
+        variants_payload = data.get("variants") or []
 
-        def _set_if_present(obj, key, transform=lambda x: x):
-            if key in data:
-                setattr(obj, key, transform(data.get(key)))
+        def _set_if_present(obj, key, source, transform=lambda x: x):
+            if key in source:
+                setattr(obj, key, transform(source.get(key)))
 
-        _set_if_present(var, "nom",        lambda v: v or prod.nom or "")
-        _set_if_present(var, "sku",        lambda v: v or "")
-        _set_if_present(var, "code_barres",lambda v: v or "")
-        _set_if_present(var, "prix")
-        _set_if_present(var, "prix_promo")
-        _set_if_present(var, "promo_active", bool)
-        if "promo_debut" in data:
-            var.promo_debut = _parse_dt_local(data.get("promo_debut"))
-        if "promo_fin" in data:
-            var.promo_fin = _parse_dt_local(data.get("promo_fin"))
-        _set_if_present(var, "stock",      lambda v: v or 0)
-        _set_if_present(var, "prix_achat")
-        _set_if_present(var, "poids_grammes", lambda v: data.get("variante_poids_grammes"))
-        if "variante_poids_grammes" in data:
-            var.poids_grammes = data.get("variante_poids_grammes")
-        _set_if_present(var, "est_actif",  lambda v: data.get("variante_est_actif") if "variante_est_actif" in data else getattr(var, "est_actif", True))
-        if "variante_est_actif" in data:
-            var.est_actif = bool(data.get("variante_est_actif"))
+        if variants_payload:
+            # On a reçu un tableau complet de variantes -> on synchronise
+            existing_vars = {v.id: v for v in prod.variantes.all()}
+            keep_ids: list[int] = []
 
-        if "couleur" in data:
-            var.couleur = _resolve_couleur(data.get("couleur"))
+            for v_data in variants_payload:
+                v_id = _as_int(v_data.get("id"))
+                if v_id and v_id in existing_vars:
+                    var = existing_vars[v_id]
+                else:
+                    var = VariantesProduits(produit=prod)
 
-        var.save()
+                # Champs simples
+                _set_if_present(var, "nom",          v_data, lambda v: v or prod.nom or "")
+                _set_if_present(var, "sku",          v_data, lambda v: v or "")
+                _set_if_present(var, "code_barres",  v_data, lambda v: v or "")
+                # prix normal et prix promo
+                _set_if_present(var, "prix",       v_data)
+                _set_if_present(var, "prix_promo", v_data)
 
-        # Miroir attribut "couleur"
-        if var.couleur_id:
-            attr_c = _get_or_create_attr("couleur", Attribut.CHOIX, "Couleur")
-            va_c   = _upsert_valeur_choice(attr_c, var.couleur.nom)
-            SpecVariante.objects.update_or_create(
-                variante=var, attribut=attr_c,
-                defaults={"valeur_choice": va_c, "valeur_text": None, "valeur_int": None, "valeur_dec": None},
-            )
+                # ✅ Toujours écraser l'état de la promo, même si la clé n'est pas envoyée
+                var.promo_active = _to_bool(v_data.get("promo_active"), default=False)
+
+                # ✅ Toujours recalculer les dates (ou None si vide)
+                var.promo_debut = _parse_dt_local(v_data.get("promo_debut"))
+                var.promo_fin   = _parse_dt_local(v_data.get("promo_fin"))
+
+                _set_if_present(var, "stock",            v_data, lambda v: v or 0)
+                _set_if_present(var, "prix_achat",       v_data)
+                # poids
+                if "variante_poids_grammes" in v_data:
+                    var.poids_grammes = v_data.get("variante_poids_grammes")
+
+# ✅ Toujours écraser l'état actif/inactif de la variante
+                var.est_actif = _to_bool(v_data.get("variante_est_actif"), default=False)
+
+                if "couleur" in v_data:
+                    var.couleur = _resolve_couleur(v_data.get("couleur"))
+
+                var.save()
+                keep_ids.append(var.id)
+
+                # ---------- ATTRIBUTS VARIANTE pour CETTE variante ----------
+                for item in v_data.get("attributes") or []:
+                    code = (item.get("code") or "").strip().lower()
+                    if not code:
+                        continue
+                    if code == "couleur" and var.couleur_id:
+                        # pas de doublon "couleur"
+                        continue
+
+                    type_hint = item.get("type")
+                    libelle   = item.get("libelle")
+                    unite     = item.get("unite")
+                    value     = item.get("value")
+
+                    attr = _get_or_create_attr(code, type_hint, libelle, unite)
+                    if not attr or not attr.actif:
+                        continue
+                    _write_spec_variante(var, attr, value)
+
+                # ---------- Miroir attribut "couleur" ----------
+                if var.couleur_id:
+                    attr_c = _get_or_create_attr("couleur", Attribut.CHOIX, "Couleur")
+                    va_c   = _upsert_valeur_choice(attr_c, var.couleur.nom)
+                    SpecVariante.objects.update_or_create(
+                        variante=var, attribut=attr_c,
+                        defaults={
+                            "valeur_choice": va_c,
+                            "valeur_text": None,
+                            "valeur_int": None,
+                            "valeur_dec": None,
+                        },
+                    )
+
+            # Supprimer les variantes qui ne sont plus dans le payload
+            if keep_ids:
+                VariantesProduits.objects.filter(produit=prod).exclude(id__in=keep_ids).delete()
+
+        else:
+            # Fallback : ancien comportement (une seule variante à partir des champs plats)
+            var = prod.variantes.order_by("id").first()
+            if not var:
+                var = VariantesProduits.objects.create(produit=prod, nom=prod.nom or "", prix=0)
+
+            _set_if_present(var, "nom",        data, lambda v: v or prod.nom or "")
+            _set_if_present(var, "sku",        data, lambda v: v or "")
+            _set_if_present(var, "code_barres",data, lambda v: v or "")
+            _set_if_present(var, "prix",       data)
+            _set_if_present(var, "prix_promo", data)
+
+            # ✅ même logique : on force la valeur
+            var.promo_active = _to_bool(data.get("promo_active"), default=False)
+            var.promo_debut  = _parse_dt_local(data.get("promo_debut"))
+            var.promo_fin    = _parse_dt_local(data.get("promo_fin"))
+
+            ...
+            # ✅ même logique pour l'activation de la variante
+            var.est_actif = _to_bool(data.get("variante_est_actif"), default=False)
+
+
+            _set_if_present(var, "stock",      data, lambda v: v or 0)
+            _set_if_present(var, "prix_achat", data)
+            if "variante_poids_grammes" in data:
+                var.poids_grammes = data.get("variante_poids_grammes")
+            if "variante_est_actif" in data:
+                var.est_actif = _to_bool(data.get("variante_est_actif"), default=True)
+
+            if "couleur" in data:
+                var.couleur = _resolve_couleur(data.get("couleur"))
+
+            var.save()
+
+            if var.couleur_id:
+                attr_c = _get_or_create_attr("couleur", Attribut.CHOIX, "Couleur")
+                va_c   = _upsert_valeur_choice(attr_c, var.couleur.nom)
+                SpecVariante.objects.update_or_create(
+                    variante=var, attribut=attr_c,
+                    defaults={
+                        "valeur_choice": va_c,
+                        "valeur_text": None,
+                        "valeur_int": None,
+                        "valeur_dec": None,
+                    },
+                )
+
 
         # ---- Images (remplacement par la liste reçue) ----
         if "images" in data:
@@ -2143,12 +2259,18 @@ class AddProductWithVariantView(APIView):
         else:
             etat_value = "neuf"
 
-        visible = payload.get("visible", 1)
-        if visible not in (0, 1, None):
+        raw_visible = payload.get("visible", 1)
+        try:
+            visible = int(raw_visible)
+        except (TypeError, ValueError):
+            visible = 1
+
+        if visible not in (0, 1):
             return JsonResponse(
                 {"field": "visible", "error": "Visible doit être 1 (oui) ou 0 (non)."},
                 status=400
             )
+
 
         # ===== VARIANTS =====
         variants_payload = payload.get("variants") or []
@@ -2277,7 +2399,7 @@ class AddProductWithVariantView(APIView):
                     dimensions=payload.get("dimensions", "") or "",
                     categorie=categorie,   # ✅ on garde la catégorie trouvée (id ou slug)
                     marque=marque,
-                    est_actif=bool(payload.get("est_actif", False)),
+                    est_actif=_to_bool(payload.get("est_actif"), default=False),
                     visible=(visible if visible in (0, 1) else 1),
                     etat=etat_value,
                 )
@@ -2353,7 +2475,7 @@ class AddProductWithVariantView(APIView):
                     v_pa     = v.get("prix_achat") or None
                     v_stock  = v.get("stock") or 0
                     v_poids  = v.get("variante_poids_grammes") or None
-                    v_actif  = bool(v.get("variante_est_actif", True))
+                    v_actif  = _to_bool(v.get("variante_est_actif"), default=True)
                     v_promo_debut = _parse_dt_local(v.get("promo_debut"))
                     v_promo_fin   = _parse_dt_local(v.get("promo_fin"))
 
@@ -2366,7 +2488,7 @@ class AddProductWithVariantView(APIView):
                         code_barres=v_code,
                         prix=v_prix,
                         prix_promo=v_promo,
-                        promo_active=bool(v.get("promo_active", False)),
+                        promo_active=_to_bool(v.get("promo_active"), default=False),
                         promo_debut=v_promo_debut,
                         promo_fin=v_promo_fin,
                         stock=v_stock,
