@@ -3,6 +3,7 @@ import React from "react";
 import { useBlogPosts, media } from "../hooks/useFetchQuery";
 import { motion } from "framer-motion";
 import type { Variants, Transition } from "framer-motion";
+import GlobalLoader from "../components/GlobalLoader";
 
 type Post = {
   id: number | string;
@@ -187,35 +188,33 @@ const PostsSection: React.FC = () => {
   // image  <- image (image_couverture côté API)
   // title  <- extrait
   // excerpt<- contenu
-const postsTop: Post[] = React.useMemo(() => {
-  const items = data?.top ?? [];
-  return items.map((a) => {
-    const rawImage = a.image || "";
-    const img = rawImage ? media(rawImage) : "";
-    return {
-      id: a.id,
-      image: img || FALLBACK_IMG,
-      title: a.excerpt || "",
-      excerpt: a.content || "",
-    };
-  });
-}, [data?.top]);
+  const postsTop: Post[] = React.useMemo(() => {
+    const items = data?.top ?? [];
+    return items.map((a) => {
+      const rawImage = a.image || "";
+      const img = rawImage ? media(rawImage) : "";
+      return {
+        id: a.id,
+        image: img || FALLBACK_IMG,
+        title: a.excerpt || "",
+        excerpt: a.content || "",
+      };
+    });
+  }, [data?.top]);
 
-
-const postsBottom: Post[] = React.useMemo(() => {
-  const items = data?.bottom ?? [];
-  return items.map((a) => {
-    const rawImage = a.image || "";
-    const img = rawImage ? media(rawImage) : "";
-    return {
-      id: a.id,
-      image: img || FALLBACK_IMG,
-      title: a.excerpt || "",
-      excerpt: a.content || "",
-    };
-  });
-}, [data?.bottom]);
-
+  const postsBottom: Post[] = React.useMemo(() => {
+    const items = data?.bottom ?? [];
+    return items.map((a) => {
+      const rawImage = a.image || "";
+      const img = rawImage ? media(rawImage) : "";
+      return {
+        id: a.id,
+        image: img || FALLBACK_IMG,
+        title: a.excerpt || "",
+        excerpt: a.content || "",
+      };
+    });
+  }, [data?.bottom]);
 
   return (
     <motion.section
@@ -230,13 +229,19 @@ const postsBottom: Post[] = React.useMemo(() => {
           text-[clamp(12px,2.2vw,16px)]
         "
       >
-        {/* petite correction de français */}
         Nos articles
       </h2>
 
+      {/* 🔄 Loader global comme dans Presentation */}
+      {loading && postsTop.length === 0 && postsBottom.length === 0 && (
+        <div className="py-16 flex items-center justify-center">
+          <GlobalLoader />
+        </div>
+      )}
+
       {error && (
         <div className="mt-3 text-sm text-red-600">
-        
+          {/* tu peux mettre un petit texte ici si tu veux */}
         </div>
       )}
 
