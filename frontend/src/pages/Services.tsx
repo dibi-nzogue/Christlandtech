@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
@@ -8,23 +8,36 @@ import ServicesExtra from "../components/ServicesExtra";
 import ContactSection from "../components/ContactSection";
 
 import GlobalLoader from "../components/GlobalLoader";
-import { useGlobalLoading } from "../hooks/useFetchQuery";
+import { useGlobalLoading, forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
 
 const Services: React.FC = () => {
-   const isLoading = useGlobalLoading();   // 👈 écoute le loader global
-  return (
- <>
-      {isLoading && <GlobalLoader />}     {/* 👈 overlay partout tant qu'il y a des fetchs */}
+  const isLoading = useGlobalLoading();
 
-    <div>
-      <Navbar />
-      <ServiceIntro />
-       <ServicesBloc/>
-       <ServicesExtra/>
-       <ContactSection id="contact"/>
-      <Footer />
-      <ScrollToTopButton />
-    </div>
+  useEffect(() => {
+    // 👉 Force l'affichage du loader dès que la page commence à se monter
+    forceStartLoading();
+
+    // 👉 On laisse un petit délai (ex : 800ms) avant de l’éteindre
+    const timer = setTimeout(() => {
+      forceStopLoading();
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <>
+      {isLoading && <GlobalLoader />}
+
+      <div>
+        <Navbar />
+        <ServiceIntro />
+        <ServicesBloc />
+        <ServicesExtra />
+        <ContactSection id="contact" />
+        <Footer />
+        <ScrollToTopButton />
+      </div>
     </>
   );
 };

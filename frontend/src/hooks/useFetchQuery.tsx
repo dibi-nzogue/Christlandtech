@@ -116,8 +116,13 @@ export function useGlobalLoading() {
 
   return loading;
 }
+export function forceStartLoading() {
+  startGlobalLoading();
+}
 
-
+export function forceStopLoading() {
+  stopGlobalLoading();
+}
 
 
 /* =========================================================
