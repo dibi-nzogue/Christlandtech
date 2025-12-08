@@ -16,6 +16,7 @@
     "@headlessui/react": "^2.2.9",
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.2",
+    "@tanstack/react-query": "^5.90.12",
     "axios": "^1.13.2",
     "country-telephone-data": "^0.6.3",
     "date-fns": "^4.1.0",

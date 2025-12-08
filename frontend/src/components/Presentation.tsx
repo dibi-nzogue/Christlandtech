@@ -675,7 +675,7 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
           </div>
         </div>
 
-        {catsError && <div className="mt-2 text-sm text-red-600">Impossible de charger les catégories.</div>}
+        {catsError && <div className="mt-2 text-sm text-red-600"></div>}
       </div>
 
 

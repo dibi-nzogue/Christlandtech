@@ -59,7 +59,7 @@ const ProductArticle: React.FC = () => {
           ...(a.image !== undefined ? { image: a.image || "" } : {}),
         }));
       } catch (e: any) {
-        setError(e?.message || "Impossible de charger l’article.");
+        setError(e?.message );
       } finally {
         if (mounted) setLoading(false);
       }

@@ -12,6 +12,7 @@ import {
 } from "../hooks/useFetchQuery";
 import ComboCreate, { type ComboOption } from "./ComboCreate";
 import DateTimePicker from "./DateTimePicker";
+import { useQueryClient } from "@tanstack/react-query";
 
 /* ---------------- Types locaux ---------------- */
 type ProduitFormState = {
@@ -101,6 +102,7 @@ const etatOptions: ComboOption[] = [
 const ProductEditForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+ const queryClient = useQueryClient();
   const { data: categories } = useDashboardCategories();
   const { data: marques } = useMarques();
   const { data: couleurs } = useCouleurs();
@@ -161,24 +163,8 @@ const rootCategoryOptions: ComboOption[] = useMemo(() => {
 
 
 
-const [variants, setVariants] = useState<any[]>([
-  {
-    variante_nom: "",
-    sku: "",
-    code_barres: "",
-    prix: null,
-    prix_promo: null,
-    promo_active: false,
-    promo_debut: "",
-    promo_fin: "",
-    stock: null,
-    prix_achat: null,
-    variante_poids_grammes: null,
-    couleur: "",
-    couleur_libre: "",
-    variante_est_actif: true,
-  },
-]);
+const [variants, setVariants] = useState<any[]>([]);
+
   const updateVariant = (index: number, key: string, value: any) => {
   setVariants((prev) => {
     const updated = [...prev];
@@ -189,6 +175,8 @@ const [variants, setVariants] = useState<any[]>([
 
 const removeVariant = (index: number) => {
   setVariants((prev) => prev.filter((_, i) => i !== index));
+
+
 };
 
   // ⚠️ pour retrouver la valeur, on compare id **ou** slug
@@ -308,43 +296,35 @@ const prod: any = await getDashboardProduct(Number(id));
 
 // Charger les variantes si elles existent
 // Charger les variantes si elles existent
+// 🔹 Charger les variantes SANS créer de ligne en plus et sans doublons
+const rawVariants: any[] = Array.isArray(prod?.variants) ? prod.variants : [];
+
+// On enlève les doublons éventuels sur l'id (si le backend renvoie 2 fois la même variante)
+const uniqueVariants = rawVariants.filter((v, index) => {
+  if (!v.id) return true; // si pas d'id on ne filtre pas
+  return index === rawVariants.findIndex((vv) => vv.id === v.id);
+});
+
 setVariants(
-  Array.isArray(prod?.variants) && prod.variants.length
-    ? prod.variants.map((v: any) => ({
-        variante_nom: v.nom ?? "",
-        sku: v.sku ?? "",
-        code_barres: v.code_barres ?? "",
-        prix: v.prix ?? null,
-        prix_promo: v.prix_promo ?? null,
-        promo_active: !!v.promo_active,
-        promo_debut: v.promo_debut ? String(v.promo_debut).slice(0, 16) : "",
-        promo_fin:   v.promo_fin   ? String(v.promo_fin).slice(0, 16)   : "",
-        stock: v.stock ?? null,
-        prix_achat: v.prix_achat ?? null,
-        variante_poids_grammes: v.variante_poids_grammes ?? null,
-        couleur: v.couleur?.id ?? v.couleur?.slug ?? "",
-        couleur_libre: "",
-        variante_est_actif: !!v.variante_est_actif,
-      }))
-    : [
-        {
-          variante_nom: "",
-          sku: "",
-          code_barres: "",
-          prix: null,
-          prix_promo: null,
-          promo_active: false,
-          promo_debut: "",
-          promo_fin: "",
-          stock: null,
-          prix_achat: null,
-          variante_poids_grammes: null,
-          couleur: "",
-          couleur_libre: "",
-          variante_est_actif: true,
-        },
-      ]
+  uniqueVariants.map((v: any) => ({
+    id: v.id ?? null,
+    variante_nom: v.nom ?? "",
+    sku: v.sku ?? "",
+    code_barres: v.code_barres ?? "",
+    prix: v.prix ?? null,
+    prix_promo: v.prix_promo ?? null,
+    promo_active: !!v.promo_active,
+    promo_debut: v.promo_debut ? String(v.promo_debut).slice(0, 16) : "",
+    promo_fin: v.promo_fin ? String(v.promo_fin).slice(0, 16) : "",
+    stock: v.stock ?? null,
+    prix_achat: v.prix_achat ?? null,
+    variante_poids_grammes: v.variante_poids_grammes ?? null,
+    couleur: v.couleur?.id ?? v.couleur?.slug ?? "",
+    couleur_libre: "",
+    variante_est_actif: !!v.variante_est_actif,
+  }))
 );
+
 
 // 2) variante unique (payload.variant)
 // 2) variante unique (payload.variant)
@@ -483,7 +463,7 @@ setProdAttrs(toMap(prod?.product_attributes ?? []));
 setVarAttrs(toMap(prod?.variant_attributes ?? []));
 
       } catch (e: any) {
-        setToast({ kind: "error", msg: e?.message || "Impossible de charger le produit." });
+        setToast({ kind: "error", msg: e?.message });
       } finally {
         if (mounted) setLoading(false);
       }
@@ -616,6 +596,34 @@ useEffect(() => {
     const product_attributes = toAttrArray(prodAttrs);
     const variant_attributes = toAttrArray(varAttrs);
 
+    // ✅ On synchronise la première variante avec les champs du haut (formData)
+    let variantsBase: any[];
+
+    if (variants.length <= 1) {
+      // Cas simple : une seule variante → on prend formData comme source
+      variantsBase = [
+        {
+          ...(variants[0] ?? {}), // garde l'id si existante
+          variante_nom: formData.variante_nom || formData.nom,
+          sku: formData.sku,
+          code_barres: formData.code_barres,
+          prix: formData.prix,
+          prix_promo: formData.prix_promo,
+          promo_active: !!formData.promo_active,
+          promo_debut: formData.promo_debut || null,
+          promo_fin: formData.promo_fin || null,
+          stock: formData.stock ?? 0,
+          prix_achat: formData.prix_achat,
+          variante_poids_grammes: formData.variante_poids_grammes,
+          couleur: couleurValue,
+          variante_est_actif: !!formData.variante_est_actif,
+        },
+      ];
+    } else {
+      // Cas multi-variantes : on laisse la gestion aux cartes "Variantes" en bas
+      variantsBase = variants;
+    }
+
     const payload: any = {
       nom: formData.nom.trim(),
       slug: formData.slug.trim() || undefined,
@@ -648,28 +656,48 @@ useEffect(() => {
 
       product_attributes,
       variant_attributes,
-     variants: variants.map((v) => ({
-  ...v,
-  couleur: v.couleur_libre || v.couleur || null,
-  promo_debut: v.promo_debut || null,
-  promo_fin: v.promo_fin || null,
-  prix: v.prix ?? null,
-  prix_promo: v.prix_promo ?? null,
-  stock: v.stock ?? 0,
-})),
+// ✅ On envoie la version synchronisée
+      variants: variantsBase.map((v) => ({
+        ...v,
+        couleur: v.couleur_libre || v.couleur || null,
+        promo_debut: v.promo_debut || null,
+        promo_fin: v.promo_fin || null,
+        prix: v.prix ?? null,
+        prix_promo: v.prix_promo ?? null,
+        stock: v.stock ?? 0,
+      })),
+
       images: imagesPayload,
+
     };
 
-    try {
-      setSubmitting(true);
-      await updateDashboardProductDeep(Number(id), payload);
-      navigate("/dashboard", { replace: true, state: { flash: "Produit mis à jour ✅" } });
+try {
+  setSubmitting(true);
+  await updateDashboardProductDeep(Number(id), payload);
 
-    } catch (err: any) {
-      setToast({ kind: "error", msg: err?.message || "Échec de la mise à jour." });
-    } finally {
-      setSubmitting(false);
-    }
+  // 🔁 Invalidation du cache après mise à jour
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["dashboard-products"] }),
+    queryClient.invalidateQueries({ queryKey: ["products-list"] }),
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        typeof query.queryKey[0] === "string" &&
+        query.queryKey[0].toString().toLowerCase().includes("promo"),
+    }),
+  ]);
+
+  navigate("/dashboard", {
+    replace: true,
+    state: { flash: "Produit mis à jour ✅" },
+  });
+
+} catch (err: any) {
+  setToast({ kind: "error", msg: err?.message || "Échec de la mise à jour." });
+} finally {
+  setSubmitting(false);
+}
+
   };
 
   if (loading) return <div className="bg-white rounded-xl p-6 shadow">Chargement…</div>;
@@ -1289,15 +1317,17 @@ return (
   </label>
 </div>
 
-{/* === Gestion des Variantes (même design que ProductForm) === */}
+{/* === Gestion des Variantes (liste affichée seulement s'il y en a plus d'une) === */}
 <div className="mt-4">
-  {/* Titre */}
-  <div className="flex items-center justify-between">
-    <h4 className="text-md font-semibold">Variantes</h4>
-  </div>
+  {/* Titre de la section "Variantes" seulement s'il y en a > 1 */}
+  {variants.length > 1 && (
+    <div className="flex items-center justify-between">
+      <h4 className="text-md font-semibold">Variantes</h4>
+    </div>
+  )}
 
-  {/* Liste des variantes */}
-  {variants.length > 0 && (
+  {/* Liste des variantes : on n'affiche que si > 1 */}
+  {variants.length > 1 && (
     <div className="mt-3 space-y-4">
       {variants.map((v, index) => (
         <div
@@ -1320,7 +1350,7 @@ return (
             )}
           </div>
 
-          {/* Champ Variante */}
+          {/* Champs de la variante */}
           <div className="grid grid-cols-2 gap-4">
             {/* Nom variante */}
             <div className="flex flex-col gap-1">
@@ -1387,7 +1417,7 @@ return (
               />
             </div>
 
-            {/* Code barres */}
+            {/* Code-barres */}
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-700">Code-barres</label>
               <input
@@ -1438,7 +1468,6 @@ return (
               value={v.promo_debut}
               onChange={(_, val) => updateVariant(index, "promo_debut", val)}
             />
-
             <DateTimePicker
               label="Fin promo"
               name="promo_fin"
@@ -1514,7 +1543,7 @@ return (
     </div>
   )}
 
-  {/* Bouton AJOUTER toujours à la fin */}
+  {/* Bouton AJOUTER toujours visible */}
   <div className="mt-4 flex justify-end">
     <button
       type="button"
@@ -1545,8 +1574,6 @@ return (
     </button>
   </div>
 </div>
-
-
 
 
         {/* ===== Spécifications dynamiques ===== */}

@@ -17,11 +17,17 @@ import UpdateCathegorie from "./pages/UpdateCathegorie";
 import AddCathegorie from "./pages/AddCathegorie";
 import PrivateRoute from "./components/PrivateRoute";
 import { useTranslation } from "react-i18next";
+import Loader from "./components/Loader";
+import { useIsFetching } from "@tanstack/react-query";
+
 
 const App: React.FC = () => {
   const { i18n } = useTranslation();
+  const isFetching = useIsFetching(); // nombre de requêtes en cours
 
   return (
+     <>
+      {isFetching ? <Loader /> : null}
     <main className="">
       <Routes key={i18n.language}>
         {/* === PUBLIC (chemins canoniques) === */}
@@ -67,6 +73,7 @@ const App: React.FC = () => {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </main>
+      </>
   );
 };
 

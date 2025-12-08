@@ -342,6 +342,25 @@ useEffect(() => {
     run();
   }, [key, run]);
 
+    // 👇 Refetch auto quand un produit est créé / modifié
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onProductsChanged = () => {
+      // On ne refetch que les endpoints produits du catalogue
+      if (
+        url.includes("/api/catalog/products/") ||
+        url.includes("/api/catalog/products/latest/")
+      ) {
+        refetch();
+      }
+    };
+
+    window.addEventListener("products:changed", onProductsChanged);
+    return () => window.removeEventListener("products:changed", onProductsChanged);
+  }, [url, refetch]);
+
+
   useEffect(() => {
     if (!enabled || !url) {
       abortRef.current?.abort();
@@ -699,12 +718,18 @@ export async function getDashboardProduct(id: number) {
 
 export async function updateDashboardProductDeep(id: number, payload: any) {
   const url = api(`/api/dashboard/produits/${id}/edit/`);
-  const res = await authedFetch(url, {               // ✅
+  const res = await authedFetch(url, {
     method: "PUT",
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => null);
   if (!res.ok) throw new Error(body?.detail || `HTTP ${res.status}`);
+
+  // 👇 IMPORTANT : prévenir tout le front qu’un produit a changé
+  if (typeof window !== "undefined" && "dispatchEvent" in window) {
+    window.dispatchEvent(new Event("products:changed"));
+  }
+
   return body;
 }
 

@@ -7,15 +7,13 @@ import {
   useMarques,
   useCouleurs,
   uploadProductImage,
-  
   type ProductPayload,
 } from "../hooks/useFetchQuery";
 import { useNavigate } from "react-router-dom"; // ⬅️ AJOUT
-
 import ComboCreate, { type ComboOption } from "./ComboCreate";
 import DateTimePicker, { parseLocalDateTime } from "./DateTimePicker";
 import MultiComboCreate from "./MultiComboCreate";
-
+import { useQueryClient } from "@tanstack/react-query";  // ⬅️ AJOUTER ÇA
 type ProduitFormState = {
   nom: string;
   slug: string;
@@ -91,10 +89,12 @@ const Toast: React.FC<{ kind: "success" | "error"; msg: string; onClose(): void 
     </div>
   </div>
 );
-
 const ProductForm: React.FC = () => {
-   const navigate = useNavigate();
-  const { data: categories } =useDashboardCategories();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient(); // ✅ AJOUT ICI
+
+  const { data: categories } = useDashboardCategories();
+
   React.useEffect(() => {
  
 }, [categories]);
@@ -597,6 +597,23 @@ couleur:
     // console.log("[DEBUG] PAYLOAD /produits/ajouter :", payload);
 
     const res = await createProductWithVariant(payload as any);
+
+await Promise.all([
+  // Liste du dashboard
+  queryClient.invalidateQueries({ queryKey: ["dashboard-products"] }),
+
+  // Liste générale de produits
+  queryClient.invalidateQueries({ queryKey: ["products-list"] }),
+
+  // 🔥 Toutes les queries qui parlent de "promo" dans leur queryKey[0]
+  queryClient.invalidateQueries({
+    predicate: (query) =>
+      Array.isArray(query.queryKey) &&
+      typeof query.queryKey[0] === "string" &&
+      query.queryKey[0].toString().toLowerCase().includes("promo"),
+  }),
+]);
+
 
     let successMsg = "Votre produit a bien été enregistré.";
     if (res?.produit_id && res?.variante_id) {

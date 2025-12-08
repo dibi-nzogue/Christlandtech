@@ -236,7 +236,7 @@ const postsBottom: Post[] = React.useMemo(() => {
 
       {error && (
         <div className="mt-3 text-sm text-red-600">
-          Impossible de charger les posts.
+        
         </div>
       )}
 

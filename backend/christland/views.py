@@ -1469,116 +1469,164 @@ class DashboardProductEditDataView(APIView):
 
 
         return Response(payload, status=status.HTTP_200_OK)
-
     # ---------- UPDATE (deep) ----------
     @transaction.atomic
     def put(self, request, pk: int):
-        prod = get_object_or_404(
-            Produits.objects.select_related("marque", "categorie").prefetch_related(
-                "images", "variantes", "variantes__specs", "specs"
-            ),
-            pk=pk
-        )
-        data = request.data
+        try:
+            prod = get_object_or_404(
+                Produits.objects.select_related("marque", "categorie").prefetch_related(
+                    "images", "variantes", "variantes__specs", "specs"
+                ),
+                pk=pk
+            )
+            data = request.data
 
-        # ---- Produit : champs simples ----
-        for fld in [
-            "nom", "slug", "description_courte", "description_long",
-            "garantie_mois", "poids_grammes", "dimensions", "etat", "visible", "est_actif"
-        ]:
-            if fld in data:
-                setattr(prod, fld, data.get(fld))
+            # ---- Produit : champs simples ----
+            for fld in [
+                "nom", "slug", "description_courte", "description_long",
+                "garantie_mois", "poids_grammes", "dimensions", "etat", "visible", "est_actif"
+            ]:
+                if fld in data:
+                    setattr(prod, fld, data.get(fld))
 
-                # Catégorie / Sous-catégorie (optionnelles)
-        cat_obj = None
+            # ---- Catégorie / Sous-catégorie (optionnelles) ----
+            cat_obj = None
 
-        # 🔹 Priorité à la sous_categorie si fournie
-        if "sous_categorie" in data and data["sous_categorie"]:
-            cat_obj = Categories.objects.filter(id=_as_int(data["sous_categorie"])).first()
-        elif "categorie" in data and data["categorie"]:
-            cat_obj = Categories.objects.filter(id=_as_int(data["categorie"])).first()
+            # 🔹 Priorité à la sous_categorie si fournie
+            if "sous_categorie" in data and data["sous_categorie"]:
+                cat_obj = Categories.objects.filter(id=_as_int(data["sous_categorie"])).first()
+            elif "categorie" in data and data["categorie"]:
+                cat_obj = Categories.objects.filter(id=_as_int(data["categorie"])).first()
 
-        if cat_obj:
-            prod.categorie = cat_obj
+            if cat_obj:
+                prod.categorie = cat_obj
 
+            # ---- Marque (optionnelle en update) ----
+            if "marque" in data and data["marque"]:
+                m, _note = _resolve_marque_verbose(data["marque"])
+                if m:
+                    prod.marque = m
 
-        # Marque (obligatoire côté création, ici optionnelle pour l’update)
-        if "marque" in data and data["marque"]:
-            m, _note = _resolve_marque_verbose(data["marque"])
-            if m:
-                prod.marque = m
+            prod.save()
 
-        prod.save()
+            # ---- VARIANTS (nouvelle gestion complète) ----
+            variants_payload = data.get("variants") or []
 
-         # ---- VARIANTS (nouvelle gestion complète) ----
-        variants_payload = data.get("variants") or []
+            def _set_if_present(obj, key, source, transform=lambda x: x):
+                if key in source:
+                    setattr(obj, key, transform(source.get(key)))
 
-        def _set_if_present(obj, key, source, transform=lambda x: x):
-            if key in source:
-                setattr(obj, key, transform(source.get(key)))
+            if variants_payload:
+                # On a reçu un tableau complet de variantes -> on synchronise
+                existing_vars = {v.id: v for v in prod.variantes.all()}
+                keep_ids: list[int] = []
 
-        if variants_payload:
-            # On a reçu un tableau complet de variantes -> on synchronise
-            existing_vars = {v.id: v for v in prod.variantes.all()}
-            keep_ids: list[int] = []
+                for v_data in variants_payload:
+                    v_id = _as_int(v_data.get("id"))
+                    if v_id and v_id in existing_vars:
+                        var = existing_vars[v_id]
+                    else:
+                        var = VariantesProduits(produit=prod)
 
-            for v_data in variants_payload:
-                v_id = _as_int(v_data.get("id"))
-                if v_id and v_id in existing_vars:
-                    var = existing_vars[v_id]
-                else:
-                    var = VariantesProduits(produit=prod)
+                    # Champs simples
+                    _set_if_present(var, "nom",         v_data, lambda v: v or prod.nom or "")
+                    _set_if_present(var, "sku",         v_data, lambda v: v or "")
+                    _set_if_present(var, "code_barres", v_data, lambda v: v or "")
+                    # prix normal et prix promo
+                    _set_if_present(var, "prix",       v_data)
+                    _set_if_present(var, "prix_promo", v_data)
 
-                # Champs simples
-                _set_if_present(var, "nom",          v_data, lambda v: v or prod.nom or "")
-                _set_if_present(var, "sku",          v_data, lambda v: v or "")
-                _set_if_present(var, "code_barres",  v_data, lambda v: v or "")
-                # prix normal et prix promo
-                _set_if_present(var, "prix",       v_data)
-                _set_if_present(var, "prix_promo", v_data)
+                    # ✅ Toujours écraser l'état de la promo
+                    var.promo_active = _to_bool(v_data.get("promo_active"), default=False)
 
-                # ✅ Toujours écraser l'état de la promo, même si la clé n'est pas envoyée
-                var.promo_active = _to_bool(v_data.get("promo_active"), default=False)
+                    # ✅ Toujours recalculer les dates (ou None si vide)
+                    var.promo_debut = _parse_dt_local(v_data.get("promo_debut"))
+                    var.promo_fin   = _parse_dt_local(v_data.get("promo_fin"))
 
-                # ✅ Toujours recalculer les dates (ou None si vide)
-                var.promo_debut = _parse_dt_local(v_data.get("promo_debut"))
-                var.promo_fin   = _parse_dt_local(v_data.get("promo_fin"))
+                    _set_if_present(var, "stock",      v_data, lambda v: v or 0)
+                    _set_if_present(var, "prix_achat", v_data)
 
-                _set_if_present(var, "stock",            v_data, lambda v: v or 0)
-                _set_if_present(var, "prix_achat",       v_data)
-                # poids
-                if "variante_poids_grammes" in v_data:
-                    var.poids_grammes = v_data.get("variante_poids_grammes")
+                    # poids
+                    if "variante_poids_grammes" in v_data:
+                        var.poids_grammes = v_data.get("variante_poids_grammes")
 
-# ✅ Toujours écraser l'état actif/inactif de la variante
-                var.est_actif = _to_bool(v_data.get("variante_est_actif"), default=False)
+                    # ✅ Toujours écraser l'état actif/inactif de la variante
+                    var.est_actif = _to_bool(v_data.get("variante_est_actif"), default=False)
 
-                if "couleur" in v_data:
-                    var.couleur = _resolve_couleur(v_data.get("couleur"))
+                    if "couleur" in v_data:
+                        var.couleur = _resolve_couleur(v_data.get("couleur"))
+
+                    var.save()
+                    keep_ids.append(var.id)
+
+                    # ---------- ATTRIBUTS VARIANTE pour CETTE variante ----------
+                    for item in v_data.get("attributes") or []:
+                        code = (item.get("code") or "").strip().lower()
+                        if not code:
+                            continue
+                        if code == "couleur" and var.couleur_id:
+                            # pas de doublon "couleur"
+                            continue
+
+                        type_hint = item.get("type")
+                        libelle   = item.get("libelle")
+                        unite     = item.get("unite")
+                        value     = item.get("value")
+
+                        attr = _get_or_create_attr(code, type_hint, libelle, unite)
+                        if not attr or not attr.actif:
+                            continue
+                        _write_spec_variante(var, attr, value)
+
+                    # ---------- Miroir attribut "couleur" ----------
+                    if var.couleur_id:
+                        attr_c = _get_or_create_attr("couleur", Attribut.CHOIX, "Couleur")
+                        va_c   = _upsert_valeur_choice(attr_c, var.couleur.nom)
+                        SpecVariante.objects.update_or_create(
+                            variante=var, attribut=attr_c,
+                            defaults={
+                                "valeur_choice": va_c,
+                                "valeur_text": None,
+                                "valeur_int": None,
+                                "valeur_dec": None,
+                            },
+                        )
+
+                # Supprimer les variantes qui ne sont plus dans le payload
+                if keep_ids:
+                    VariantesProduits.objects.filter(produit=prod).exclude(id__in=keep_ids).delete()
+
+            else:
+                # Fallback : ancien comportement (une seule variante à partir des champs plats)
+                var = prod.variantes.order_by("id").first()
+                if not var:
+                    var = VariantesProduits.objects.create(produit=prod, nom=prod.nom or "", prix=0)
+
+                _set_if_present(var, "nom",         data, lambda v: v or prod.nom or "")
+                _set_if_present(var, "sku",         data, lambda v: v or "")
+                _set_if_present(var, "code_barres", data, lambda v: v or "")
+                _set_if_present(var, "prix",        data)
+                _set_if_present(var, "prix_promo",  data)
+
+                # ✅ même logique : on force la valeur
+                var.promo_active = _to_bool(data.get("promo_active"), default=False)
+                var.promo_debut  = _parse_dt_local(data.get("promo_debut"))
+                var.promo_fin    = _parse_dt_local(data.get("promo_fin"))
+
+                _set_if_present(var, "stock",      data, lambda v: v or 0)
+                _set_if_present(var, "prix_achat", data)
+
+                if "variante_poids_grammes" in data:
+                    var.poids_grammes = data.get("variante_poids_grammes")
+
+                # ✅ même logique pour l'activation de la variante
+                var.est_actif = _to_bool(data.get("variante_est_actif"), default=False)
+
+                if "couleur" in data:
+                    var.couleur = _resolve_couleur(data.get("couleur"))
 
                 var.save()
-                keep_ids.append(var.id)
 
-                # ---------- ATTRIBUTS VARIANTE pour CETTE variante ----------
-                for item in v_data.get("attributes") or []:
-                    code = (item.get("code") or "").strip().lower()
-                    if not code:
-                        continue
-                    if code == "couleur" and var.couleur_id:
-                        # pas de doublon "couleur"
-                        continue
-
-                    type_hint = item.get("type")
-                    libelle   = item.get("libelle")
-                    unite     = item.get("unite")
-                    value     = item.get("value")
-
-                    attr = _get_or_create_attr(code, type_hint, libelle, unite)
-                    if not attr or not attr.actif:
-                        continue
-                    _write_spec_variante(var, attr, value)
-
-                # ---------- Miroir attribut "couleur" ----------
                 if var.couleur_id:
                     attr_c = _get_or_create_attr("couleur", Attribut.CHOIX, "Couleur")
                     va_c   = _upsert_valeur_choice(attr_c, var.couleur.nom)
@@ -1592,114 +1640,73 @@ class DashboardProductEditDataView(APIView):
                         },
                     )
 
-            # Supprimer les variantes qui ne sont plus dans le payload
-            if keep_ids:
-                VariantesProduits.objects.filter(produit=prod).exclude(id__in=keep_ids).delete()
+            # ---- Images (remplacement par la liste reçue) ----
+            if "images" in data:
+                imgs = _clean_images_payload(data.get("images"))
+                prod.images.all().delete()
+                for i, im in enumerate(imgs, start=1):
+                    ImagesProduits.objects.create(
+                        produit=prod,
+                        url=im["url"],
+                        alt_text=im.get("alt_text", "") or "",
+                        position=im.get("position") or i,
+                        principale=bool(im.get("principale", False)),
+                    )
 
-        else:
-            # Fallback : ancien comportement (une seule variante à partir des champs plats)
-            var = prod.variantes.order_by("id").first()
-            if not var:
-                var = VariantesProduits.objects.create(produit=prod, nom=prod.nom or "", prix=0)
+            # ---- Attributs Produit ----
+            for it in data.get("product_attributes", []) or []:
+                code = (it.get("code") or "").strip().lower()
+                if not code:
+                    continue
 
-            _set_if_present(var, "nom",        data, lambda v: v or prod.nom or "")
-            _set_if_present(var, "sku",        data, lambda v: v or "")
-            _set_if_present(var, "code_barres",data, lambda v: v or "")
-            _set_if_present(var, "prix",       data)
-            _set_if_present(var, "prix_promo", data)
+                raw_value = it.get("value", None)
 
-            # ✅ même logique : on force la valeur
-            var.promo_active = _to_bool(data.get("promo_active"), default=False)
-            var.promo_debut  = _parse_dt_local(data.get("promo_debut"))
-            var.promo_fin    = _parse_dt_local(data.get("promo_fin"))
+                # 🔒 Si aucune vraie valeur envoyée → on NE TOUCHE PAS à la spec existante
+                if raw_value in (None, "", [], {}):
+                    continue
 
-            ...
-            # ✅ même logique pour l'activation de la variante
-            var.est_actif = _to_bool(data.get("variante_est_actif"), default=False)
-
-
-            _set_if_present(var, "stock",      data, lambda v: v or 0)
-            _set_if_present(var, "prix_achat", data)
-            if "variante_poids_grammes" in data:
-                var.poids_grammes = data.get("variante_poids_grammes")
-            if "variante_est_actif" in data:
-                var.est_actif = _to_bool(data.get("variante_est_actif"), default=True)
-
-            if "couleur" in data:
-                var.couleur = _resolve_couleur(data.get("couleur"))
-
-            var.save()
-
-            if var.couleur_id:
-                attr_c = _get_or_create_attr("couleur", Attribut.CHOIX, "Couleur")
-                va_c   = _upsert_valeur_choice(attr_c, var.couleur.nom)
-                SpecVariante.objects.update_or_create(
-                    variante=var, attribut=attr_c,
-                    defaults={
-                        "valeur_choice": va_c,
-                        "valeur_text": None,
-                        "valeur_int": None,
-                        "valeur_dec": None,
-                    },
+                attr = _get_or_create_attr(
+                    code,
+                    it.get("type"),
+                    it.get("libelle"),
+                    it.get("unite"),
                 )
+                if not attr or not attr.actif:
+                    continue
 
+                _write_spec_produit(prod, attr, raw_value)
 
-        # ---- Images (remplacement par la liste reçue) ----
-        if "images" in data:
-            imgs = _clean_images_payload(data.get("images"))
-            # on remplace simplement l’existant
-            prod.images.all().delete()
-            for i, im in enumerate(imgs, start=1):
-                ImagesProduits.objects.create(
-                    produit=prod,
-                    url=im["url"],
-                    alt_text=im.get("alt_text", "") or "",
-                    position=im.get("position") or i,
-                    principale=bool(im.get("principale", False)),
-                )
+            # ---- Attributs Variante (sur la variante "principale" var) ----
+            for it in data.get("variant_attributes", []) or []:
+                code = (it.get("code") or "").strip().lower()
+                if not code:
+                    continue
+                if code == "couleur" and var.couleur_id:
+                    # ne pas dupliquer "couleur" si déjà gérée via FK
+                    continue
+                attr = _get_or_create_attr(code, it.get("type"), it.get("libelle"), it.get("unite"))
+                if not attr or not attr.actif:
+                    continue
+                _write_spec_variante(var, attr, it.get("value"))
 
-                # ---- Attributs Produit ----
-        for it in data.get("product_attributes", []) or []:
-            code = (it.get("code") or "").strip().lower()
-            if not code:
-                continue
-
-            raw_value = it.get("value", None)
-
-            # 🔒 Si aucune vraie valeur envoyée → on NE TOUCHE PAS à la spec existante
-            if raw_value in (None, "", [], {}):
-                continue
-
-            attr = _get_or_create_attr(
-                code,
-                it.get("type"),
-                it.get("libelle"),
-                it.get("unite"),
+            # ✅ RETURN ICI, en dehors des boucles
+            return Response(
+                {"ok": True, "message": "Produit mis à jour.", "id": prod.id},
+                status=status.HTTP_200_OK,
             )
-            if not attr or not attr.actif:
-                continue
 
-            _write_spec_produit(prod, attr, raw_value)
+        except IntegrityError as ie:
+            # ✅ On passe par notre helper pour avoir un message humain
+            field, human = _integrity_to_field_error(ie)
+            payload_err = {
+                "error": "Erreur de données",
+                "detail": human or str(ie),
+            }
+            if field:
+                payload_err["field"] = field
+                payload_err.setdefault("field_errors", {})[field] = human
+            return Response(payload_err, status=status.HTTP_400_BAD_REQUEST)
 
-
-        # ---- Attributs Variante ----
-        for it in data.get("variant_attributes", []) or []:
-            code = (it.get("code") or "").strip().lower()
-            if not code:
-                continue
-            if code == "couleur" and var.couleur_id:
-                # ne pas dupliquer "couleur" si déjà gérée via FK
-                continue
-            attr = _get_or_create_attr(code, it.get("type"), it.get("libelle"), it.get("unite"))
-            if not attr or not attr.actif:
-                continue
-            _write_spec_variante(var, attr, it.get("value"))
-
-        return Response(
-            {"ok": True, "message": "Produit mis à jour.", "id": prod.id},
-            status=status.HTTP_200_OK
-        )
-    
 class MarquesListView(APIView):
     """
     GET /christland/api/catalog/marques/?q=&active_only=1
@@ -1757,16 +1764,30 @@ class CouleursListView(APIView):
 import re
 from django.db.utils import IntegrityError
 
+from django.db.utils import IntegrityError
+import re
+
 def _integrity_to_field_error(exc: IntegrityError):
     msg = str(exc)
 
-    # SQLite: "UNIQUE constraint failed: app_model.field"
+    # 🔹 1) Contrainte CHECK sur la promo
+    if "promo_inferieure_au_prix_normal_si_active" in msg:
+        return "prix_promo", (
+            "Le prix promotionnel ne doit pas être supérieur au prix normal "
+            "lorsque la promotion est activée."
+        )
+
+    # 🔹 2) Attributs obligatoires manquants (notre propre IntegrityError)
+    if "Attribut(s) obligatoire(s) manquant(s)" in msg:
+        return "attributes", msg
+
+    # 🔹 3) Contrainte UNIQUE (SQLite)
     m = re.search(r"UNIQUE constraint failed:\s*([^.]+)\.([^.]+)\.([^\s]+)", msg, re.I)
     if m:
         field = m.group(3)
         return field, "Cette valeur existe déjà."
 
-    # Postgres: 'violates unique constraint "app_model_field_key"'
+    # 🔹 4) Contrainte UNIQUE (Postgres)
     m = re.search(r'violates unique constraint\s+"([^"]+)"', msg, re.I)
     if m:
         parts = m.group(1).split("_")
@@ -1775,7 +1796,9 @@ def _integrity_to_field_error(exc: IntegrityError):
         if parts:
             return parts[-1], "Cette valeur existe déjà."
 
-    return None, "Contrainte d’unicité violée."
+    # 🔹 5) fallback
+    return None, "Erreur de données : contrainte non respectée."
+
 
 # ---------- Helpers uniques ----------
 def _as_int(val):
@@ -2552,7 +2575,10 @@ class AddProductWithVariantView(APIView):
 
         except IntegrityError as ie:
             field, human = _integrity_to_field_error(ie)
-            payload_err = {"error": "Intégrité BD", "detail": str(ie)}
+            payload_err = {
+                "error": "Erreur de données",
+                "detail": human or str(ie),
+            }
             if field:
                 payload_err["field"] = field
                 payload_err["field_errors"] = {field: human}

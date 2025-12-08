@@ -250,7 +250,7 @@ const isRootCategory = !formData.parent;
         if (!mounted) return;
         setToast({
           kind: "error",
-          msg: e?.message || "Impossible de charger la catégorie.",
+          msg: e?.message ,
         });
       } finally {
         if (mounted) setLoading(false);
