@@ -24,10 +24,10 @@ import { useIsFetching } from "@tanstack/react-query";
 const App: React.FC = () => {
   const { i18n } = useTranslation();
   const isFetching = useIsFetching(); // nombre de requêtes en cours
-
+console.log("isFetching =", isFetching);
   return (
      <>
-      {isFetching ? <Loader /> : null}
+         {isFetching > 0 && <Loader />}
     <main className="">
       <Routes key={i18n.language}>
         {/* === PUBLIC (chemins canoniques) === */}
