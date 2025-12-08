@@ -723,7 +723,7 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
 
             {/* Produits + pagination */}
             <main>
-              {productsLoading && <div className="py-10 text-center text-gray-500">Chargement des produits…</div>}
+              {productsLoading && <div className="py-10 text-center text-gray-500"></div>}
 
               {!productsLoading && products.length === 0 && (
                 <div className="py-10 text-center text-gray-500">Aucun produit trouvé.</div>
