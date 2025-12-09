@@ -100,7 +100,8 @@ const ArticleForm: React.FC = () => {
               disabled={submitting}
             />
             {form.image ? (
-              <img src={form.image} alt="cover" loading="lazy" className="h-16 w-16 object-cover rounded-md border" />
+              <img src={form.image} alt="cover" loading="lazy" width={300}
+                      height={300}className="h-16 w-16 object-cover rounded-md border" />
             ) : (
               <span className="text-gray-500 text-sm">Aucune image</span>
             )}

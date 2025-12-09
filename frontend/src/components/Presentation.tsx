@@ -188,6 +188,7 @@ const ProductCard: React.FC<{
         )}
         <div className="pt-[100%] md:pt-[75%]" />
         <img
+        
           src={img}
           alt={name}
           loading="lazy"

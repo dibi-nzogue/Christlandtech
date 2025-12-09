@@ -201,6 +201,8 @@ const ProductArticle: React.FC = () => {
               />
               {form.image?.trim() ? (
                 <img
+                 width={300}
+                 height={300}
                   src={form.image}
                   alt="cover"
                   loading="lazy"

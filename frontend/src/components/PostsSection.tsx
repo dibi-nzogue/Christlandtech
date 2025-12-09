@@ -64,7 +64,8 @@ const CardTop: React.FC<{ post: Post }> = ({ post }) => {
         title={post.title}
       >
         <img
-        
+        width={300}
+           height={300}
           src={imgSrc}
           
           alt={post.title}
@@ -138,6 +139,8 @@ const CardBottom: React.FC<{ post: Post }> = ({ post }) => {
         title={post.title}
       >
         <img
+        width={300}
+                      height={300}
           src={imgSrc}
           alt={post.title}
           className="

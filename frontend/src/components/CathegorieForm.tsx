@@ -297,6 +297,8 @@ const CathegorieForm: React.FC = () => {
           {formData.image_url && (
             <div className="flex items-center gap-4 mt-2">
               <img
+              width={300}
+                      height={300}
                 src={formData.image_url}
                 alt={formData.nom}
                 loading="lazy"
@@ -388,6 +390,8 @@ const CathegorieForm: React.FC = () => {
                 />
                 {sub.image_url && (
                   <img
+                  width={300}
+                      height={300}
                     src={sub.image_url}
                     loading="lazy"
                     alt={sub.nom}

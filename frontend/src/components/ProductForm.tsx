@@ -1223,6 +1223,8 @@ const renderAttrInput = (
           {!img._uploading && img.url && (
             <div className="flex items-start gap-3 overflow-x-auto">
               <img
+              width={300}
+                      height={300}
                 src={img.url}
                 alt={img.alt_text || ""}
                 loading="lazy"

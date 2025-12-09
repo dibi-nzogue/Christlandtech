@@ -1102,6 +1102,8 @@ return (
       {!img._uploading && img.url && (
         <div className="flex items-center gap-3 mt-1">
           <img
+          width={300}
+                      height={300}
             src={img.url}
             alt={img.alt_text || ""}
             loading="lazy"

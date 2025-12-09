@@ -1,11 +1,12 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import Navbar from "../components/Navbar";
-import Presentation from "../components/Presentation";
-import AchatProduit from "../components/AchatProduit";
-import ContactSection from "../components/ContactSection";
 import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
 
+// 🔹 Sections lourdes en lazy
+const Presentation = lazy(() => import("../components/Presentation"));
+const AchatProduit = lazy(() => import("../components/AchatProduit"));
+const ContactSection = lazy(() => import("../components/ContactSection"));
 
 export type ProduitMini = {
   id: number;
@@ -31,9 +32,11 @@ const Produits: React.FC = () => {
     <>
       <Navbar />
       <main className="pt-1 md:pt-10">
-        <Presentation onOrder={handleOrder} />
-        <AchatProduit produit={selectedProduct} refEl={achatRef} />
-        <ContactSection id="contact"/>
+        <Suspense fallback={null}>
+          <Presentation onOrder={handleOrder} />
+          <AchatProduit produit={selectedProduct} refEl={achatRef} />
+          <ContactSection id="contact" />
+        </Suspense>
         <ScrollToTopButton />
         <Footer />
       </main>

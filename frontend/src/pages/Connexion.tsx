@@ -1,3 +1,4 @@
+// src/pages/Connexion.tsx
 import React, { useState } from "react";
 import logo from "../assets/images/logo.webp";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -12,7 +13,6 @@ const Connexion: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // /dashboard/connexion?next=/dashboard/ajouter_produit
   const params = new URLSearchParams(location.search);
   const next = params.get("next") || "/dashboard";
 
@@ -38,7 +38,6 @@ const Connexion: React.FC = () => {
 
     try {
       const res = await loginRequest(formData.email.trim(), formData.password);
-      // ✅ stocke bien les deux jetons
       auth.login(res.access, res.refresh, res.user);
       navigate(next, { replace: true });
     } catch (err: any) {
@@ -51,7 +50,6 @@ const Connexion: React.FC = () => {
   return (
     <div className="bg-white w-[90%] sm:w-[400px] md:w-[500px] mx-auto mt-[8%] p-8 rounded-xl shadow-lg shadow-slate-500 border border-gray-200">
       <form onSubmit={handleSubmit} className="flex flex-col items-center space-y-5" noValidate>
-        {/* Logo / Home */}
         <Link to="/" className="flex items-center min-w-0 p-5" aria-label="Retour à l'accueil">
           <div className="h-10 md:h-20 w-10 md:w-20 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
             <img
@@ -69,7 +67,6 @@ const Connexion: React.FC = () => {
           </div>
         </Link>
 
-        {/* Message d'erreur */}
         {errMsg && (
           <div
             role="alert"
@@ -79,7 +76,6 @@ const Connexion: React.FC = () => {
           </div>
         )}
 
-        {/* Email */}
         <div className="w-full">
           <label className="block mb-1 text-gray-700" htmlFor="email">
             {t("email.input")} <span className="text-red-500 font-bold">*</span>
@@ -98,7 +94,6 @@ const Connexion: React.FC = () => {
           />
         </div>
 
-        {/* Mot de passe */}
         <div className="w-full relative pb-5 md:pb-10">
           <label className="block mb-1 text-gray-700" htmlFor="password">
             {t("password.input")} <span className="text-red-500 font-bold">*</span>
@@ -125,7 +120,6 @@ const Connexion: React.FC = () => {
           </button>
         </div>
 
-        {/* Bouton */}
         <button
           type="submit"
           disabled={submitting}
@@ -134,7 +128,6 @@ const Connexion: React.FC = () => {
           {submitting ? "Connexion..." : t("form.button2")}
         </button>
 
-        {/* Lien inscription (dans le scope dashboard) */}
         <p className="text-sm pt-2 md:pt-5">
           {t("compte.desc2")}{" "}
           <Link

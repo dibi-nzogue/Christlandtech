@@ -134,6 +134,8 @@ const Navbar = () => {
                   src={logo}
                   alt=""
                   loading="lazy"
+                  width={300}
+                      height={300}
                   className="h-full w-full object-contain"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).style.display = "none";
@@ -331,7 +333,8 @@ const Navbar = () => {
             <div className="flex items-center justify-between px-4 h-12 border-b border-white/10">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="h-10 w-10 rounded-full bg-white overflow-hidden flex-shrink-0">
-                  <img src={logo} alt="" loading="lazy" className="h-full w-full object-contain" />
+                  <img src={logo} width={300}
+                      height={300} alt="" loading="lazy" className="h-full w-full object-contain" />
                 </div>
                 <span className="font-semibold text-md whitespace-nowrap truncate">
                   CHRISTLAND <span className="text-[#00A9E8]">TECH</span>

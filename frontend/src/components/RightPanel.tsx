@@ -49,6 +49,8 @@ const RightPanel: React.FC = () => {
           items?.map((p) => (
             <div key={p.id} className="flex flex-col gap-1 mb-2">
               <img
+              width={300}
+                      height={300}
                 src={p.image || FALLBACK}
                 alt={p.nom}
                 loading="lazy"

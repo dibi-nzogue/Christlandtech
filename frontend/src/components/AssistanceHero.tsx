@@ -90,6 +90,8 @@ const AssistanceHero: React.FC<Props> = ({
         <motion.img
         loading="lazy"
           src={imgMerci}
+          width={300}
+                      height={300}
           alt="Bannière Assistance"
           className="absolute inset-0 h-full w-full object-cover"
           initial={{ scale: 1.04, opacity: 0 }}

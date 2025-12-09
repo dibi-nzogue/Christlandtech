@@ -1,28 +1,42 @@
-import React from 'react'
-import Sidebar from '../components/Sidebar'
-import Header from '../components/Header'
-import Banner from '../components/Banner'
-import ArticleForm from '../components/ArticleForm'
-import RightPanel2 from '../components/RightPanel2'
+// src/pages/AddArticle.tsx
+import React, { useEffect, Suspense, lazy } from "react";
+import { forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
+
+// 🔹 Lazy des gros blocs dashboard
+const Sidebar = lazy(() => import("../components/Sidebar"));
+const Header = lazy(() => import("../components/Header"));
+const Banner = lazy(() => import("../components/Banner"));
+const ArticleForm = lazy(() => import("../components/ArticleForm"));
+const RightPanel2 = lazy(() => import("../components/RightPanel2"));
 
 const AddArticle: React.FC = () => {
-  return (
-    <div className='mx-auto w-full px-6 sm:px-10 lg:px-20 pt-10 bg-[#F4F5F8] h-full md:h-[100vh] overflow-hidden'>
-        <div className='flex justify-between md:gap-10'>
-            <div>
-                <Sidebar />
-            </div>
-            <div className='w-full'>
-                <Header />
-                <Banner label='Ajouter un article'/>
-                <div className='flex flex-col md:flex-row justify-between gap-10 pt-8'>
-                    <ArticleForm />
-                    <RightPanel2 />
-                </div>
-            </div>
-        </div>
-    </div>
-  )
-}
+  useEffect(() => {
+    forceStartLoading();
+    const timer = setTimeout(() => {
+      forceStopLoading();
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
 
-export default AddArticle
+  return (
+    <Suspense fallback={null}>
+      <div className="mx-auto w-full px-6 sm:px-10 lg:px-20 pt-10 bg-[#F4F5F8] h-full md:h-[100vh] overflow-hidden">
+        <div className="flex justify-between md:gap-10">
+          <div>
+            <Sidebar />
+          </div>
+          <div className="w-full">
+            <Header />
+            <Banner label="Ajouter un article" />
+            <div className="flex flex-col md:flex-row justify-between gap-10 pt-8">
+              <ArticleForm />
+              <RightPanel2 />
+            </div>
+          </div>
+        </div>
+      </div>
+    </Suspense>
+  );
+};
+
+export default AddArticle;

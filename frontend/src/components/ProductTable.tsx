@@ -416,6 +416,8 @@ const tabBaseCls =
         <tr key={p.id} className="border-b hover:bg-gray-50">
           <td className="py-1.5 md:py-2 px-2 md:px-4">
             <img
+             width={300}
+                      height={300}
               src={getImageSafe(p)}
               alt={p.nom}
               loading="lazy"
@@ -465,6 +467,8 @@ const tabBaseCls =
         <tr key={a.id} className="border-b hover:bg-gray-50">
           <td className="py-1.5 md:py-2 px-2 md:px-4">
             <img
+            width={300}
+                      height={300}
               src={a.image || "/Dispositivos.webp"}
               alt={a.titre}
               loading="lazy"

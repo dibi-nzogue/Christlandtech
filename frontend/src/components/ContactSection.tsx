@@ -79,6 +79,8 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
 
           <img
             src={profil}
+            width={300}
+                      height={300}
             alt="Profil"
             loading="lazy"
             className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"

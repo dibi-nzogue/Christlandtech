@@ -1,13 +1,13 @@
 // src/components/Nouveautes.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Slider from "react-slick";
 import { ArrowRight } from "lucide-react";
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
+import { useKeenSlider } from "keen-slider/react";
+import "keen-slider/keen-slider.min.css";
+
 import { useLatestProducts } from "../hooks/useFetchQuery";
 import GlobalLoader from "./GlobalLoader";
 
@@ -29,36 +29,6 @@ const FALLBACK_SVG =
     <rect x="150" y="200" width="180" height="22" rx="11" fill="#d1d5db"/>
   </g>
 </svg>`);
-
-/* Flèches */
-const NextArrow = (props: any) => {
-  const { onClick } = props;
-  return (
-    <div
-      onClick={onClick}
-      aria-label="Next"
-      className="flex absolute top-1/2 -translate-y-1/2 right-2 sm:-right-4
-                 z-10 bg-white shadow-md rounded-full p-2 sm:p-3 md:p-3
-                 cursor-pointer hover:bg-gray-100 transition"
-    >
-      <ArrowRight size={18} className="text-gray-700" />
-    </div>
-  );
-};
-const PrevArrow = (props: any) => {
-  const { onClick } = props;
-  return (
-    <div
-      onClick={onClick}
-      aria-label="Previous"
-      className="flex absolute top-1/2 -translate-y-1/2 left-2 sm:-left-4
-                 z-10 bg-white shadow-md rounded-full p-2 sm:p-3 md:p-3
-                 cursor-pointer hover:bg-gray-100 transition rotate-180"
-    >
-      <ArrowRight size={18} className="text-gray-700" />
-    </div>
-  );
-};
 
 /** Hook: 1 / 2 / 3 colonnes selon la largeur */
 function useVisibleSlides() {
@@ -129,29 +99,54 @@ export default function Nouveautes() {
   const slidesToShow = visibleSlides;
   const showArrows = visibleSlides >= 2 && count > slidesToShow;
   const autoPlayMobile = visibleSlides === 1 && count > 1;
-  const sliderKey = `nv-${visibleSlides}-${count}`;
 
-  const settings = {
-    dots: false,
-    infinite: count > slidesToShow,
-    speed: 600,
-    swipeToSlide: true,
-    variableWidth: false,
-    centerMode: false,
-    centerPadding: "0px",
+  // === Keen Slider (remplace react-slick) ===
+  const [sliderRef, sliderInstanceRef] = useKeenSlider<HTMLDivElement>(
+    {
+      loop: count > slidesToShow,
+      mode: "snap",
+      slides: {
+        perView: slidesToShow,
+        spacing: 16,
+      },
+    },
+    autoPlayMobile
+      ? [
+          (slider) => {
+            let timeout: ReturnType<typeof setTimeout>;
+            let mouseOver = false;
 
-    slidesToShow,
-    slidesToScroll: 1,
+            const clearNextTimeout = () => {
+              clearTimeout(timeout);
+            };
 
-    arrows: showArrows,
-    nextArrow: showArrows ? <NextArrow /> : undefined,
-    prevArrow: showArrows ? <PrevArrow /> : undefined,
+            const nextTimeout = () => {
+              clearTimeout(timeout);
+              if (mouseOver) return;
+              timeout = setTimeout(() => {
+                slider.next();
+              }, 2500);
+            };
 
-    autoplay: autoPlayMobile,
-    autoplaySpeed: 2500,
-    pauseOnHover: false,
-    pauseOnFocus: false,
-  } as const;
+            slider.on("created", () => {
+              slider.container.addEventListener("mouseover", () => {
+                mouseOver = true;
+                clearNextTimeout();
+              });
+              slider.container.addEventListener("mouseout", () => {
+                mouseOver = false;
+                nextTimeout();
+              });
+              nextTimeout();
+            });
+
+            slider.on("dragStarted", clearNextTimeout);
+            slider.on("animationEnded", nextTimeout);
+            slider.on("updated", nextTimeout);
+          },
+        ]
+      : []
+  );
 
   const containerVariants: Variants = {
     hidden: { opacity: 0, y: 80 },
@@ -188,6 +183,8 @@ export default function Nouveautes() {
               <img
                 src={p.image || FALLBACK_SVG}
                 alt={p.nom}
+                width={300}
+                 height={300}
                 className="w-full h-full object-contain object-center block"
                 loading="lazy"
                 onError={(e) => {
@@ -278,7 +275,7 @@ export default function Nouveautes() {
 
       {error && !loading && <p className="text-red-600 mb-4">{error}</p>}
 
-      {/* 🔄 Loader “comme dans Presentation” pour le premier chargement */}
+      {/* Loader premier chargement */}
       {loading && (!latest || latest.length === 0) && (
         <div className="py-16 flex items-center justify-center w-full">
           <GlobalLoader />
@@ -299,18 +296,42 @@ export default function Nouveautes() {
           </div>
         ) : (
           <div className="relative w-full mb-10">
-            <style>{`
-              .nouveautes-slider .slick-track { align-items: stretch; }
-              .nouveautes-slider .slick-slide > div { height: 100%; }
-            `}</style>
+            {/* Flèches custom, pilotent Keen Slider */}
+            {showArrows && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => sliderInstanceRef.current?.prev()}
+                  aria-label="Previous"
+                  className="flex absolute top-1/2 -translate-y-1/2 left-2 sm:-left-4
+                             z-10 bg-white shadow-md rounded-full p-2 sm:p-3 md:p-3
+                             cursor-pointer hover:bg-gray-100 transition rotate-180"
+                >
+                  <ArrowRight size={18} className="text-gray-700" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => sliderInstanceRef.current?.next()}
+                  aria-label="Next"
+                  className="flex absolute top-1/2 -translate-y-1/2 right-2 sm:-right-4
+                             z-10 bg-white shadow-md rounded-full p-2 sm:p-3 md:p-3
+                             cursor-pointer hover:bg-gray-100 transition"
+                >
+                  <ArrowRight size={18} className="text-gray-700" />
+                </button>
+              </>
+            )}
 
-            <Slider key={sliderKey} className="nouveautes-slider" {...settings}>
+            <div ref={sliderRef} className="keen-slider">
               {filtered!.map((p) => (
-                <div key={p.id} className="px-1 md:px-3 py-3">
+                <div
+                  key={p.id}
+                  className="keen-slider__slide px-1 md:px-3 py-3"
+                >
                   {renderCard(p)}
                 </div>
               ))}
-            </Slider>
+            </div>
           </div>
         )
       )}

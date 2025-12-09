@@ -196,6 +196,8 @@ const ExtraRow: React.FC<{
         >
           <motion.img
             src={item.image}
+            width={300}
+                      height={300}
             alt={item.title}
             className="w-full object-cover
                        aspect-[16/10] sm:aspect-[4/3]

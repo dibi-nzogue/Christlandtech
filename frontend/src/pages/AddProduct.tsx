@@ -1,36 +1,44 @@
-import React from 'react'
-import Sidebar from '../components/Sidebar'
-import Header from '../components/Header'
-import Banner from '../components/Banner'
-import ProductForm from '../components/ProductForm'
-import RightPanel1 from '../components/RightPanel1'
+// src/pages/AddProduct.tsx
+import React, { useEffect, Suspense, lazy } from "react";
+import { forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
+
+// 🔹 Lazy
+const Sidebar = lazy(() => import("../components/Sidebar"));
+const Header = lazy(() => import("../components/Header"));
+const Banner = lazy(() => import("../components/Banner"));
+const ProductForm = lazy(() => import("../components/ProductForm"));
+const RightPanel1 = lazy(() => import("../components/RightPanel1"));
 
 const AddProduct: React.FC = () => {
+  useEffect(() => {
+    forceStartLoading();
+    const timer = setTimeout(() => {
+      forceStopLoading();
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <div className="mx-auto w-full px-4 sm:px-6 lg:px-20 pt-6 md:pt-10 bg-[#F4F5F8] min-h-screen">
-      <div className="flex gap-6">
-        <div>
-          <Sidebar />
-        </div>
-
-        <div className="w-full flex flex-col">
-          <Header />
-          <Banner label="Ajouter un produit" />
-
-          {/* 👉 colonne sur mobile / tablette, row seulement à partir de lg */}
-          <div className="flex flex-col lg:flex-row gap-8 pt-6">
-            <div className="flex-1">
-              <ProductForm />
-            </div>
-
-            
+    <Suspense fallback={null}>
+      <div className="mx-auto w-full px-4 sm:px-6 lg:px-20 pt-6 md:pt-10 bg-[#F4F5F8] min-h-screen">
+        <div className="flex gap-6">
+          <div>
+            <Sidebar />
+          </div>
+          <div className="w-full flex flex-col">
+            <Header />
+            <Banner label="Ajouter un produit" />
+            <div className="flex flex-col lg:flex-row gap-8 pt-6">
+              <div className="flex-1">
+                <ProductForm />
+              </div>
               <RightPanel1 />
-            
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Suspense>
   );
 };
 
-export default AddProduct
+export default AddProduct;

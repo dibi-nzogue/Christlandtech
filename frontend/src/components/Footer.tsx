@@ -33,6 +33,8 @@ const Footer: React.FC = () => {
               <div className="h-10 md:h-16 w-10 md:w-16 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
                 <img
                   src={logo}
+                  width={300}
+                      height={300}
                   alt="CHRISTLAND TECH"
                   loading="lazy"
                   className="h-full w-full object-cover"

@@ -1,6 +1,7 @@
 // src/components/CategoriesCarousel.tsx
-import React, { useRef, useEffect, useState } from "react";
-import Slider from "react-slick";
+import React, { useRef } from "react";
+import { useKeenSlider } from "keen-slider/react";
+import "keen-slider/keen-slider.min.css";
 import { motion, useInView } from "framer-motion";
 import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
@@ -31,51 +32,37 @@ const FALLBACK_SVG =
 
 const CategoriesCarousel: React.FC = () => {
   const { t } = useTranslation();
-  const sliderRef = useRef<Slider | null>(null);
 
   const { data: cats, loading, error } = useTopCategories1();
   const items: ApiCategory[] = cats ?? [];
 
-  const [slidesToShow, setSlidesToShow] = useState<number>(2);
+  // ======== Keen Slider =========
+  const [sliderRef, instanceRef] = useKeenSlider<HTMLDivElement>({
+    loop: false,
+    slides: {
+      perView: 2,
+      spacing: 16,
+    },
+    breakpoints: {
+      "(max-width: 379px)": {
+        slides: { perView: 1, spacing: 12 },
+      },
+      "(min-width: 640px)": {
+        slides: { perView: 3, spacing: 16 },
+      },
+      "(min-width: 900px)": {
+        slides: { perView: 4, spacing: 18 },
+      },
+      "(min-width: 1200px)": {
+        slides: { perView: 5, spacing: 20 },
+      },
+    },
+  });
 
-  useEffect(() => {
-    const computeSlides = () => {
-      if (typeof window === "undefined") return 2;
+  // Framer Motion pour l'animation d'apparition
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const isInView = useInView(sectionRef, { once: true, margin: "-80px" });
 
-      const w = window.innerWidth;
-
-      if (w < 380) return 1;
-      if (w < 640) return 2;
-      if (w < 900) return 3;
-      if (w < 1200) return 4;
-      return 5;
-    };
-
-    setSlidesToShow(computeSlides());
-
-    const handleResize = () => {
-      setSlidesToShow(computeSlides());
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  /** ========= Slider ========= */
-  const settings = {
-    dots: false,
-    infinite: false,
-    speed: 400,
-    swipeToSlide: true,
-    variableWidth: false,
-    centerMode: false,
-    adaptiveHeight: false,
-    slidesToShow,
-    slidesToScroll: 1,
-  };
-
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
   const cardVariants = {
     hidden: { opacity: 0, y: 30 },
     visible: (i: number) => ({
@@ -88,7 +75,7 @@ const CategoriesCarousel: React.FC = () => {
   const isInitialLoading = loading && items.length === 0;
 
   return (
-    <div className="bg-white py-8" ref={ref}>
+    <div className="bg-white py-8" ref={sectionRef}>
       <div className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-10">
         {/* Header */}
         <motion.div
@@ -102,14 +89,14 @@ const CategoriesCarousel: React.FC = () => {
           </h2>
           <div className="flex gap-2">
             <button
-              onClick={() => sliderRef.current?.slickPrev()}
+              onClick={() => instanceRef.current?.prev()}
               className="p-2 rounded-full hover:bg-gray-200"
               aria-label="Précédent"
             >
               <FaArrowLeft />
             </button>
             <button
-              onClick={() => sliderRef.current?.slickNext()}
+              onClick={() => instanceRef.current?.next()}
               className="p-2 rounded-full hover:bg-gray-200"
               aria-label="Suivant"
             >
@@ -131,13 +118,16 @@ const CategoriesCarousel: React.FC = () => {
         {/* Carousel */}
         {!isInitialLoading && !loading && items.length > 0 && (
           <div className="pb-10">
-            <Slider ref={sliderRef} {...settings}>
+            <div ref={sliderRef} className="keen-slider">
               {items.map((cat, i) => {
                 const rawImage = cat.image_url || (cat as any).image || "";
                 const imgSrc = rawImage ? media(rawImage) : FALLBACK_SVG;
 
                 return (
-                  <div key={cat.id} className="px-2 sm:px-3">
+                  <div
+                    key={cat.id}
+                    className="keen-slider__slide px-2 sm:px-3"
+                  >
                     <motion.div
                       custom={i}
                       variants={cardVariants}
@@ -147,7 +137,7 @@ const CategoriesCarousel: React.FC = () => {
                         relative flex flex-col items-center
                         rounded-xl bg-gray-50 p-4 sm:p-5
                         shadow-md hover:shadow-lg
-                        min-h-[230px]              /* 👈 même hauteur mini pour toutes les cartes */
+                        min-h-[230px]
                       "
                     >
                       {/* Image */}
@@ -160,12 +150,13 @@ const CategoriesCarousel: React.FC = () => {
                           animate={isInView ? { scale: 1, opacity: 1 } : {}}
                           transition={{ duration: 0.45, delay: i * 0.06 }}
                           loading="lazy"
+                          width={300}
+                      height={300}
                           decoding="async"
                           onError={(e) => {
                             const img = e.currentTarget as HTMLImageElement;
                             if (img.src !== FALLBACK_SVG) {
                               img.src = FALLBACK_SVG;
-                              
                             }
                           }}
                         />
@@ -175,7 +166,7 @@ const CategoriesCarousel: React.FC = () => {
                       <div
                         className="
                           mt-3 w-full flex items-center justify-center
-                          h-[48px]        /* 👈 bloc texte de hauteur fixe (1 ou 2 lignes) */
+                          h-[48px]
                         "
                       >
                         <p
@@ -192,7 +183,7 @@ const CategoriesCarousel: React.FC = () => {
                   </div>
                 );
               })}
-            </Slider>
+            </div>
           </div>
         )}
 

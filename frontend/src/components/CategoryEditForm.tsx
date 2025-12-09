@@ -396,6 +396,8 @@ if (isRootCategory && newSubCategories.length > 0) {
                 src={formData.image_url}
                 alt={formData.nom}
                 loading="lazy"
+                width={300}
+                      height={300}
                 className="h-20 w-20 object-cover rounded-lg border"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src =
@@ -504,6 +506,8 @@ if (isRootCategory && newSubCategories.length > 0) {
           {sub.image_url && (
             <img
               src={sub.image_url}
+              width={300}
+                      height={300}
               loading="lazy"
               alt={sub.nom}
               className="mt-2 h-16 w-16 object-cover rounded-md border"

@@ -366,6 +366,8 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                   >
                     <img
                       src={src}
+                      width={300}
+                      height={300}
                       alt={`Promo ${i + 1}`}
                       loading="lazy"
                       className="h-full w-full object-cover"
@@ -432,6 +434,8 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                       src={imgSrc}
                       alt=""
                       loading="lazy"
+                      width={300}
+                      height={300}
                       aria-hidden="true"
                       className="absolute inset-0 h-full w-full object-cover scale-110 blur-md opacity-40"
                       onError={(e) => {
@@ -443,6 +447,8 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                     <img
                       src={imgSrc}
                       loading="lazy"
+                      width={300}
+                      height={300}
                       alt={mini.nom}
                       className="absolute inset-0 h-full w-full object-contain p-2 md:p-3 drop-shadow-sm"
                       onError={(e) => {
@@ -471,6 +477,8 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                   <img
                     src={logo}
                     loading="lazy"
+                    width={300}
+                      height={300}
                     alt=""
                     aria-hidden="true"
                     draggable={false}

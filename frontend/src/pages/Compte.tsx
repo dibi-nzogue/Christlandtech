@@ -5,8 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import eyes from "../assets/images/eyes-open.webp";
 import eye from "../assets/images/eyes-off.webp";
 import { useTranslation } from "react-i18next";
-import { adminRegisterRequest } from "../hooks/useFetchQuery"; // ✅ corrige l'import
-// import { auth } from "../auth"; // ❌ pas nécessaire ici si on ne change pas de session
+import { adminRegisterRequest } from "../hooks/useFetchQuery";
 
 const Compte: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -39,8 +38,6 @@ const Compte: React.FC = () => {
         prenom: formData.username,
       });
 
-      // ✅ on reste connecté en tant qu’admin
-      // ✅ on envoie un flash au Dashboard
       navigate("/Dashboard", {
         replace: true,
         state: {
@@ -48,10 +45,6 @@ const Compte: React.FC = () => {
           flash: `Utilisateur ${formData.email} créé 🎉`,
         },
       });
-
-      // (optionnel) reset formulaire
-      // setFormData({ username: "", email: "", password: "", confirmPassword: "" });
-
     } catch (err: any) {
       alert(err?.message || "Échec de l’inscription.");
     } finally {
@@ -145,7 +138,6 @@ const Compte: React.FC = () => {
           {submitting ? "Création..." : t("form.button1")}
         </button>
 
-        {/* Lien vers connexion (pas utile pour l'admin, mais tu peux le garder) */}
         <p className="text-sm pt-2 md:pt-5">
           {t("compte.desc")}{" "}
           <span onClick={() => navigate("/dashboard/Connexion")} className="text-[#00A9DC] font-semibold cursor-pointer">

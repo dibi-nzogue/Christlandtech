@@ -87,6 +87,8 @@ const ServiceRow: React.FC<{ item: ServiceItem }> = ({ item }) => {
           >
             <motion.img
               src={item.image}
+              width={300}
+                      height={300}
               alt={item.title ?? "illustration"}
               className="h-full w-full object-cover sm:h-[240px] md:h-[300px] lg:h-[340px] transform-gpu will-change-transform"
               loading="lazy"
@@ -212,6 +214,8 @@ const ServicesBloc: React.FC = () => {
                   <motion.img
                   
                     src={it.image}
+                    width={300}
+                      height={300}
                     alt="illustration"
                     className="w-full h-[200px] sm:h-[260px] md:h-[340px] lg:h-[400px] object-cover transform-gpu will-change-transform"
                     loading="lazy"

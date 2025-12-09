@@ -1,38 +1,58 @@
+// src/components/Sponsor.tsx
 import React, { useRef } from "react";
-import Slider from "react-slick";
+import { useKeenSlider } from "keen-slider/react";
+import type { KeenSliderPlugin } from "keen-slider/react";
 import { motion, useInView } from "framer-motion";
 import type { Variants } from "framer-motion";
-import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css";
+import "keen-slider/keen-slider.min.css";
 
-import hp from "../assets/images/Logos/hp.png";
-import apple from "../assets/images/Logos/apple.png";
-import lenovo from "../assets/images/Logos/lenovo.png";
-import canon from "../assets/images/Logos/canon.png";
-import android from "../assets/images/Logos/android.png";
+import hp from "../assets/images/Logos/hp.webp";
+import apple from "../assets/images/Logos/apple.webp";
+import lenovo from "../assets/images/Logos/lenovo.webp";
+import canon from "../assets/images/Logos/canon.webp";
+import android from "../assets/images/Logos/android.webp";
 
 const logos = [hp, apple, lenovo, canon, android];
 
-const Sponsor: React.FC = () => {
-  const settings = {
-    dots: false,
-    arrows: false,
-    infinite: true,
-    speed: 3000,
-    slidesToShow: 3,
-    slidesToScroll: 1,
-    autoplay: true,
-    autoplaySpeed: 3000,
-    centerMode: true,
-    centerPadding: "0px",
-    responsive: [
-      { breakpoint: 768, settings: { slidesToShow: 3 } },
-      { breakpoint: 480, settings: { slidesToShow: 2 } },
-    ],
-  };
+/** 🔁 Plugin autoplay pour Keen Slider */
+const autoplayPlugin: KeenSliderPlugin = (slider) => {
+  let timeout: ReturnType<typeof setTimeout>;
+  let mouseOver = false;
 
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  function clearNextTimeout() {
+    clearTimeout(timeout);
+  }
+
+  function nextTimeout() {
+    clearTimeout(timeout);
+    if (!mouseOver) {
+      timeout = setTimeout(() => {
+        slider.next();
+      }, 3000); // ⏱️ 3s entre chaque slide
+    }
+  }
+
+  slider.on("created", () => {
+    slider.container.addEventListener("mouseover", () => {
+      mouseOver = true;
+      clearNextTimeout();
+    });
+    slider.container.addEventListener("mouseout", () => {
+      mouseOver = false;
+      nextTimeout();
+    });
+    nextTimeout();
+  });
+
+  slider.on("dragStarted", clearNextTimeout);
+  slider.on("animationEnded", nextTimeout);
+  slider.on("updated", nextTimeout);
+};
+
+const Sponsor: React.FC = () => {
+  // ⭐ Desktop animation (inchangé)
+  const containerRef = useRef(null);
+  const isInView = useInView(containerRef, { once: true, margin: "-100px" });
 
   const containerVariants: Variants = {
     hidden: {},
@@ -50,9 +70,30 @@ const Sponsor: React.FC = () => {
     },
   };
 
+  // 📱 Mobile slider avec Keen
+  const [sliderRef] = useKeenSlider<HTMLDivElement>(
+    {
+      loop: true,
+      renderMode: "performance",
+      slides: {
+        perView: 3,
+        spacing: 16,
+      },
+      breakpoints: {
+        "(max-width: 768px)": {
+          slides: { perView: 3, spacing: 8 },
+        },
+        "(max-width: 480px)": {
+          slides: { perView: 2, spacing: 8 },
+        },
+      },
+    },
+    [autoplayPlugin]
+  );
+
   return (
     <div
-      ref={ref}
+      ref={containerRef}
       className="bg-[#C5BFBF]/50 py-4 md:py-6 lg:py-8 my-5 md:my-10 lg:my-16 "
     >
       <div className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
@@ -65,6 +106,8 @@ const Sponsor: React.FC = () => {
         >
           {logos.map((logo, index) => (
             <motion.img
+            width={300}
+            height={300}
               key={index}
               loading="lazy"
               src={logo}
@@ -75,11 +118,14 @@ const Sponsor: React.FC = () => {
           ))}
         </motion.div>
 
-        {/* Mobile */}
+        {/* Mobile (Keen Slider) */}
         <div className="lg:hidden">
-          <Slider {...settings} className="mx-auto">
+          <div ref={sliderRef} className="keen-slider">
             {logos.map((logo, index) => (
-              <div key={index} className="flex justify-between items-center">
+              <div
+                key={index}
+                className="keen-slider__slide flex justify-center items-center"
+              >
                 <img
                   src={logo}
                   alt={`Sponsor ${index}`}
@@ -88,7 +134,7 @@ const Sponsor: React.FC = () => {
                 />
               </div>
             ))}
-          </Slider>
+          </div>
         </div>
       </div>
     </div>

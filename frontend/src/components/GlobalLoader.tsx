@@ -14,6 +14,8 @@ const GlobalLoader: React.FC = () => {
         <div className="relative">
           <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <img
+            width={300}
+                      height={300}
   src={logo}
   alt="Christland Tech"
   loading="lazy"

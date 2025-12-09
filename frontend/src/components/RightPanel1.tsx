@@ -33,6 +33,8 @@ const RightPanel1: React.FC = () => {
               <div className="relative w-full overflow-hidden rounded-lg bg-gray-50">
                 <div className="pt-[56.25%]" />
                 <img
+                width={300}
+                      height={300}
                   src={p.image || FALLBACK}
                   loading="lazy"
                   alt={p.nom}
