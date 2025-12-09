@@ -83,12 +83,8 @@ let globalRequests = 0;
 type GlobalListener = (isLoading: boolean) => void;
 const globalListeners = new Set<GlobalListener>();
 
-// On garde aussi un timestamp pour un éventuel hard-reset
-let lastGlobalChange = Date.now();
-
 function notifyGlobal() {
   const isLoading = globalRequests > 0;
-  lastGlobalChange = Date.now();
   globalListeners.forEach((fn) => fn(isLoading));
 }
 
@@ -101,6 +97,7 @@ function stopGlobalLoading() {
   globalRequests = Math.max(0, globalRequests - 1);
   notifyGlobal();
 }
+
 
 
 /** Permet de s'abonner au loader global */
