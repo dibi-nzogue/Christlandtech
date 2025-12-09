@@ -468,7 +468,7 @@ import os
 
 # === Email / Contact ===
 
-CONTACT_INBOX = os.getenv("CONTACT_INBOX", "nzogue.dibiye@gmail.com")
+CONTACT_INBOX = os.getenv("CONTACT_INBOX", "rol@dibiye.com")
 
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
