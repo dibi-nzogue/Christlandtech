@@ -83,8 +83,12 @@ let globalRequests = 0;
 type GlobalListener = (isLoading: boolean) => void;
 const globalListeners = new Set<GlobalListener>();
 
+// On garde aussi un timestamp pour un éventuel hard-reset
+let lastGlobalChange = Date.now();
+
 function notifyGlobal() {
   const isLoading = globalRequests > 0;
+  lastGlobalChange = Date.now();
   globalListeners.forEach((fn) => fn(isLoading));
 }
 
@@ -98,6 +102,7 @@ function stopGlobalLoading() {
   notifyGlobal();
 }
 
+
 /** Permet de s'abonner au loader global */
 export function subscribeGlobalLoading(fn: GlobalListener): () => void {
   globalListeners.add(fn);
@@ -108,27 +113,28 @@ export function subscribeGlobalLoading(fn: GlobalListener): () => void {
 /** Hook React pour savoir s'il y a des fetchs en cours */
 // dans useFetchQuery.tsx
 
-export function useGlobalLoading(minDelay = 500) {
-  const [loading, setLoading] = useState(false);
-  const [visible, setVisible] = useState(false);
+/** Hook React pour savoir s'il y a des fetchs en cours */
+export function useGlobalLoading(minDelay = 100, maxDuration = 200) {
+  const [loading, setLoading] = useState(false);   // vrai état global
+  const [visible, setVisible] = useState(false);   // ce qu'on affiche vraiment
 
-  // on s'abonne au "vrai" état global
+  // Abonnement au compteur global
   useEffect(() => {
     const unsubscribe = subscribeGlobalLoading(setLoading);
     return unsubscribe;
   }, []);
 
-  // on n'affiche le loader que si ça dure plus que minDelay
+  // Affichage avec petit délai (minDelay)
   useEffect(() => {
     let timer: number | null = null;
 
     if (loading) {
-      // si ça charge, on attend minDelay ms avant d'afficher
+      // si ça charge, on attend minDelay avant d'afficher
       timer = window.setTimeout(() => {
         setVisible(true);
       }, minDelay);
     } else {
-      // si ça ne charge plus, on cache tout de suite
+      // plus de requêtes → on cache tout de suite
       setVisible(false);
       if (timer) window.clearTimeout(timer);
     }
@@ -138,7 +144,19 @@ export function useGlobalLoading(minDelay = 500) {
     };
   }, [loading, minDelay]);
 
-  return visible; // 👈 c'est ça que tu utilises dans tes pages
+  // 🛡️ Garde-fou : si jamais loading reste vrai trop longtemps,
+  // on force la fermeture du loader (au cas où un fetch ne finit jamais)
+  useEffect(() => {
+    if (!loading) return;
+
+    const hardTimeout = window.setTimeout(() => {
+      setVisible(false);
+    }, maxDuration);
+
+    return () => window.clearTimeout(hardTimeout);
+  }, [loading, maxDuration]);
+
+  return visible;
 }
 
 export function forceStartLoading() {

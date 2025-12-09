@@ -2,7 +2,7 @@
 import * as React from "react";
 import { FiChevronLeft, FiChevronRight, FiMenu, FiChevronDown } from "react-icons/fi";
 import { MdClose } from "react-icons/md";
-import iphone from "../assets/images/produits/sans-fond/Apple Iphone 15 Black Smartphone PNG _ TopPNG.png";
+import iphone from "../assets/images/Apple Iphone 15 Black Smartphone PNG _ TopPNG.png";
 import { useTranslation } from "react-i18next";
 // + ajoute le type
 import GlobalLoader from "../components/GlobalLoader";

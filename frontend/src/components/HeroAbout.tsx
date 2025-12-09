@@ -1,6 +1,6 @@
 import React from 'react'
-import hero4 from '../assets/images/hero4.png';
-import hero5 from '../assets/images/hero5.png';
+import hero4 from '../assets/images/hero4.webp';
+import hero5 from '../assets/images/hero5.webp';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from "framer-motion";

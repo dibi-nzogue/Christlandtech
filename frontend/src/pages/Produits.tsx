@@ -6,6 +6,7 @@ import ContactSection from "../components/ContactSection";
 import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
 
+
 export type ProduitMini = {
   id: number;
   slug: string;

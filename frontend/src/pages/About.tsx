@@ -7,15 +7,14 @@ import ContactSection from '../components/ContactSection';
 import BoardManage from '../components/BoardManage';
 import StatsSection from '../components/StatsSection';
 
-import GlobalLoader from "../components/GlobalLoader";
 import { 
-  useGlobalLoading,
+
   forceStartLoading,
   forceStopLoading
 } from "../hooks/useFetchQuery";
 
 const About: React.FC = () => {
-  const isLoading = useGlobalLoading();
+
 
   useEffect(() => {
     // 👉 Forcer le loader au montage de la page
@@ -30,15 +29,12 @@ const About: React.FC = () => {
 
   return (
     <>
-      {isLoading && <GlobalLoader />}
-
       <div>
         <Navbar />
         <HeroAbout />
         <BoardManage />
         <StatsSection />
         <ContactSection id="contact" />
-
         <Footer />
         <ScrollToTopButton />
       </div>

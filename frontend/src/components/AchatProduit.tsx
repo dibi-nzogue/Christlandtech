@@ -16,7 +16,7 @@ import {
   type ApiProduct,
 } from "../hooks/useFetchQuery";
 
-import logo from "../assets/images/logo.jpg";
+import logo from "../assets/images/logo.webp";
 import ordi from "../assets/images/achat/779c4768-1ab0-4692-92a5-718c01baf4f8.jfif";
 import cana from "../assets/images/achat/0cbf9c9c-7cfd-4c3d-ae29-e2b2b0471cfe.jfif";
 

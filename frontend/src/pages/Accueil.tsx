@@ -10,16 +10,12 @@ import ScrollToTopButton from "../components/ScrollToTopButton";
 import CategoriesCarousel from "../components/CategoriesCarousel";
 import Nouveautes from "../components/Nouveautes";
 
-import GlobalLoader from "../components/GlobalLoader";
-import { useGlobalLoading } from "../hooks/useFetchQuery";
 
 const Accueil: React.FC = () => {
-  const isLoading = useGlobalLoading();   // 👈 écoute le loader global
+ 
 
   return (
     <>
-      {isLoading && <GlobalLoader />}     {/* 👈 overlay partout tant qu'il y a des fetchs */}
-
       <Navbar />
       <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 pt-8 md:pt-28 lg:pt-32">
         <HeroCarousel />

@@ -1,6 +1,6 @@
 // src/pages/Compte.tsx
 import React, { useState } from "react";
-import logo from "../assets/images/logo.jpg";
+import logo from "../assets/images/logo.webp";
 import { Link, useNavigate } from "react-router-dom";
 import eyes from "../assets/images/eyes-open.png";
 import eye from "../assets/images/eyes-off.png";

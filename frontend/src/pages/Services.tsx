@@ -7,11 +7,11 @@ import ServicesBloc from "../components/ServicesBloc";
 import ServicesExtra from "../components/ServicesExtra";
 import ContactSection from "../components/ContactSection";
 
-import GlobalLoader from "../components/GlobalLoader";
-import { useGlobalLoading, forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
+
+import { forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
 
 const Services: React.FC = () => {
-  const isLoading = useGlobalLoading();
+
 
   useEffect(() => {
     // 👉 Force l'affichage du loader dès que la page commence à se monter
@@ -27,7 +27,7 @@ const Services: React.FC = () => {
 
   return (
     <>
-      {isLoading && <GlobalLoader />}
+
 
       <div>
         <Navbar />

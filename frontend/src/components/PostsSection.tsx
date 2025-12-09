@@ -183,41 +183,38 @@ const CardBottom: React.FC<{ post: Post }> = ({ post }) => {
 };
 
 const PostsSection: React.FC = () => {
-  const { data, loading, error } = useBlogPosts();
+  const { data } = useBlogPosts();   // 👈 plus de loading / error ici
 
-  // mapping EXACT demandé :
   // image  <- image (image_couverture côté API)
   // title  <- extrait
   // excerpt<- contenu
-const postsTop: Post[] = React.useMemo(() => {
-  const items = data?.top ?? [];
-  return items.map((a) => {
-    const rawImage = a.image || "";
-    const img = rawImage ? media(rawImage) : "";
-    return {
-      id: a.id,
-      image: img || FALLBACK_IMG,
-      title: a.excerpt || "",
-      excerpt: a.content || "",
-    };
-  });
-}, [data?.top]);
+  const postsTop: Post[] = React.useMemo(() => {
+    const items = data?.top ?? [];
+    return items.map((a) => {
+      const rawImage = a.image || "";
+      const img = rawImage ? media(rawImage) : "";
+      return {
+        id: a.id,
+        image: img || FALLBACK_IMG,
+        title: a.excerpt || "",
+        excerpt: a.content || "",
+      };
+    });
+  }, [data?.top]);
 
-
-const postsBottom: Post[] = React.useMemo(() => {
-  const items = data?.bottom ?? [];
-  return items.map((a) => {
-    const rawImage = a.image || "";
-    const img = rawImage ? media(rawImage) : "";
-    return {
-      id: a.id,
-      image: img || FALLBACK_IMG,
-      title: a.excerpt || "",
-      excerpt: a.content || "",
-    };
-  });
-}, [data?.bottom]);
-
+  const postsBottom: Post[] = React.useMemo(() => {
+    const items = data?.bottom ?? [];
+    return items.map((a) => {
+      const rawImage = a.image || "";
+      const img = rawImage ? media(rawImage) : "";
+      return {
+        id: a.id,
+        image: img || FALLBACK_IMG,
+        title: a.excerpt || "",
+        excerpt: a.content || "",
+      };
+    });
+  }, [data?.bottom]);
 
   return (
     <motion.section
@@ -232,30 +229,21 @@ const postsBottom: Post[] = React.useMemo(() => {
           text-[clamp(12px,2.2vw,16px)]
         "
       >
-        {/* petite correction de français */}
         Nos articles
       </h2>
 
-      {error && (
-        <div className="mt-3 text-sm text-red-600">
-        
-        </div>
-      )}
-
       {/* 4 du haut */}
       <div className="mt-5 space-y-6">
-        {(loading && postsTop.length === 0 ? [] : postsTop).map((post) => (
+        {postsTop.map((post) => (
           <CardTop key={post.id} post={post} />
         ))}
       </div>
 
       {/* 2 du bas */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {(loading && postsBottom.length === 0 ? [] : postsBottom).map(
-          (post) => (
-            <CardBottom key={post.id} post={post} />
-          ),
-        )}
+        {postsBottom.map((post) => (
+          <CardBottom key={post.id} post={post} />
+        ))}
       </div>
     </motion.section>
   );

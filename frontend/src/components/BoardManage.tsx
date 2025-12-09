@@ -3,9 +3,9 @@ import { FaArrowRight } from "react-icons/fa";
 import { FaLinkedinIn, FaTwitter, FaFacebookF } from "react-icons/fa";
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import team1 from '../assets/images/team.png';
-import team2 from '../assets/images/team1.png';
-import team3 from '../assets/images/team2.png';
+import team1 from '../assets/images/team.webp';
+import team2 from '../assets/images/team1.webp';
+import team3 from '../assets/images/team2.webp';
 import { motion } from 'framer-motion';
 
 const BoardManage: React.FC = () => {
@@ -85,37 +85,42 @@ const BoardManage: React.FC = () => {
             </div>
             <div className="pt-10 md:pt-20">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 justify-items-center rounded-xl">
-                    {team.map((data) => (
-                        <motion.div initial={{ opacity: 0, y: 50 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 1, delay: 0.2 }}
-                            viewport={{ once: true }}
-                        >
-                            <div key={data.id} className="w-full max-w-xs relative">
-                                <img
-                                src={data.image}
-                                alt=""
-                                loading="lazy"
-                                className="w-full h-auto rounded-lg object-cover shadow-md hover:scale-105 transition-transform duration-300"
-                                />
-                            </div>
-                            <div className='bg-white p-3 rounded-md absolute -mt-48 md:-mt-48 lg:-mt-52 h-auto md:h-[200px] w-[300px] md:w-[255px] lg:w-[220px] xl:w-[300px] mx-2'>
-                                <h3 className="text-lg font-semibold">{data.name}</h3>
-                                <p className="text-[#00A9DC] text-sm font-medium">
-                                    {data.role}
-                                </p>
-                                <p className="text-gray-500 text-sm mt-2 leading-relaxed">
-                                    {data.desc}
-                                </p>
-                                <div className="flex items-center gap-4 mt-4 text-gray-500">
-                                    <FaLinkedinIn className="hover:text-[#00A9DC] cursor-pointer" />
-                                    <FaTwitter className="hover:text-[#00A9DC] cursor-pointer" />
-                                    <FaFacebookF className="hover:text-[#00A9DC] cursor-pointer" />
-                                </div>
-                            </div>
-                        </motion.div>
-                    ))}
-                </div>
+  {team.map((data) => (
+    <motion.div
+      key={data.id}  // 👈 le key doit être ici
+      initial={{ opacity: 0, y: 50 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 1, delay: 0.2 }}
+      viewport={{ once: true }}
+      className="relative"   // 👈 optionnel mais utile pour l'absolu juste en dessous
+    >
+      <div className="w-full max-w-xs">
+        <img
+          src={data.image}
+          alt=""
+          loading="lazy"
+          className="w-full h-auto rounded-lg object-cover shadow-md hover:scale-105 transition-transform duration-300"
+        />
+      </div>
+
+      <div className="bg-white p-3 rounded-md absolute -mt-48 md:-mt-48 lg:-mt-52 h-auto md:h-[200px] w-[300px] md:w-[255px] lg:w-[220px] xl:w-[300px] mx-2">
+        <h3 className="text-lg font-semibold">{data.name}</h3>
+        <p className="text-[#00A9DC] text-sm font-medium">
+          {data.role}
+        </p>
+        <p className="text-gray-500 text-sm mt-2 leading-relaxed">
+          {data.desc}
+        </p>
+        <div className="flex items-center gap-4 mt-4 text-gray-500">
+          <FaLinkedinIn className="hover:text-[#00A9DC] cursor-pointer" />
+          <FaTwitter className="hover:text-[#00A9DC] cursor-pointer" />
+          <FaFacebookF className="hover:text-[#00A9DC] cursor-pointer" />
+        </div>
+      </div>
+    </motion.div>
+  ))}
+</div>
+
             </div>
         </div>
     </div>

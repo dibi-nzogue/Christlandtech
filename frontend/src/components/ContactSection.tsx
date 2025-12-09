@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { sendContactMessage } from "../hooks/useFetchQuery";
-import profil from "../assets/images/logo1.png";
+import profil from "../assets/images/logo1.webp";
 
 type ContactSectionProps = { id?: string };
 

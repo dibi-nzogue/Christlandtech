@@ -8,7 +8,7 @@ import {
   FaPhone,
   FaEnvelope,
 } from "react-icons/fa6";
-import logo from "../assets/images/logo.jpg";
+import logo from "../assets/images/logo.webp";
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 

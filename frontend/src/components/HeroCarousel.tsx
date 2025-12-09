@@ -4,9 +4,9 @@ import { motion, useInView } from "framer-motion";
 import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import hero from "../assets/images/hero.png";
-import hero1 from "../assets/images/hero1.png";
-import hero2 from "../assets/images/hero2.png";
+import hero from "../assets/images/hero.webp";
+import hero1 from "../assets/images/hero1.webp";
+import hero2 from "../assets/images/hero2.webp";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 

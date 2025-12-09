@@ -19,26 +19,19 @@ import PrivateRoute from "./components/PrivateRoute";
 import { useTranslation } from "react-i18next";
 
 // ✅ IMPORT React Query pour suivre le chargement global
-import { useIsFetching, useIsMutating } from "@tanstack/react-query";
-
-// ✅ IMPORT du loader
 import GlobalLoader from "./components/GlobalLoader";
+import { useGlobalLoading } from "./hooks/useFetchQuery";
 
 const App: React.FC = () => {
   const { i18n } = useTranslation();
-
-  // ✅ nombre de requêtes GET en cours
-  const isFetching = useIsFetching();
-  // ✅ nombre de requêtes POST/PUT/DELETE en cours (si tu en as)
-  const isMutating = useIsMutating();
-
-  // ✅ true si au moins une requête est en cours
-  const isLoadingGlobal = isFetching + isMutating > 0;
+ const isLoading = useGlobalLoading(); // 👈 une seule fois dans toute l'app
 
   return (
+  <>
+      {isLoading && <GlobalLoader />}  {/* 👈 overlay global unique */}
+
     <main className="relative min-h-screen">
-      {/* ✅ Loader global : s'affiche tant que la connexion travaille */}
-      {isLoadingGlobal && <GlobalLoader />}
+
       <Routes key={i18n.language}>
         {/* === PUBLIC (chemins canoniques) === */}
         <Route path="/" element={<Accueil key={i18n.language} />} />
@@ -83,6 +76,7 @@ const App: React.FC = () => {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </main>
+      </>
   );
 };
 

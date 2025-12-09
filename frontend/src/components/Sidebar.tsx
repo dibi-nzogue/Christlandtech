@@ -9,7 +9,7 @@ import {
   X,
   UserPlus,
 } from "lucide-react";
-import logo from "../assets/images/logo1.png";
+import logo from "../assets/images/logo1.webp";
 import { useLocation, useNavigate } from "react-router-dom";
 import { auth } from "../auth";
 

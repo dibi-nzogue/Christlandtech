@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-
 import { FiMenu } from "react-icons/fi";
 import { MdClose } from "react-icons/md";
 import { FaSearch, FaGlobe, FaChevronDown } from "react-icons/fa";
-import logo from "../assets/images/logo.jpg";
+import logo from "../assets/images/logo.webp";
 import { useTranslation } from "react-i18next";
 import { setUiLang } from "../i18nLang";
 
