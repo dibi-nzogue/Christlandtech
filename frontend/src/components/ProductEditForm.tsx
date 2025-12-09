@@ -1104,6 +1104,7 @@ return (
           <img
             src={img.url}
             alt={img.alt_text || ""}
+            loading="lazy"
             className="h-16 w-16 object-cover rounded-md border"
           />
           <span className="text-gray-700 break-all">

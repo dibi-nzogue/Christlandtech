@@ -165,6 +165,7 @@ const CategoriesCarousel: React.FC = () => {
                             const img = e.currentTarget as HTMLImageElement;
                             if (img.src !== FALLBACK_SVG) {
                               img.src = FALLBACK_SVG;
+                              
                             }
                           }}
                         />

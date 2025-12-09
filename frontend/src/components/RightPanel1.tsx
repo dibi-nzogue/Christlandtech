@@ -34,6 +34,7 @@ const RightPanel1: React.FC = () => {
                 <div className="pt-[56.25%]" />
                 <img
                   src={p.image || FALLBACK}
+                  loading="lazy"
                   alt={p.nom}
                   className="absolute inset-0 h-full w-full object-contain rounded-xl transition-transform duration-300 ease-out"
                   onError={(e) => {

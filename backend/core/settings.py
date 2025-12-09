@@ -433,6 +433,8 @@ else:
         "http://localhost:5173",                      # si tu gardes un front dev
         # "https://dibiyes.cluster024.hosting.ovh.net", # OVH
         "https://christlandtech-frontend.onrender.com",
+        "https://christland.tech",                       # ton domaine principal
+        "https://www.christland.tech",
     ]
 
 

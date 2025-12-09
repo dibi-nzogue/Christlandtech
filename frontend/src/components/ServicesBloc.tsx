@@ -210,6 +210,7 @@ const ServicesBloc: React.FC = () => {
               >
                 <motion.div variants={itemUp} className="rounded-2xl overflow-hidden">
                   <motion.img
+                  
                     src={it.image}
                     alt="illustration"
                     className="w-full h-[200px] sm:h-[260px] md:h-[340px] lg:h-[400px] object-cover transform-gpu will-change-transform"

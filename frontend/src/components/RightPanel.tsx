@@ -51,6 +51,7 @@ const RightPanel: React.FC = () => {
               <img
                 src={p.image || FALLBACK}
                 alt={p.nom}
+                loading="lazy"
                 className="w-full h-20 md:h-40  rounded-lg object-contain"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = FALLBACK;

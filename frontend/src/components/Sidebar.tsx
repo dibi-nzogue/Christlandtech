@@ -32,7 +32,7 @@ const Sidebar: React.FC = () => {
     <>
       {/* Logo */}
       <div className="w-10 h-10">
-        <img src={logo} alt="Logo" className="w-full h-full object-contain" />
+        <img src={logo} alt="Logo" loading="lazy" className="w-full h-full object-contain" />
       </div>
 
       {/* Liens */}

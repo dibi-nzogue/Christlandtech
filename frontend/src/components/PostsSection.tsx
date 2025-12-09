@@ -64,7 +64,9 @@ const CardTop: React.FC<{ post: Post }> = ({ post }) => {
         title={post.title}
       >
         <img
+        
           src={imgSrc}
+          
           alt={post.title}
           className="
             absolute inset-0 h-full w-full object-cover

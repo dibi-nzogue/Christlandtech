@@ -544,6 +544,7 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
           <motion.img
             src={iphone}
             alt="Produit vedette"
+            
             animate={{ rotateY: 360, scale: 0.92 }}
             transition={{ duration: 12, ease: "linear", repeat: Infinity }}
             style={{

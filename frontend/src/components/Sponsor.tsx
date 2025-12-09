@@ -66,6 +66,7 @@ const Sponsor: React.FC = () => {
           {logos.map((logo, index) => (
             <motion.img
               key={index}
+              loading="lazy"
               src={logo}
               alt={`Sponsor ${index}`}
               className="h-[50px] object-contain"
@@ -82,6 +83,7 @@ const Sponsor: React.FC = () => {
                 <img
                   src={logo}
                   alt={`Sponsor ${index}`}
+                  loading="lazy"
                   className="w-[40%] h-[50px] object-contain mx-auto"
                 />
               </div>

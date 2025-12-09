@@ -95,6 +95,7 @@ const BoardManage: React.FC = () => {
                                 <img
                                 src={data.image}
                                 alt=""
+                                loading="lazy"
                                 className="w-full h-auto rounded-lg object-cover shadow-md hover:scale-105 transition-transform duration-300"
                                 />
                             </div>

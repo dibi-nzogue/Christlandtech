@@ -16,6 +16,7 @@ const GlobalLoader: React.FC = () => {
             <img
   src={logo}
   alt="Christland Tech"
+  loading="lazy"
   className="h-10 w-auto animate-pulse"
 />
 

@@ -299,6 +299,7 @@ const CathegorieForm: React.FC = () => {
               <img
                 src={formData.image_url}
                 alt={formData.nom}
+                loading="lazy"
                 className="h-20 w-20 object-cover rounded-lg border"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src =
@@ -388,6 +389,7 @@ const CathegorieForm: React.FC = () => {
                 {sub.image_url && (
                   <img
                     src={sub.image_url}
+                    loading="lazy"
                     alt={sub.nom}
                     className="mt-2 h-16 w-16 object-cover rounded-md border"
                   />

@@ -88,6 +88,7 @@ const AssistanceHero: React.FC<Props> = ({
       {/* HERO plein écran */}
       <div className="relative w-full h-[240px] md:h-[360px] lg:h-[780px]">
         <motion.img
+        loading="lazy"
           src={imgMerci}
           alt="Bannière Assistance"
           className="absolute inset-0 h-full w-full object-cover"

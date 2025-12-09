@@ -418,6 +418,7 @@ const tabBaseCls =
             <img
               src={getImageSafe(p)}
               alt={p.nom}
+              loading="lazy"
               className="w-10 h-10 md:w-12 md:h-12 rounded-lg object-cover my-1"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = "/Dispositivos.webp";
@@ -466,6 +467,7 @@ const tabBaseCls =
             <img
               src={a.image || "/Dispositivos.webp"}
               alt={a.titre}
+              loading="lazy"
               className="w-12 h-12 rounded-lg object-cover"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = "/Dispositivos.webp";

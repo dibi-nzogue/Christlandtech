@@ -84,6 +84,7 @@ const HeroCarousel: React.FC = () => {
             <img
               src={slide.image}
               alt={slide.title}
+              loading="lazy"
               className="w-full h-[60vh] md:h-[70vh] object-cover rounded-2xl"
             />
 

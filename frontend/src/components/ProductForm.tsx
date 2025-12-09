@@ -1154,6 +1154,7 @@ const renderAttrInput = (
             type="text"
             placeholder="Alt text"
             value={img.alt_text || ""}
+            
             onChange={(e) =>
               updateImage(idx, { alt_text: e.target.value })
             }
@@ -1224,6 +1225,7 @@ const renderAttrInput = (
               <img
                 src={img.url}
                 alt={img.alt_text || ""}
+                loading="lazy"
                 className="h-16 w-16 object-cover rounded-md border flex-shrink-0"
               />
               <span className="text-gray-700 break-all text-xs md:text-sm">

@@ -203,6 +203,7 @@ const ProductArticle: React.FC = () => {
                 <img
                   src={form.image}
                   alt="cover"
+                  loading="lazy"
                   className="h-16 w-16 object-cover rounded-md border"
                 />
               ) : (
