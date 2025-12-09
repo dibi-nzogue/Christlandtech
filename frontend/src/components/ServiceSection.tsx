@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { motion, useInView } from "framer-motion";
 
 // 🔹 importe l'image de fond (adapte le chemin si besoin)
-import heroServiceBg from "../assets/images/hero3.png";
+import heroServiceBg from "../assets/images/hero3.webp";
 
 const ServiceSection: React.FC = () => {
   const navigate = useNavigate();

@@ -2,8 +2,8 @@
 import React, { useState } from "react";
 import logo from "../assets/images/logo.webp";
 import { Link, useNavigate } from "react-router-dom";
-import eyes from "../assets/images/eyes-open.png";
-import eye from "../assets/images/eyes-off.png";
+import eyes from "../assets/images/eyes-open.webp";
+import eye from "../assets/images/eyes-off.webp";
 import { useTranslation } from "react-i18next";
 import { adminRegisterRequest } from "../hooks/useFetchQuery"; // ✅ corrige l'import
 // import { auth } from "../auth"; // ❌ pas nécessaire ici si on ne change pas de session
