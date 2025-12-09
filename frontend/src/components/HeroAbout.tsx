@@ -43,8 +43,7 @@ const HeroAbout: React.FC = () => {
                 transition={{ duration: 0.8, ease: "easeOut" }}
                 viewport={{ once: true }}
             >
-                <img src={hero4}loading="lazy" alt="hero left"width={300}
-                      height={300} className="rounded-xl" />
+                <img src={hero4}loading="lazy" alt="hero left" className="rounded-xl" />
             </motion.div>
 
             {/* Image de droite avec texte superposé */}
@@ -55,8 +54,7 @@ const HeroAbout: React.FC = () => {
                 transition={{ duration: 0.8, ease: "easeOut" }}
                 viewport={{ once: true }}
             >
-                <img src={hero5} alt="" loading="lazy" width={300}
-                      height={300} className=" object-cover hidden lg:block" />
+                <img src={hero5} alt="" loading="lazy" className=" object-cover hidden lg:block" />
 
                 {/* Texte positionné par-dessus l’image */}
                 <div className="relative lg:absolute inset-0 flex flex-col justify-center gap-5 lg:gap-6 xl:gap-10 px-5 lg:px-10 py-10 lg:py-0 lg:w-[80%] bg-[#6CBAD9]/40 lg:bg-transparent mt-10 rounded-xl lg:rounded-none">
