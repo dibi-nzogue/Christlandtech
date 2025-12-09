@@ -1,5 +1,5 @@
 // src/components/CategoriesCarousel.tsx
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import Slider from "react-slick";
 import { motion, useInView } from "framer-motion";
 import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
@@ -7,9 +7,9 @@ import { useTranslation } from "react-i18next";
 import {
   useTopCategories1,
   type ApiCategory,
-  media, // ✅ helper pour corriger les URLs d'images
+  media,
 } from "../hooks/useFetchQuery";
-import GlobalLoader from "./GlobalLoader"; // 👈 ajout
+import GlobalLoader from "./GlobalLoader";
 
 // ✅ Fallback inline SVG si pas d'image
 const FALLBACK_SVG =
@@ -36,7 +36,32 @@ const CategoriesCarousel: React.FC = () => {
   const { data: cats, loading, error } = useTopCategories1();
   const items: ApiCategory[] = cats ?? [];
 
-  /** ========= Slider vraiment responsive ========= */
+  const [slidesToShow, setSlidesToShow] = useState<number>(2);
+
+  useEffect(() => {
+    const computeSlides = () => {
+      if (typeof window === "undefined") return 2;
+
+      const w = window.innerWidth;
+
+      if (w < 380) return 1;
+      if (w < 640) return 2;
+      if (w < 900) return 3;
+      if (w < 1200) return 4;
+      return 5;
+    };
+
+    setSlidesToShow(computeSlides());
+
+    const handleResize = () => {
+      setSlidesToShow(computeSlides());
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  /** ========= Slider ========= */
   const settings = {
     dots: false,
     infinite: false,
@@ -45,32 +70,10 @@ const CategoriesCarousel: React.FC = () => {
     variableWidth: false,
     centerMode: false,
     adaptiveHeight: false,
-
-    // ✅ Desktop / md+ : 4 cartes
-    slidesToShow: 4,
+    slidesToShow,
     slidesToScroll: 1,
-
-    responsive: [
-      // < 768px (en dessous de md) : 2 cartes
-      {
-        breakpoint: 768,
-        settings: {
-          slidesToShow: 2,
-          slidesToScroll: 1,
-        },
-      },
-      // < 480px : 1 carte
-      {
-        breakpoint: 480,
-        settings: {
-          slidesToShow: 1,
-          slidesToScroll: 1,
-        },
-      },
-    ],
   };
 
-  // Framer Motion
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
   const cardVariants = {
@@ -118,71 +121,78 @@ const CategoriesCarousel: React.FC = () => {
         {/* Erreur */}
         {error && <p className="mb-4 text-red-600">{error}</p>}
 
-        {/* 🔄 Loader façon Presentation pendant le premier chargement */}
+        {/* Loader */}
         {isInitialLoading && (
           <div className="py-10 flex items-center justify-center">
             <GlobalLoader />
           </div>
         )}
 
-        {/* Carousel une fois les données là */}
+        {/* Carousel */}
         {!isInitialLoading && !loading && items.length > 0 && (
-          <Slider ref={sliderRef} {...settings}>
-            {items.map((cat, i) => {
-              // 👉 on prend l’URL brute renvoyée par l’API
-              const rawImage = cat.image_url || (cat as any).image || "";
+          <div className="pb-10">
+            <Slider ref={sliderRef} {...settings}>
+              {items.map((cat, i) => {
+                const rawImage = cat.image_url || (cat as any).image || "";
+                const imgSrc = rawImage ? media(rawImage) : FALLBACK_SVG;
 
-              // 👉 on laisse media() construire l’URL finale (local + prod)
-              const imgSrc = rawImage ? media(rawImage) : FALLBACK_SVG;
+                return (
+                  <div key={cat.id} className="px-2 sm:px-3">
+                    <motion.div
+                      custom={i}
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate={isInView ? "visible" : "hidden"}
+                      className="
+                        relative flex flex-col items-center
+                        rounded-xl bg-gray-50 p-4 sm:p-5
+                        shadow-md hover:shadow-lg
+                        min-h-[230px]              /* 👈 même hauteur mini pour toutes les cartes */
+                      "
+                    >
+                      {/* Image */}
+                      <div className="relative aspect-square w-24 md:w-28 lg:w-32 overflow-hidden rounded-lg ring-1 ring-gray-200 bg-white/70">
+                        <motion.img
+                          src={imgSrc}
+                          alt={cat.nom}
+                          className="absolute inset-0 h-full w-full object-cover"
+                          initial={{ scale: 0.94, opacity: 0 }}
+                          animate={isInView ? { scale: 1, opacity: 1 } : {}}
+                          transition={{ duration: 0.45, delay: i * 0.06 }}
+                          loading="lazy"
+                          decoding="async"
+                          onError={(e) => {
+                            const img = e.currentTarget as HTMLImageElement;
+                            if (img.src !== FALLBACK_SVG) {
+                              img.src = FALLBACK_SVG;
+                            }
+                          }}
+                        />
+                      </div>
 
-              return (
-                <div key={cat.id} className="px-2 sm:px-3">
-                  <motion.div
-                    custom={i}
-                    variants={cardVariants}
-                    initial="hidden"
-                    animate={isInView ? "visible" : "hidden"}
-                    className="relative flex h-full flex-col items-center 
-                               rounded-xl bg-gray-50 p-5 sm:p-6 shadow-md hover:shadow-lg"
-                  >
-                    {/* Image */}
-                    <div className="relative aspect-square w-24 md:w-28 lg:w-32 overflow-hidden rounded-lg ring-1 ring-gray-200 bg-white/70">
-                      <motion.img
-                        src={imgSrc}
-                        alt={cat.nom}
-                        className="absolute inset-0 h-full w-full object-cover"
-                        initial={{ scale: 0.94, opacity: 0 }}
-                        animate={isInView ? { scale: 1, opacity: 1 } : {}}
-                        transition={{ duration: 0.45, delay: i * 0.06 }}
-                        loading="lazy"
-                        decoding="async"
-                        onError={(e) => {
-                          const img = e.currentTarget as HTMLImageElement;
-                          if (img.src !== FALLBACK_SVG) {
-                            img.src = FALLBACK_SVG;
-                          }
-                        }}
-                      />
-                    </div>
-
-                    {/* Titre : centré */}
-                    <div className="mt-3 w-full px-2 min-h-[56px] sm:min-h-[56px] flex items-center justify-center">
-                      <p
-                        className="text-center
-                                   text-[13px] sm:text-sm md:text-base leading-snug
-                                   break-words hyphens-none sm:hyphens-auto
-                                   overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical]
-                                   [WebkitLineClamp:3] sm:[WebkitLineClamp:2]"
-                        title={cat.nom}
+                      {/* Titre */}
+                      <div
+                        className="
+                          mt-3 w-full flex items-center justify-center
+                          h-[48px]        /* 👈 bloc texte de hauteur fixe (1 ou 2 lignes) */
+                        "
                       >
-                        {cat.nom}
-                      </p>
-                    </div>
-                  </motion.div>
-                </div>
-              );
-            })}
-          </Slider>
+                        <p
+                          className="max-w-[11rem] mx-auto text-center
+                                     text-[13px] sm:text-sm md:text-base
+                                     leading-snug font-medium
+                                     break-words overflow-hidden text-ellipsis"
+                          title={cat.nom}
+                        >
+                          {cat.nom}
+                        </p>
+                      </div>
+                    </motion.div>
+                  </div>
+                );
+              })}
+            </Slider>
+          </div>
         )}
 
         {!loading && !error && items.length === 0 && (

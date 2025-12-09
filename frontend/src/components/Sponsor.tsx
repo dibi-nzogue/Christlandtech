@@ -53,7 +53,7 @@ const Sponsor: React.FC = () => {
   return (
     <div
       ref={ref}
-      className="bg-[#C5BFBF]/50 py-4 md:py-6 lg:py-8 my-5 md:my-10 lg:my-16"
+      className="bg-[#C5BFBF]/50 py-4 md:py-6 lg:py-8 my-5 md:my-10 lg:my-16 "
     >
       <div className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
         {/* Desktop */}

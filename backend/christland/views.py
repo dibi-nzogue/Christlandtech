@@ -1259,72 +1259,107 @@ class ContactMessageView(APIView):
     """
     POST /christland/api/contact/messages/
       body: {nom?, email?, telephone?, sujet, message}
-      -> enregistre + envoie un email (FROM = DEFAULT_FROM_EMAIL, REPLY-TO = email utilisateur si fourni)
+      -> enregistre + (essaie) d'envoyer un email
 
     GET  /christland/api/contact/messages/?limit=50
       -> derniers messages
     """
+
     permission_classes = [AllowAny]
+
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
-    
+
     def post(self, request):
         nom = (request.data.get("nom") or "").strip()
-        email = (request.data.get("email") or "").strip()         # optionnel
-        telephone = (request.data.get("telephone") or "").strip() # optionnel
+        email = (request.data.get("email") or "").strip()           # optionnel
+        telephone = (request.data.get("telephone") or "").strip()   # optionnel
         sujet = (request.data.get("sujet") or "").strip()
         message = (request.data.get("message") or "").strip()
 
+        # --- validation simple ---
         if not sujet or not message:
             return Response(
                 {"detail": "sujet et message sont requis."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 1) Enregistrer en BD
-        mc = MessagesContact.objects.create(
-            nom=nom,
-            email=email,
-            telephone=telephone,
-            sujet=sujet,
-            message=message,
-            cree_le=timezone.now(),
-        )
+        # --- 1) Enregistrer en base ---
+        try:
+            mc = MessagesContact.objects.create(
+                nom=nom,
+                email=email,
+                telephone=telephone,
+                sujet=sujet,
+                message=message,
+                cree_le=timezone.now(),
+            )
+        except Exception as e:
+            # si la sauvegarde BD plante → vrai 500
+            return Response(
+                {"detail": "Erreur lors de l'enregistrement du message."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-        # 2) Envoyer l’e-mail
+        # --- 2) Envoi de l'email (ne doit PAS faire planter l'API) ---
         to_addr = getattr(settings, "CONTACT_INBOX", None)
         from_addr = getattr(settings, "DEFAULT_FROM_EMAIL", None)
 
+        mail_sent = False
+
         if to_addr and from_addr:
-            # On utilise EmailMessage pour injecter Reply-To proprement
             body = (
                 f"Nom: {nom or '-'}\n"
                 f"Email: {email or '-'}\n"
                 f"Téléphone: {telephone or '-'}\n\n"
                 f"Message:\n{message}"
             )
+
             mail = EmailMessage(
-                subject=f"CHRISTLAND TECH {sujet}",
+                subject=f"CHRISTLAND TECH - {sujet}",
                 body=body,
                 from_email=from_addr,
                 to=[to_addr],
                 headers={"Reply-To": email} if email else None,
             )
-            # On n’échoue pas la requête si l’envoi mail tombe (logguez si besoin)
-            # TEMPORAIREMENT pour debug
-            mail.send(fail_silently=False)
 
+            try:
+                # en prod on ne veut pas de 500 si le SMTP a un souci
+                mail.send(fail_silently=True)
+                mail_sent = True
+            except Exception:
+                mail_sent = False  # on ignore l'erreur, mais on indique l'état
 
-        return Response({"ok": True, "message": "Message enregistré et envoyé."}, status=201)
+        return Response(
+            {
+                "ok": True,
+                "message": "Message enregistré.",
+                "email_envoye": mail_sent,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     def get(self, request):
         try:
             limit = int(request.query_params.get("limit") or "50")
         except ValueError:
             limit = 50
+
         qs = MessagesContact.objects.all().order_by("-cree_le", "-id")[: max(1, limit)]
+
+        def _serialize_contact(m):
+            return {
+                "id": m.id,
+                "nom": m.nom,
+                "email": m.email,
+                "telephone": m.telephone,
+                "sujet": m.sujet,
+                "message": m.message,
+                "cree_le": m.cree_le,
+            }
+
         return Response([_serialize_contact(m) for m in qs])
 from rest_framework.permissions import IsAuthenticated  # si besoin
 
