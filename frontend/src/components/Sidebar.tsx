@@ -12,6 +12,10 @@ import {
 import logo from "../assets/images/logo1.webp";
 import { useLocation, useNavigate } from "react-router-dom";
 import { auth } from "../auth";
+// tout en haut du fichier (facultatif, juste pour éviter la répétition)
+const GA_URL =
+  "https://analytics.google.com/analytics/web/?authuser=0#/p377242813";
+
 
 const Sidebar: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -47,13 +51,14 @@ const Sidebar: React.FC = () => {
         </div>
 
         <div
-          title="Statistiques"
-          aria-label="Statistiques"
-          onClick={() => go("/dashboard")}
-          className={itemCls(pathname.startsWith("/dashboard/stats"))}
-        >
-          <BarChart2 size={22} />
-        </div>
+  title="Statistiques"
+  aria-label="Statistiques"
+  onClick={() => window.open(GA_URL, "_blank", "noopener,noreferrer")}
+  className={itemCls(false)} // ou itemCls(pathname.startsWith("/dashboard/stats")) si tu veux garder le style
+>
+  <BarChart2 size={22} />
+</div>
+
 
         <div
           title="Paramètres"
