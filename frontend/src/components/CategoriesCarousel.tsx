@@ -1,4 +1,3 @@
-
 import React, { useRef } from "react";
 import { useKeenSlider } from "keen-slider/react";
 import "keen-slider/keen-slider.min.css";
@@ -30,10 +29,6 @@ const FALLBACK_SVG =
   </g>
 </svg>`);
 
-// juste après les imports, par exemple sous FALLBACK_SVG
-
-
-
 const CategoriesCarousel: React.FC = () => {
   const { t } = useTranslation();
 
@@ -63,7 +58,6 @@ const CategoriesCarousel: React.FC = () => {
     },
   });
 
-  
   // Framer Motion pour l'animation d'apparition
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const isInView = useInView(sectionRef, { once: true, margin: "-80px" });
@@ -76,8 +70,6 @@ const CategoriesCarousel: React.FC = () => {
       transition: { delay: i * 0.12, duration: 0.45 },
     }),
   };
-
-  const isInitialLoading = loading && items.length === 0;
 
   return (
     <div className="bg-white py-8" ref={sectionRef}>
@@ -113,15 +105,15 @@ const CategoriesCarousel: React.FC = () => {
         {/* Erreur */}
         {error && <p className="mb-4 text-red-600">{error}</p>}
 
-        {/* Loader */}
-        {isInitialLoading && (
+        {/* Loader local (optionnel, tu peux le retirer si tu gères déjà dans App) */}
+        {loading && items.length === 0 && (
           <div className="py-10 flex items-center justify-center">
             <GlobalLoader />
           </div>
         )}
 
         {/* Carousel */}
-        {!isInitialLoading && !loading && items.length > 0 && (
+        {!loading && items.length > 0 && (
           <div className="pb-10">
             <div ref={sliderRef} className="keen-slider">
               {items.map((cat, i) => {
@@ -156,7 +148,7 @@ const CategoriesCarousel: React.FC = () => {
                           transition={{ duration: 0.45, delay: i * 0.06 }}
                           loading="lazy"
                           width={300}
-                      height={300}
+                          height={300}
                           decoding="async"
                           onError={(e) => {
                             const img = e.currentTarget as HTMLImageElement;

@@ -5,7 +5,7 @@ import { MdClose } from "react-icons/md";
 import iphone from "../assets/images/Apple Iphone 15 Black Smartphone PNG _ TopPNG.png";
 import { useTranslation } from "react-i18next";
 // + ajoute le type
-import GlobalLoader from "../components/GlobalLoader";
+
 import { motion } from "framer-motion";
 import type { Variants, Transition } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
@@ -730,7 +730,7 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
               {/* 🔄 Loader pendant le chargement initial */}
               {productsLoading && products.length === 0 && (
                 <div className="py-16 flex items-center justify-center">
-                  <GlobalLoader />
+                 
                 </div>
               )}
 

@@ -9,7 +9,6 @@ import { useKeenSlider } from "keen-slider/react";
 import "keen-slider/keen-slider.min.css";
 
 import { useLatestProducts } from "../hooks/useFetchQuery";
-import GlobalLoader from "./GlobalLoader";
 
 /* Image de secours */
 const ALL_KEY = "__ALL__";
@@ -29,10 +28,6 @@ const FALLBACK_SVG =
     <rect x="150" y="200" width="180" height="22" rx="11" fill="#d1d5db"/>
   </g>
 </svg>`);
-
-
-
-
 
 /** Hook: 1 / 2 / 3 colonnes selon la largeur */
 function useVisibleSlides() {
@@ -104,7 +99,7 @@ export default function Nouveautes() {
   const showArrows = visibleSlides >= 2 && count > slidesToShow;
   const autoPlayMobile = visibleSlides === 1 && count > 1;
 
-  // === Keen Slider (remplace react-slick) ===
+  // === Keen Slider ===
   const [sliderRef, sliderInstanceRef] = useKeenSlider<HTMLDivElement>(
     {
       loop: count > slidesToShow,
@@ -167,8 +162,6 @@ export default function Nouveautes() {
           })
         : null;
 
-
-        
     return (
       <motion.div
         key={p.id}
@@ -190,7 +183,7 @@ export default function Nouveautes() {
                 src={p.image || FALLBACK_SVG}
                 alt={p.nom}
                 width={300}
-                 height={300}
+                height={300}
                 className="w-full h-full object-contain object-center block"
                 loading="lazy"
                 onError={(e) => {
@@ -281,12 +274,7 @@ export default function Nouveautes() {
 
       {error && !loading && <p className="text-red-600 mb-4">{error}</p>}
 
-      {/* Loader premier chargement */}
-      {loading && (!latest || latest.length === 0) && (
-        <div className="py-16 flex items-center justify-center w-full">
-          <GlobalLoader />
-        </div>
-      )}
+      {/* Plus de loader ici : l’App gère l’état de chargement global */}
 
       {/* Carrousel / grille une fois les données là */}
       {!loading && count > 0 && (
