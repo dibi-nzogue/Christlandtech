@@ -1,6 +1,6 @@
 // src/pages/AddCathegorie.tsx
-import React, { useEffect, Suspense, lazy } from "react";
-import { forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
+import React, {Suspense, lazy } from "react";
+
 
 // 🔹 Lazy
 const Sidebar = lazy(() => import("../components/Sidebar"));
@@ -10,13 +10,6 @@ const CathegorieForm = lazy(() => import("../components/CathegorieForm"));
 const RightPanel1 = lazy(() => import("../components/RightPanel1"));
 
 const AddCathegorie: React.FC = () => {
-  useEffect(() => {
-    forceStartLoading();
-    const timer = setTimeout(() => {
-      forceStopLoading();
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
 
   return (
     <Suspense fallback={null}>

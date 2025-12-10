@@ -1,6 +1,6 @@
 // src/pages/AddArticle.tsx
-import React, { useEffect, Suspense, lazy } from "react";
-import { forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
+import React, { Suspense, lazy } from "react";
+
 
 // 🔹 Lazy des gros blocs dashboard
 const Sidebar = lazy(() => import("../components/Sidebar"));
@@ -10,13 +10,6 @@ const ArticleForm = lazy(() => import("../components/ArticleForm"));
 const RightPanel2 = lazy(() => import("../components/RightPanel2"));
 
 const AddArticle: React.FC = () => {
-  useEffect(() => {
-    forceStartLoading();
-    const timer = setTimeout(() => {
-      forceStopLoading();
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
 
   return (
     <Suspense fallback={null}>

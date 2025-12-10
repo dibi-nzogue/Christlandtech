@@ -1,11 +1,10 @@
-/// src/App.tsx
+// src/App.tsx
 import React, { Suspense, lazy } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import PrivateRoute from "./components/PrivateRoute";
-import GlobalLoader from "./components/GlobalLoader";
-import { useGlobalLoading } from "./hooks/useFetchQuery";
+
 
 // 🔹 PAGES CHARGÉES EN CHUNKS (code splitting)
 const Accueil = lazy(() => import("./pages/Accueil"));
@@ -25,31 +24,14 @@ const AddCathegorie = lazy(() => import("./pages/AddCathegorie"));
 
 const App: React.FC = () => {
   const { i18n } = useTranslation();
-  const isLoading = useGlobalLoading();          // état du loader global (fetch)
-  const location = useLocation();                // chemin actuel
-  const pathname = location.pathname;
 
-  // 👉 on ne montre le gros loader global que sur /produits et /dashboard
-  const isHeavyRoute =
-    pathname.startsWith("/produits") || pathname.startsWith("/dashboard");
 
+  
   return (
     <>
-      {/* Loader global pour les appels API lourds (produits / dashboard) */}
-      {isHeavyRoute && isLoading && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-white/80">
-          <GlobalLoader />
-        </div>
-      )}
+    
 
-      {/* Loader pendant le CHARGEMENT des pages (lazy + suspense) */}
-      <Suspense
-        fallback={
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-white">
-            <GlobalLoader />
-          </div>
-        }
-      >
+      <Suspense >
         <main className="relative min-h-screen">
           <Routes key={i18n.language}>
             {/* === PUBLIC (chemins canoniques) === */}
@@ -64,62 +46,13 @@ const App: React.FC = () => {
             <Route path="/dashboard/connexion" element={<Connexion />} />
 
             {/* === DASHBOARD PRIVÉ (canoniques) === */}
-            <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/dashboard/ajouter-produit"
-              element={
-                <PrivateRoute>
-                  <AddProduct />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/dashboard/ajouter-article"
-              element={
-                <PrivateRoute>
-                  <AddArticle />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/dashboard/modifier/:id"
-              element={
-                <PrivateRoute>
-                  <UpdateProduct />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/dashboard/articles/:id/edit"
-              element={
-                <PrivateRoute>
-                  <UpdateArticle />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/dashboard/categories/:id/edit"
-              element={
-                <PrivateRoute>
-                  <UpdateCathegorie />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/dashboard/ajouter-categorie"
-              element={
-                <PrivateRoute>
-                  <AddCathegorie />
-                </PrivateRoute>
-              }
-            />
+            <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+            <Route path="/dashboard/ajouter-produit" element={<PrivateRoute><AddProduct /></PrivateRoute>} />
+            <Route path="/dashboard/ajouter-article" element={<PrivateRoute><AddArticle /></PrivateRoute>} />
+            <Route path="/dashboard/modifier/:id" element={<PrivateRoute><UpdateProduct /></PrivateRoute>} />
+            <Route path="/dashboard/articles/:id/edit" element={<PrivateRoute><UpdateArticle /></PrivateRoute>} />
+            <Route path="/dashboard/categories/:id/edit" element={<PrivateRoute><UpdateCathegorie /></PrivateRoute>} />
+            <Route path="/dashboard/ajouter-categorie" element={<PrivateRoute><AddCathegorie /></PrivateRoute>} />
 
             {/* === ANCIENNES ROUTES (majuscules / underscores) → REDIRECT === */}
             <Route path="/Produits" element={<Navigate to="/produits" replace />} />
