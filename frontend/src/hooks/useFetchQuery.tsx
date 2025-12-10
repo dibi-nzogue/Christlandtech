@@ -111,27 +111,23 @@ export function subscribeGlobalLoading(fn: GlobalListener): () => void {
 // dans useFetchQuery.tsx
 
 /** Hook React pour savoir s'il y a des fetchs en cours */
-export function useGlobalLoading(minDelay = 100, maxDuration = 200) {
-  const [loading, setLoading] = useState(false);   // vrai état global
-  const [visible, setVisible] = useState(false);   // ce qu'on affiche vraiment
+export function useGlobalLoading(minDelay = 150, maxDuration = 8000) {
+  const [loading, setLoading] = useState(false);
+  const [visible, setVisible] = useState(false);
 
-  // Abonnement au compteur global
   useEffect(() => {
     const unsubscribe = subscribeGlobalLoading(setLoading);
     return unsubscribe;
   }, []);
 
-  // Affichage avec petit délai (minDelay)
   useEffect(() => {
     let timer: number | null = null;
 
     if (loading) {
-      // si ça charge, on attend minDelay avant d'afficher
       timer = window.setTimeout(() => {
         setVisible(true);
       }, minDelay);
     } else {
-      // plus de requêtes → on cache tout de suite
       setVisible(false);
       if (timer) window.clearTimeout(timer);
     }
@@ -141,8 +137,7 @@ export function useGlobalLoading(minDelay = 100, maxDuration = 200) {
     };
   }, [loading, minDelay]);
 
-  // 🛡️ Garde-fou : si jamais loading reste vrai trop longtemps,
-  // on force la fermeture du loader (au cas où un fetch ne finit jamais)
+  // 🛡️ hard timeout : si ça charge trop longtemps, on coupe l’affichage
   useEffect(() => {
     if (!loading) return;
 
@@ -155,6 +150,7 @@ export function useGlobalLoading(minDelay = 100, maxDuration = 200) {
 
   return visible;
 }
+
 
 export function forceStartLoading() {
   startGlobalLoading();

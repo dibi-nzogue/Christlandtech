@@ -32,7 +32,7 @@ const App: React.FC = () => {
       {isLoading && <GlobalLoader />}
 
       {/* 👇 Suspense = loader pendant le chargement des CHUNKS (JS) */}
-      <Suspense fallback={<GlobalLoader />}>
+      <Suspense fallback={null}>
         <main className="relative min-h-screen">
           <Routes key={i18n.language}>
             {/* === PUBLIC (chemins canoniques) === */}
