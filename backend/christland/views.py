@@ -1,28 +1,26 @@
-from collections import defaultdict
+
 from decimal import Decimal
 from typing import Iterable
-from urllib import request
-from django.db.models import Count
 from rest_framework import status, generics
 from django.db.models import Q, Min, Max
 from django.db.models.functions import Coalesce  # ✅ pour annoter min/max prix
 from django.shortcuts import get_object_or_404
-from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import QuerySet
-from django.views.decorators.http import require_GET
 from django.http import JsonResponse
 from django.conf import settings
 from django.core.mail import EmailMessage
 from django.utils import timezone
-from rest_framework.decorators import api_view
+from django.utils.decorators import method_decorator
+from django.views.decorators.vary import vary_on_headers
+from django.core.cache import cache
 import logging
 logger = logging.getLogger(__name__)
 from decimal import Decimal, InvalidOperation
 # import requests
-from django.http import JsonResponse, HttpResponseBadRequest
+from django.http import JsonResponse
 from django.core.cache import cache
 from datetime import datetime
 from django.utils import timezone
@@ -45,7 +43,6 @@ from .auth_jwt import JWTAuthentication, make_access_token, make_refresh_token, 
 from django.db.models import Sum
 from django.utils.text import slugify
 from christland.services.text_translate import translate_text
-from django.db.models import Subquery, OuterRef
 from .serializers import (
     ProduitCardSerializer,
     ProduitsSerializer,
@@ -53,7 +50,6 @@ from .serializers import (
     ArticleEditSerializer,
     ArticleCreateSerializer,
     CategorieMiniSerializer,
-    MarqueMiniSerializer,
     CouleurMiniSerializer,
     CategoryDashboardSerializer,
      _etat_label, 
@@ -67,11 +63,9 @@ from django.utils.text import slugify
 from django.db import transaction
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
-from django.views import View
 from django.core.files.storage import default_storage
-from django.core import signing
 from rest_framework.parsers import MultiPartParser, FormParser
-import os, uuid,hashlib
+import os, uuid
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from rest_framework import status, permissions
@@ -326,17 +320,12 @@ class CategoryProductList(generics.ListAPIView):
             .distinct()
         )
 
-        # Filtres facetés
         qs = _apply_faceted_filters(qs, self.request.query_params, cat_ids)
 
-        # 🔎 Recherche multi-champs + traductions (nom)
-               # 🔎 Recherche full-text multi-champs + traductions TextTranslation
         q = (self.request.query_params.get("q") or "").strip()
         if q:
-            # langue courante (fr, en, ...)
-            lang = get_request_lang(self.request)  # ex: "fr" / "en"
+            lang = get_request_lang(self.request)
 
-            # --- 1) recherche sur les champs FR (nom, slug, descriptions, marque, catégorie) ---
             terms = [t.strip() for t in q.split() if t.strip()]
             base_q = Q()
             if terms:
@@ -352,13 +341,9 @@ class CategoryProductList(generics.ListAPIView):
 
             ids_match: set[int] = set()
             if base_q:
-                ids_match |= set(
-                    qs.filter(base_q).values_list("id", flat=True)
-                )
+                ids_match |= set(qs.filter(base_q).values_list("id", flat=True))
 
-            # --- 2) si langue ≠ fr → chercher aussi dans TextTranslation ---
             if lang != "fr":
-                # On cherche "lap" dans translated_text → ça retourne les noms FR d’origine
                 translated_sources = (
                     TextTranslation.objects.filter(
                         source_lang="fr",
@@ -367,20 +352,17 @@ class CategoryProductList(generics.ListAPIView):
                     )
                     .values_list("source_text", flat=True)
                 )
-
                 source_texts = list(set(translated_sources))
                 if source_texts:
                     ids_match |= set(
                         qs.filter(nom__in=source_texts).values_list("id", flat=True)
                     )
 
-            # Si on a des IDs → on restreint, sinon aucun résultat
             if ids_match:
                 qs = qs.filter(id__in=ids_match).distinct()
             else:
                 qs = qs.none()
 
-        # Tri
         sort = self.request.query_params.get("sort")
         if sort in ("price_asc", "price_desc"):
             qs = qs.annotate(
@@ -408,10 +390,12 @@ class CategoryProductList(generics.ListAPIView):
             or request.headers.get("Accept-Language", "fr")
         )
         lang = (lang or "fr").split(",")[0].split("-")[0]
+
+        # ✅ clé de cache DÉFINIE AVANT utilisation
         cache_key = f"products_v2:{lang}:{request.get_full_path()}"
 
         cached = cache.get(cache_key)
-        if cached:
+        if cached is not None:
             logger.info("CategoryProductList CACHE HIT %s", cache_key)
             return Response(cached)
 
@@ -426,7 +410,9 @@ class CategoryProductList(generics.ListAPIView):
             serializer = self.get_serializer(queryset, many=True)
             response = Response(serializer.data)
 
-        cache.set(cache_key, response.data,5)
+        # ⏱️ 60 secondes, tu peux monter à 120–300 si tu veux
+        cache.set(cache_key, response.data, 60)
+
         return response
 
 
@@ -453,22 +439,43 @@ class CategoryFilters(APIView):
             cat_ids = _descendants_ids(cat)
         else:
             cat = None
-            cat_ids = list(Categories.objects.filter(est_actif=True).values_list("id", flat=True))
+            cat_ids = list(
+                Categories.objects
+                .filter(est_actif=True)
+                .values_list("id", flat=True)
+            )
 
-        base = Produits.objects.filter(est_actif=True, visible=1, categorie_id__in=cat_ids)
+        base = Produits.objects.filter(
+            est_actif=True,
+            visible=1,
+            categorie_id__in=cat_ids,
+        )
 
         # États (neuf / occasion / reconditionné)
-        states_qs = base.exclude(etat__isnull=True).exclude(etat__exact="").values_list("etat", flat=True).distinct()
+        states_qs = (
+            base.exclude(etat__isnull=True)
+                .exclude(etat__exact="")
+                .values_list("etat", flat=True)
+                .distinct()
+        )
         states = []
         for v in states_qs:
             label = _etat_label(v, request=request)  # FR ou EN auto
             states.append({"value": v, "label": label})
 
-        # Marques (brut – traduit par MarqueMiniSerializer si tu l'utilises ailleurs)
-        marques_qs = Marques.objects.filter(produits__in=base).distinct().order_by("nom")
-        marques = [{"nom": m.nom, "slug": m.slug, "logo_url": m.logo_url} for m in marques_qs]
+        # Marques
+        marques_qs = (
+            Marques.objects
+            .filter(produits__in=base)
+            .distinct()
+            .order_by("nom")
+        )
+        marques = [
+            {"nom": m.nom, "slug": m.slug, "logo_url": m.logo_url}
+            for m in marques_qs
+        ]
 
-                # Couleurs (avec traduction du nom)
+        # Couleurs (SANS traduction pour alléger)
         couleurs_qs = (
             Couleurs.objects
             .filter(variantes__produit__in=base)
@@ -479,12 +486,7 @@ class CategoryFilters(APIView):
         couleurs = []
         for c in couleurs_qs:
             name = c.nom or ""
-            if lang != "fr" and name:
-                name = translate_text(
-                    text=name,
-                    target_lang=lang,
-                    source_lang="fr",
-                )
+            # ❌ plus de translate_text ici (perf)
             couleurs.append({
                 "nom": name,
                 "slug": c.slug,
@@ -493,15 +495,13 @@ class CategoryFilters(APIView):
 
         # Fallback global si aucune couleur dans la catégorie
         if not couleurs:
-            fallback_qs = Couleurs.objects.filter(est_active=True).order_by("nom")
+            fallback_qs = (
+                Couleurs.objects
+                .filter(est_active=True)
+                .order_by("nom")
+            )
             for c in fallback_qs:
                 name = c.nom or ""
-                if lang != "fr" and name:
-                    name = translate_text(
-                        text=name,
-                        target_lang=lang,
-                        source_lang="fr",
-                    )
                 couleurs.append({
                     "nom": name,
                     "slug": c.slug,
@@ -509,19 +509,24 @@ class CategoryFilters(APIView):
                 })
 
         # Prix min/max
-        prix_aggr = VariantesProduits.objects.filter(produit__in=base).aggregate(
+        prix_aggr = VariantesProduits.objects.filter(
+            produit__in=base
+        ).aggregate(
             min=Min("prix_promo"), min_fallback=Min("prix"),
             max=Max("prix_promo"), max_fallback=Max("prix"),
         )
         price_min = prix_aggr["min"] or prix_aggr["min_fallback"]
         price_max = prix_aggr["max"] or prix_aggr["max_fallback"]
 
-        # Attributs dynamiques (inchangé – parfait)
+        # Attributs dynamiques (inchangé)
         try:
             from .models import CategorieAttribut
-            ca_qs = CategorieAttribut.objects.filter(categorie_id__in=cat_ids)\
-                                            .select_related("attribut")\
-                                            .order_by("ordre")
+            ca_qs = (
+                CategorieAttribut.objects
+                .filter(categorie_id__in=cat_ids)
+                .select_related("attribut")
+                .order_by("ordre")
+            )
         except Exception:
             ca_qs = []
 
@@ -532,14 +537,33 @@ class CategoryFilters(APIView):
             if a.id in seen or not a.actif:
                 continue
             seen.add(a.id)
-            meta = {"code": a.code, "libelle": a.libelle, "type": a.type}
+            meta = {
+                "code": a.code,
+                "libelle": a.libelle,
+                "type": a.type,
+            }
             if a.type == Attribut.CHOIX:
-                meta["options"] = list(ValeurAttribut.objects.filter(attribut=a).values("valeur", "slug").order_by("valeur"))
+                meta["options"] = list(
+                    ValeurAttribut.objects
+                    .filter(attribut=a)
+                    .values("valeur", "slug")
+                    .order_by("valeur")
+                )
             attrs_meta.append(meta)
 
         # Séparation produit / variante
-        prod_attr_codes = set(SpecProduit.objects.filter(produit__in=base).values_list("attribut__code", flat=True).distinct())
-        var_attr_codes = set(SpecVariante.objects.filter(variante__produit__in=base).values_list("attribut__code", flat=True).distinct())
+        prod_attr_codes = set(
+            SpecProduit.objects
+            .filter(produit__in=base)
+            .values_list("attribut__code", flat=True)
+            .distinct()
+        )
+        var_attr_codes = set(
+            SpecVariante.objects
+            .filter(variante__produit__in=base)
+            .values_list("attribut__code", flat=True)
+            .distinct()
+        )
 
         def is_variant_attr(code: str) -> bool:
             c = (code or "").lower()
@@ -555,7 +579,10 @@ class CategoryFilters(APIView):
             "category": category_data,
             "brands": marques,
             "colors": couleurs,
-            "price": {"min": float(price_min) if price_min else None, "max": float(price_max) if price_max else None},
+            "price": {
+                "min": float(price_min) if price_min else None,
+                "max": float(price_max) if price_max else None,
+            },
             "states": states,
             "attributes_product": attributes_product,
             "attributes_variant": attributes_variant,
@@ -604,7 +631,27 @@ class CategoryListPublic(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
+    @method_decorator(vary_on_headers("Accept-Language", "X-Lang"))
     def get(self, request):
+        # langue actuelle (pour que le cache respecte les traductions)
+        lang = (
+            request.query_params.get("lang")
+            or request.headers.get("X-Lang")
+            or request.headers.get("Accept-Language", "fr")
+        )
+        lang = (lang or "fr").split(",")[0].split("-")[0]
+
+        # 🔑 CLE DE CACHE
+        cache_key = f"categories_public:{lang}:{request.get_full_path()}"
+
+        # 🔁 TENTATIVE DE LECTURE DANS LE CACHE
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        # -------------------------- #
+        #        LOGIQUE NORMALE     #
+        # -------------------------- #
         qs = (
             Categories.objects
             .filter(est_actif=True)
@@ -648,8 +695,10 @@ class CategoryListPublic(APIView):
                         "slug": item["slug"],
                     })
 
-        return Response(data)
+        # 💾 ON MET EN CACHE 5 MINUTES
+        cache.set(cache_key, data, 300)
 
+        return Response(data)
 
 class CategoryListDashboard(CategoryListBase):
     permission_classes = [IsAuthenticated]          # ✅ protégé
@@ -665,7 +714,25 @@ class CategoryListTop(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
+    @method_decorator(vary_on_headers("Accept-Language", "X-Lang"))
     def get(self, request):
+        # langue actuelle
+        lang = (
+            request.query_params.get("lang")
+            or request.headers.get("X-Lang")
+            or request.headers.get("Accept-Language", "fr")
+        )
+        lang = (lang or "fr").split(",")[0].split("-")[0]
+
+        # 🔑 CLE DE CACHE
+        cache_key = f"categories_top:{lang}:{request.get_full_path()}"
+
+        # 🔁 CACHE
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        # -------- LOGIQUE NORMALE --------
         qs = (
             Categories.objects
             .filter(est_actif=True, parent__isnull=True)  # 🚀 uniquement top-level
@@ -682,7 +749,11 @@ class CategoryListTop(APIView):
             item["position"] = getattr(c, "position", None)
             item["parent_id"] = c.parent_id
 
+        # 💾 5 minutes
+        cache.set(cache_key, data, 300)
+
         return Response(data)
+
 
 
 
@@ -1237,8 +1308,9 @@ class LatestProductsView(APIView):
                 obj["subcategory"] = None
 
             results.append(obj)
+ 
+        cache.set(cache_key, results, 60)
 
-        cache.set(cache_key, results,5)
         return Response(results)
 
 
