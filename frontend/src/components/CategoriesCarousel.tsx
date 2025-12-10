@@ -1,3 +1,4 @@
+
 import React, { useRef } from "react";
 import { useKeenSlider } from "keen-slider/react";
 import "keen-slider/keen-slider.min.css";
@@ -29,13 +30,9 @@ const FALLBACK_SVG =
   </g>
 </svg>`);
 
-// ✅ Helper pour générer une version optimisée via wsrv.nl
-function optimizedImg(fullUrl: string, size = 320) {
-  if (!fullUrl) return "";
-  return `https://wsrv.nl/?url=${encodeURIComponent(
-    fullUrl
-  )}&w=${size}&h=${size}&fit=cover&webp=1&q=75`;
-}
+// juste après les imports, par exemple sous FALLBACK_SVG
+
+
 
 const CategoriesCarousel: React.FC = () => {
   const { t } = useTranslation();
@@ -66,6 +63,7 @@ const CategoriesCarousel: React.FC = () => {
     },
   });
 
+  
   // Framer Motion pour l'animation d'apparition
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const isInView = useInView(sectionRef, { once: true, margin: "-80px" });
@@ -128,11 +126,7 @@ const CategoriesCarousel: React.FC = () => {
             <div ref={sliderRef} className="keen-slider">
               {items.map((cat, i) => {
                 const rawImage = cat.image_url || (cat as any).image || "";
-                const originalUrl = rawImage ? media(rawImage) : "";
-                const optimizedUrl = originalUrl
-                  ? optimizedImg(originalUrl, 320)
-                  : "";
-                const imgSrc = optimizedUrl || FALLBACK_SVG;
+                const imgSrc = rawImage ? media(rawImage) : FALLBACK_SVG;
 
                 return (
                   <div
@@ -162,18 +156,10 @@ const CategoriesCarousel: React.FC = () => {
                           transition={{ duration: 0.45, delay: i * 0.06 }}
                           loading="lazy"
                           width={300}
-                          height={300}
+                      height={300}
                           decoding="async"
                           onError={(e) => {
                             const img = e.currentTarget as HTMLImageElement;
-
-                            // 1️⃣ si l'image optimisée casse, on retente avec l'URL originale
-                            if (originalUrl && img.src !== originalUrl) {
-                              img.src = originalUrl;
-                              return;
-                            }
-
-                            // 2️⃣ si même l'original casse → fallback SVG
                             if (img.src !== FALLBACK_SVG) {
                               img.src = FALLBACK_SVG;
                             }
@@ -182,7 +168,12 @@ const CategoriesCarousel: React.FC = () => {
                       </div>
 
                       {/* Titre */}
-                      <div className="mt-3 w-full flex items-center justify-center h-[48px]">
+                      <div
+                        className="
+                          mt-3 w-full flex items-center justify-center
+                          h-[48px]
+                        "
+                      >
                         <p
                           className="max-w-[11rem] mx-auto text-center
                                      text-[13px] sm:text-sm md:text-base
