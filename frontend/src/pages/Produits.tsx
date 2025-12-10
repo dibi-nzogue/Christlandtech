@@ -1,11 +1,12 @@
-import React, { Suspense, lazy } from "react";
+// src/pages/Produits.tsx
+import React from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
 
-const Presentation = lazy(() => import("../components/Presentation"));
-const AchatProduit = lazy(() => import("../components/AchatProduit"));
-const ContactSection = lazy(() => import("../components/ContactSection"));
+import Presentation from "../components/Presentation";
+import AchatProduit from "../components/AchatProduit";
+import ContactSection from "../components/ContactSection";
 
 export type ProduitMini = {
   id: number;
@@ -29,21 +30,19 @@ const Produits: React.FC = () => {
 
   return (
     <>
-
-        <title>Tous nos produits – Christland Tech</title>
-        <meta
-          name="description"
-          content="Parcourez tous les produits Christland Tech : ordinateurs, téléphones, gaming, électroménager, réseau, accessoires et plus encore. Toutes les catégories réunies sur une seule page."
-        />
-
+      <title>Tous nos produits – Christland Tech</title>
+      <meta
+        name="description"
+        content="Parcourez tous les produits Christland Tech : ordinateurs, téléphones, gaming, électroménager, réseau, accessoires et plus encore. Toutes les catégories réunies sur une seule page."
+      />
 
       <Navbar />
       <main className="pt-1 md:pt-10">
-        <Suspense fallback={null}>
-          <Presentation onOrder={handleOrder} />
-          <AchatProduit produit={selectedProduct} refEl={achatRef} />
-          <ContactSection id="contact" />
-        </Suspense>
+        {/* 👉 plus de Suspense ici */}
+        <Presentation onOrder={handleOrder} />
+        <AchatProduit produit={selectedProduct} refEl={achatRef} />
+        <ContactSection id="contact" />
+
         <ScrollToTopButton />
         <Footer />
       </main>

@@ -1,16 +1,15 @@
 // src/pages/Accueil.tsx
-import React, { Suspense, lazy } from "react";
+import React from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
 
-// ⬇️ lazy imports
-const Sponsor = lazy(() => import("../components/Sponsor"));
-const HeroCarousel = lazy(() => import("../components/HeroCarousel"));
-const ContactSection = lazy(() => import("../components/ContactSection"));
-const ServiceSection = lazy(() => import("../components/ServiceSection"));
-const CategoriesCarousel = lazy(() => import("../components/CategoriesCarousel"));
-const Nouveautes = lazy(() => import("../components/Nouveautes"));
+import Sponsor from "../components/Sponsor";
+import HeroCarousel from "../components/HeroCarousel";
+import ContactSection from "../components/ContactSection";
+import ServiceSection from "../components/ServiceSection";
+import CategoriesCarousel from "../components/CategoriesCarousel";
+import Nouveautes from "../components/Nouveautes";
 
 const Accueil: React.FC = () => {
   return (
@@ -24,17 +23,15 @@ const Accueil: React.FC = () => {
 
       <Navbar />
 
-      {/* ⚠️ IMPORTANT : on NE bloque PAS l'écran complet ici */}
-      <Suspense fallback={null}>
-        <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 pt-8 md:pt-28 lg:pt-32">
-          <HeroCarousel />
-        </section>
-        <CategoriesCarousel />
-        <Sponsor />
-        <Nouveautes />
-        <ServiceSection />
-        <ContactSection id="contact" />
-      </Suspense>
+      {/* 👉 plus de Suspense ici */}
+      <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 pt-8 md:pt-28 lg:pt-32">
+        <HeroCarousel />
+      </section>
+      <CategoriesCarousel />
+      <Sponsor />
+      <Nouveautes />
+      <ServiceSection />
+      <ContactSection id="contact" />
 
       <ScrollToTopButton />
       <Footer />
