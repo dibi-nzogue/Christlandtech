@@ -1,10 +1,11 @@
+// src/pages/Services.tsx
 import React, { useEffect, Suspense, lazy } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
 import { forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
+import { Helmet } from "react-helmet-async"; // 👈 SEO
 
-// 🔹 Sections en lazy
 const ServiceIntro = lazy(() => import("../components/ServiceIntro"));
 const ServicesBloc = lazy(() => import("../components/ServicesBloc"));
 const ServicesExtra = lazy(() => import("../components/ServicesExtra"));
@@ -12,33 +13,33 @@ const ContactSection = lazy(() => import("../components/ContactSection"));
 
 const Services: React.FC = () => {
   useEffect(() => {
-    // 👉 Force l'affichage du loader dès que la page commence à se monter
     forceStartLoading();
-
-    // 👉 On laisse un petit délai (ex : 800ms) avant de l’éteindre
-    const timer = setTimeout(() => {
-      forceStopLoading();
-    }, 800);
-
+    const timer = setTimeout(() => forceStopLoading(), 800);
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <>
-      <div>
-        <Navbar />
+    <div>
+      <Helmet>
+        <title>Nos Services – Christland Tech</title>
+        <meta
+          name="description"
+          content="Découvrez les services professionnels de Christland Tech : maintenance informatique, installation, conseil, accompagnement et solutions high-tech pour entreprises et particuliers."
+        />
+      </Helmet>
 
-        <Suspense fallback={null}>
-          <ServiceIntro />
-          <ServicesBloc />
-          <ServicesExtra />
-          <ContactSection id="contact" />
-        </Suspense>
+      <Navbar />
 
-        <Footer />
-        <ScrollToTopButton />
-      </div>
-    </>
+      <Suspense fallback={null}>
+        <ServiceIntro />
+        <ServicesBloc />
+        <ServicesExtra />
+        <ContactSection id="contact" />
+      </Suspense>
+
+      <Footer />
+      <ScrollToTopButton />
+    </div>
   );
 };
 

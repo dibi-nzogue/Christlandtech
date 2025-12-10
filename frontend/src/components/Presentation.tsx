@@ -1,10 +1,14 @@
 // src/components/Presentation.tsx
 import * as React from "react";
-import { FiChevronLeft, FiChevronRight, FiMenu, FiChevronDown } from "react-icons/fi";
+import {
+  FiChevronLeft,
+  FiChevronRight,
+  FiMenu,
+  FiChevronDown,
+} from "react-icons/fi";
 import { MdClose } from "react-icons/md";
 import iphone from "../assets/images/Apple Iphone 15 Black Smartphone PNG _ TopPNG.png";
 import { useTranslation } from "react-i18next";
-// + ajoute le type
 import GlobalLoader from "../components/GlobalLoader";
 import { motion } from "framer-motion";
 import type { Variants, Transition } from "framer-motion";
@@ -15,6 +19,7 @@ import {
   useProducts,
   type ApiProduct,
   recordProductClick,
+  media,
 } from "../hooks/useFetchQuery";
 
 import type { ProduitMini } from "../pages/Produits";
@@ -23,54 +28,59 @@ import type { ProduitMini } from "../pages/Produits";
 type Option = { label: string; value: string };
 type Filter = { title: string; code: string; options: Option[] };
 
-// NEW — variantes d’animations (douces, discrètes)
-// --- Eases réutilisables (tuple littéral) ---
+/* ==================== Helper image optimisée ==================== */
+function optimizedImg(fullUrl: string, w = 800, h = 600) {
+  if (!fullUrl) return "";
+  return `https://wsrv.nl/?url=${encodeURIComponent(
+    fullUrl
+  )}&w=${w}&h=${h}&fit=inside&webp=1&q=80`;
+}
+
 // Ease réutilisable
 const EASE_CUBIC = [0.22, 1, 0.36, 1] as const;
-// rotation continue (linear pour une vitesse constante)
-// const SPIN: Transition = { duration: 16, ease: "linear", repeat: Infinity };
-
-// Rotation (typée → évite l’erreur TS)
-// const TWEEN_ROTATE: Transition = { type: "tween", duration: 1.1, ease: EASE_CUBIC };
-
-// Image du téléphone: état normal + état hover (rotation + léger zoom)
-// const phoneImgVariants: Variants = {
-//   initial: { rotate: 0, scale: 1 },
-//   hover:   { rotate: 360, scale: 1.08, transition: TWEEN_ROTATE },
-// };
-
-
 
 // --- Transitions typées ---
-const TWEEN_500: Transition = { type: "tween", duration: 0.5, ease: EASE_CUBIC };
-const TWEEN_550: Transition = { type: "tween", duration: 0.55, ease: EASE_CUBIC };
-const TWEEN_600: Transition = { type: "tween", duration: 0.66, ease: EASE_CUBIC };
-const TWEEN_400: Transition = { type: "tween", duration: 0.4, ease: EASE_CUBIC };
+const TWEEN_500: Transition = {
+  type: "tween",
+  duration: 0.5,
+  ease: EASE_CUBIC,
+};
+const TWEEN_550: Transition = {
+  type: "tween",
+  duration: 0.55,
+  ease: EASE_CUBIC,
+};
+const TWEEN_600: Transition = {
+  type: "tween",
+  duration: 0.66,
+  ease: EASE_CUBIC,
+};
+const TWEEN_400: Transition = {
+  type: "tween",
+  duration: 0.4,
+  ease: EASE_CUBIC,
+};
 
 // --- Variants typés ---
 const headerEnter: Variants = {
   hidden: { opacity: 0, y: 8 },
-  show:   { opacity: 1, y: 0, transition: TWEEN_500 },
+  show: { opacity: 1, y: 0, transition: TWEEN_500 },
 };
 
 const crumbFade: Variants = {
   hidden: { opacity: 0 },
-  show:   { opacity: 1, transition: { ...TWEEN_400, delay: 0.15 } },
+  show: { opacity: 1, transition: { ...TWEEN_400, delay: 0.15 } },
 };
 
 const h1Down: Variants = {
   hidden: { y: -16, opacity: 0 },
-  show:   { y: 0, opacity: 1, transition: { ...TWEEN_600, delay: 0.25 } },
+  show: { y: 0, opacity: 1, transition: { ...TWEEN_600, delay: 0.25 } },
 };
 
 const phonePop: Variants = {
   hidden: { y: 8, scale: 0.98, opacity: 0 },
-  show:   { y: 0, scale: 1,    opacity: 1, transition: TWEEN_550 },
+  show: { y: 0, scale: 1, opacity: 1, transition: TWEEN_550 },
 };
-
-
-
-
 
 const ACCENT = "bg-[#00A8E8] text-white border-[#00A8E8]";
 const ACCENT_HOVER = "hover:opacity-90";
@@ -84,18 +94,26 @@ type FilterGroupProps = Filter & {
   onSelect: (code: string, v: string) => void;
 };
 
-const FilterGroup: React.FC<FilterGroupProps> = ({ title, code, options, selected, onSelect }) => {
+const FilterGroup: React.FC<FilterGroupProps> = ({
+  title,
+  code,
+  options,
+  selected,
+  onSelect,
+}) => {
   const [open, setOpen] = React.useState(true);
 
   return (
     <div className="mb-6">
       <div
-        className="flex items-center justify-between mt-8 select-none cursor-pointer"
+        className="mt-8 flex cursor-pointer select-none items-center justify-between"
         onClick={() => setOpen((v) => !v)}
         role="button"
         aria-expanded={open}
       >
-        <h4 className="text-sm font-semibold tracking-wide text-gray-700">{title}</h4>
+        <h4 className="text-sm font-semibold tracking-wide text-gray-700">
+          {title}
+        </h4>
 
         <button
           type="button"
@@ -126,8 +144,13 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, code, options, selecte
               const isChecked = selected === val;
               const inputId = `${code}-${idx}`;
               const optionKey = `${code}::${val}::${idx}`;
+
               return (
-                <label key={optionKey} htmlFor={inputId} className="flex items-center gap-2">
+                <label
+                  key={optionKey}
+                  htmlFor={inputId}
+                  className="flex items-center gap-2"
+                >
                   <input
                     id={inputId}
                     type="radio"
@@ -148,7 +171,9 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, code, options, selecte
                   />
                   <span
                     className={`transition-colors duration-200 ${
-                      isChecked ? "text-[#00A8E8] font-semibold" : "text-gray-700"
+                      isChecked
+                        ? "text-[#00A8E8] font-semibold"
+                        : "text-gray-700"
                     }`}
                   >
                     {opt.label}
@@ -165,44 +190,70 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, code, options, selecte
 
 const fmt = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
 
-
 const ProductCard: React.FC<{
   name: string;
   price?: number | null;
   oldPrice?: number | null;
   img?: string;
+  originalImg?: string;
   desc?: string;
   promoNow?: boolean;
   promoFin?: string | null;
   onOrder?: () => void;
-}> = ({ name, price, oldPrice, img, desc, promoNow, promoFin, onOrder }) => {
-  const { t } = useTranslation();   // ✅ on déclare t ici
+}> = ({
+  name,
+  price,
+  oldPrice,
+  img,
+  originalImg,
+  desc,
+  promoNow,
+  promoFin,
+  onOrder,
+}) => {
+  const { t } = useTranslation();
+
+  const srcToUse = img || originalImg || FALLBACK_IMG;
 
   return (
     <article className="group rounded-2xl border border-gray-200 bg-white p-4 shadow transition-shadow hover:shadow-lg">
-      <div className="relative w-full bg-white border border-gray-100 rounded-xl">
+      <div className="relative w-full rounded-xl border border-gray-100 bg-white">
         {promoNow && (
-          <span className="absolute top-2 left-2 z-20 bg-red-600 text-white text-[11px] font-semibold px-2 py-1 rounded-md shadow-lg ring-1 ring-red-500/30  pointer-events-none select-none">
+          <span className="pointer-events-none absolute left-2 top-2 z-20 select-none rounded-md bg-red-600 px-2 py-1 text-[11px] font-semibold text-white shadow-lg ring-1 ring-red-500/30">
             PROMO
           </span>
         )}
         <div className="pt-[100%] md:pt-[75%]" />
         <img
-        
-          src={img}
+          src={srcToUse}
           alt={name}
           loading="lazy"
           width={800}
           height={600}
-          className="absolute inset-0 h-full w-full object-contain rounded-xl transition-transform duration-300 ease-out group-hover:scale-[1.02]"
+          className="absolute inset-0 h-full w-full rounded-xl object-contain transition-transform duration-300 ease-out group-hover:scale-[1.02]"
           onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = FALLBACK_IMG;
+            const el = e.currentTarget as HTMLImageElement;
+
+            // 1️⃣ Si on était sur l'optimisée et qu'on a une originale, on repasse à l'originale
+            if (originalImg && el.src !== originalImg) {
+              el.src = originalImg;
+              return;
+            }
+
+            // 2️⃣ Sinon, on tombe sur le fallback
+            if (el.src !== FALLBACK_IMG) {
+              el.src = FALLBACK_IMG;
+            }
           }}
         />
       </div>
 
-      <h3 className="mt-3 text-[15px] sm:text-base font-semibold text-gray-900">{name}</h3>
-      {desc ? <p className="mt-1 line-clamp-2 text-sm text-gray-500">{desc}</p> : null}
+      <h3 className="mt-3 text-[15px] sm:text-base font-semibold text-gray-900">
+        {name}
+      </h3>
+      {desc ? (
+        <p className="mt-1 line-clamp-2 text-sm text-gray-500">{desc}</p>
+      ) : null}
 
       <div className="mt-3 flex items-center justify-between">
         {typeof price === "number" ? (
@@ -212,16 +263,19 @@ const ProductCard: React.FC<{
         ) : (
           <span />
         )}
-        {typeof oldPrice === "number" && typeof price === "number" && oldPrice > price && (
-          <span className="text-sm sm:text-base md:text-text-base lg:text-lg text-gray-500 line-through">
-            {fmt(oldPrice)}
-          </span>
-        )}
+        {typeof oldPrice === "number" &&
+          typeof price === "number" &&
+          oldPrice > price && (
+            <span className="text-sm sm:text-base md:text-text-base lg:text-lg text-gray-500 line-through">
+              {fmt(oldPrice)}
+            </span>
+          )}
       </div>
 
       {promoNow && promoFin && (
         <p className="mt-1 text-xs text-gray-500">
-          🔔 Offre valable jusqu’au {new Date(promoFin).toLocaleDateString("fr-FR")}
+          🔔 Offre valable jusqu’au{" "}
+          {new Date(promoFin).toLocaleDateString("fr-FR")}
         </p>
       )}
 
@@ -237,7 +291,6 @@ const ProductCard: React.FC<{
   );
 };
 
-
 type PresentationProps = {
   onOrder: (p: ProduitMini) => void;
 };
@@ -245,30 +298,26 @@ type PresentationProps = {
 /* ==================== Page ==================== */
 const Presentation: React.FC<PresentationProps> = ({ onOrder }) => {
   const { t } = useTranslation();
- const [searchParams] = useSearchParams();
-const q = (searchParams.get("q") || "").trim();
+  const [searchParams] = useSearchParams();
+  const q = (searchParams.get("q") || "").trim();
 
-// 🔁 Rafraîchir la page quand on arrive avec ?refresh=1
-React.useEffect(() => {
-  const flag = searchParams.get("refresh");
-  if (flag === "1") {
-    // On enlève le paramètre de l’URL pour éviter une boucle infinie
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("refresh");
+  // 🔁 Rafraîchir la page quand on arrive avec ?refresh=1
+  React.useEffect(() => {
+    const flag = searchParams.get("refresh");
+    if (flag === "1") {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("refresh");
 
-    const newSearch = params.toString();
-    const newUrl =
-      newSearch.length > 0
-        ? `${window.location.pathname}?${newSearch}`
-        : window.location.pathname;
+      const newSearch = params.toString();
+      const newUrl =
+        newSearch.length > 0
+          ? `${window.location.pathname}?${newSearch}`
+          : window.location.pathname;
 
-    window.history.replaceState(null, "", newUrl);
-
-    // Et on rafraîchit réellement la page
-    window.location.reload();
-  }
-}, [searchParams]);
-
+      window.history.replaceState(null, "", newUrl);
+      window.location.reload();
+    }
+  }, [searchParams]);
 
   /** Carrousel catégories — md+ */
   const trackRef = React.useRef<HTMLDivElement>(null);
@@ -350,21 +399,19 @@ React.useEffect(() => {
     error: catsError,
   } = useTopCategories({ level: 1 });
 
-
-  
   const cats = apiCategories ?? [];
-  
-  // 🔹 Ne garder que les catégories racines (pas les sous-catégories)
-const topCats = cats.filter((c: any) => {
-  const parentField = c.parent_id ?? c.parent ?? null;
-  return parentField === null || parentField === undefined;
-});
 
-  // re-mesure quand la liste de catégories arrive ou change
- React.useEffect(() => {
-  const id = requestAnimationFrame(syncEdges);
-  return () => cancelAnimationFrame(id);
-}, [cats.length, syncEdges]);
+  // 🔹 Ne garder que les catégories racines (pas les sous-catégories)
+  const topCats = cats.filter((c: any) => {
+    const parentField = c.parent_id ?? c.parent ?? null;
+    return parentField === null || parentField === undefined;
+  });
+
+  React.useEffect(() => {
+    const id = requestAnimationFrame(syncEdges);
+    return () => cancelAnimationFrame(id);
+  }, [cats.length, syncEdges]);
+
   /* ==================== Filtres globaux ==================== */
   const filterParams = React.useMemo(
     () => ({
@@ -374,43 +421,44 @@ const topCats = cats.filter((c: any) => {
     [categorySlug, subSlug]
   );
 
-  const { data: filtersPayload, loading: filtersLoading } = useFilters(filterParams);
+  const { data: filtersPayload, loading: filtersLoading } =
+    useFilters(filterParams);
 
   const FILTERS: Filter[] = React.useMemo(() => {
-  const base: Filter[] = [];
+    const base: Filter[] = [];
 
-  if (filtersPayload?.brands?.length) {
-    base.push({
-      title: t("filters.brand"), // ← traduit
-      code: "brand",
-      options: filtersPayload.brands.map((b) => ({
-        label: b.nom,
-        value: b.slug,
-      })),
-    });
-  }
+    if (filtersPayload?.brands?.length) {
+      base.push({
+        title: t("filters.brand"),
+        code: "brand",
+        options: filtersPayload.brands.map((b) => ({
+          label: b.nom,
+          value: b.slug,
+        })),
+      });
+    }
 
-  if (filtersPayload?.colors?.length) {
-    base.push({
-      title: t("filters.color"), // ← traduit
-      code: "color",
-      options: filtersPayload.colors.map((c) => ({
-        label: c.nom,
-        value: c.slug,
-      })),
-    });
-  }
+    if (filtersPayload?.colors?.length) {
+      base.push({
+        title: t("filters.color"),
+        code: "color",
+        options: filtersPayload.colors.map((c) => ({
+          label: c.nom,
+          value: c.slug,
+        })),
+      });
+    }
 
-  if (filtersPayload?.states?.length) {
-    base.push({
-      title: t("filters.state"), // ← traduit
-      code: "etat",
-      options: (filtersPayload.states as any[]).map((s: any) => ({
-        label: s.label ?? s.value,
-        value: s.value ?? s.label,
-      })),
-    });
-  }
+    if (filtersPayload?.states?.length) {
+      base.push({
+        title: t("filters.state"),
+        code: "etat",
+        options: (filtersPayload.states as any[]).map((s: any) => ({
+          label: s.label ?? s.value,
+          value: s.value ?? s.label,
+        })),
+      });
+    }
 
     if (filtersPayload?.attributes?.length) {
       filtersPayload.attributes.forEach((a) => {
@@ -435,7 +483,7 @@ const topCats = cats.filter((c: any) => {
     }
 
     return base;
-  }, [filtersPayload]);
+  }, [filtersPayload, t]);
 
   /* ==================== Produits ==================== */
   const productParams = React.useMemo(() => {
@@ -450,20 +498,27 @@ const topCats = cats.filter((c: any) => {
       if (v) qp[k] = v;
     });
     return qp;
-  }, [categorySlug, subSlug, page, selected, q]);  // ✅ ajout de q ici
+  }, [categorySlug, subSlug, page, selected, q]);
 
-
-  const { data: productPage, loading: productsLoading } = useProducts(productParams);
+  const { data: productPage, loading: productsLoading } =
+    useProducts(productParams);
 
   const products = productPage?.results ?? [];
-  const totalPages = Math.max(1, Math.ceil((productPage?.count ?? 0) / PAGE_SIZE));
-  const goto = (n: number) => setPage(Math.min(Math.max(1, n), totalPages));
+  const totalPages = Math.max(
+    1,
+    Math.ceil((productPage?.count ?? 0) / PAGE_SIZE)
+  );
+  const goto = (n: number) =>
+    setPage(Math.min(Math.max(1, n), totalPages));
 
   /* ==================== Helpers ==================== */
   const firstImageUrl = (p: ApiProduct): string | undefined => {
     if (Array.isArray(p.images) && p.images.length) {
       const primary = p.images.find((im) => im.principale) ?? p.images[0];
-      return primary?.url || undefined;
+      const raw = (primary as any)?.url ?? "";
+      if (raw) {
+        return media(raw); // URL complète backend
+      }
     }
     return undefined;
   };
@@ -487,119 +542,122 @@ const topCats = cats.filter((c: any) => {
     e.stopPropagation();
   };
 
-  // Afficher les flèches aussi pendant le chargement initial
-const showArrows = scrollable || catsLoading || cats.length > 0;
+  const showArrows = scrollable || catsLoading || cats.length > 0;
 
-const orderAndTrack = async (prod: ApiProduct, img: string) => {
-  try {
-    await recordProductClick(prod.id); // 🔐 POST /api/catalog/products/:id/click/
-  } catch {
-    // on ignore les erreurs pour ne pas bloquer l'UX
-  }
-  onOrder({
-    id: prod.id,
-    slug: prod.slug,
-    nom: prod.nom,
-    ref: prod.slug?.toUpperCase() ?? "",
-    image: img,
-  });
-};
-
+  const orderAndTrack = async (prod: ApiProduct, img: string) => {
+    try {
+      await recordProductClick(prod.id);
+    } catch {
+      // on ignore l'erreur
+    }
+    onOrder({
+      id: prod.id,
+      slug: prod.slug,
+      nom: prod.nom,
+      ref: prod.slug?.toUpperCase() ?? "",
+      image: img,
+    });
+  };
 
   return (
     <>
-   {/* ===== ENTÊTE ===== */}
-<motion.div className="w-full bg-gray-100" variants={headerEnter} initial="hidden" animate="show">
-  <div className="container mx-auto px-5">
-    <div className="flex items-center justify-between h-35 md:h-40 lg:h-48 ">
-      <div className="min-w-0 mt-6">
-        <motion.div
-          className="text-xs sm:text-sm text-gray-500"
-          variants={crumbFade}
-          initial="hidden"
-          animate="show"
-        >
-          {t("Accueil")} <span className="text-gray-400">›</span> {t("Produits")}
-        </motion.div>
-
-        <motion.h1
-          className="mt-1 font-extrabold leading-tight tracking-tight text-xl sm:text-xl md:text-2xl lg:text-4xl"
-          variants={h1Down}
-          initial="hidden"
-          animate="show"
-        >
-          {t("bar.description")}
-        </motion.h1>
-      </div>
-
+      {/* ===== ENTÊTE ===== */}
       <motion.div
-        className="sm:block pt-6"
-        variants={phonePop}
+        className="w-full bg-gray-100"
+        variants={headerEnter}
         initial="hidden"
         animate="show"
       >
-        <div
-          className="h-20 md:h-24 lg:h-28 xl:h-32 w-auto rounded-xl"
-          style={{ perspective: 1000, overflow: "visible" }}
-        >
-          <motion.img
-            src={iphone}
-            alt="Produit vedette"
-            
-            animate={{ rotateY: 360, scale: 0.92 }}
-            transition={{ duration: 12, ease: "linear", repeat: Infinity }}
-            style={{
-              transformOrigin: "50% 50%",
-              transformStyle: "preserve-3d",
-            }}
-            className="h-full w-auto object-contain select-none will-change-transform"
-            loading="lazy"
-          />
+        <div className="container mx-auto px-5">
+          <div className="flex h-35 items-center justify-between md:h-40 lg:h-48">
+            <div className="mt-6 min-w-0">
+              <motion.div
+                className="text-xs sm:text-sm text-gray-500"
+                variants={crumbFade}
+                initial="hidden"
+                animate="show"
+              >
+                {t("Accueil")}{" "}
+                <span className="text-gray-400">›</span> {t("Produits")}
+              </motion.div>
+
+              <motion.h1
+                className="mt-1 text-xl font-extrabold leading-tight tracking-tight sm:text-xl md:text-2xl lg:text-4xl"
+                variants={h1Down}
+                initial="hidden"
+                animate="show"
+              >
+                {t("bar.description")}
+              </motion.h1>
+            </div>
+
+            <motion.div
+              className="pt-6 sm:block"
+              variants={phonePop}
+              initial="hidden"
+              animate="show"
+            >
+              <div
+                className="h-20 w-auto rounded-xl md:h-24 lg:h-28 xl:h-32"
+                style={{ perspective: 1000, overflow: "visible" }}
+              >
+                <motion.img
+                  src={iphone}
+                  alt="Produit vedette"
+                  animate={{ rotateY: 360, scale: 0.92 }}
+                  transition={{
+                    duration: 12,
+                    ease: "linear",
+                    repeat: Infinity,
+                  }}
+                  style={{
+                    transformOrigin: "50% 50%",
+                    transformStyle: "preserve-3d",
+                  }}
+                  className="h-full w-auto select-none object-contain will-change-transform"
+                  loading="lazy"
+                />
+              </div>
+            </motion.div>
+          </div>
         </div>
       </motion.div>
-    </div>
-  </div>
-</motion.div>
-
-
-
 
       {/* ===== Catégories (mobile + carrousel) ===== */}
       <div className="container mx-auto px-5 pt-10">
-        <div className="uppercase tracking-wider text-[11px] md:text-xs font-semibold text-gray-600 mb-3 md:mb-4 hidden md:block">
+        <div className="mb-3 hidden text-[11px] font-semibold uppercase tracking-wider text-gray-600 md:mb-4 md:block">
           {t("bar.cat")}
         </div>
 
         {/* Mobile actions */}
-       <div className="flex items-center gap-3 lg:hidden mb-3 md:mb-4">
-  <button
-    type="button"
-    onClick={() => setMobileCatsOpen(true)}
-    className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm active:scale-[0.99]"
-    aria-label={t("mobile.openCategories")}
-  >
-    <FiMenu className="h-5 w-5" />
-    {t("mobile.categories")}
-  </button>
+        <div className="mb-3 flex items-center gap-3 lg:hidden md:mb-4">
+          <button
+            type="button"
+            onClick={() => setMobileCatsOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm active:scale-[0.99]"
+            aria-label={t("mobile.openCategories")}
+          >
+            <FiMenu className="h-5 w-5" />
+            {t("mobile.categories")}
+          </button>
 
-  <button
-    type="button"
-    onClick={() => setMobileFiltersOpen(true)}
-    className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm active:scale-[0.99]"
-    aria-label={t("mobile.openFilters")}
-  >
-    <FiMenu className="h-5 w-5" />
-    {t("mobile.filters")}
-  </button>
-</div>
-
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium shadow-sm active:scale-[0.99]"
+            aria-label={t("mobile.openFilters")}
+          >
+            <FiMenu className="h-5 w-5" />
+            {t("mobile.filters")}
+          </button>
+        </div>
 
         {/* Carrousel (md+) */}
-        <div className="hidden md:flex items-center gap-3 mt-0">
+        <div className="mt-0 hidden items-center gap-3 md:flex">
           <div
             ref={trackRef}
             onScroll={syncEdges}
-            className="flex-1 overflow-x-auto whitespace-nowrap scroll-smooth
+            className="flex-1 overflow-x-auto scroll-smooth whitespace-nowrap
                        [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           >
             <div className="flex gap-3 lg:gap-4">
@@ -610,14 +668,14 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
                   setSubSlug("");
                 }}
                 className={[
-                  "shrink-0 rounded-md border font-medium px-4 lg:px-5 py-2",
+                  "shrink-0 rounded-md border px-4 py-2 font-medium lg:px-5",
                   categorySlug === "tous"
                     ? `${ACCENT} ${ACCENT_HOVER}`
                     : "bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]",
                 ].join(" ")}
                 title="Afficher tout"
               >
-               {t("tous")}
+                {t("tous")}
               </button>
 
               {(catsLoading ? [] : topCats).map((c) => {
@@ -627,12 +685,11 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
                     key={c.slug}
                     type="button"
                     onClick={() => {
-  setCategorySlug(active ? "tous" : (c.slug || ""));
-  setSubSlug("");
-}}
-
+                      setCategorySlug(active ? "tous" : c.slug || "");
+                      setSubSlug("");
+                    }}
                     className={[
-                      "shrink-0 rounded-md border font-medium whitespace-nowrap px-4 lg:px-5 py-2",
+                      "shrink-0 rounded-md border px-4 py-2 font-medium whitespace-nowrap lg:px-5",
                       active
                         ? `${ACCENT} ${ACCENT_HOVER}`
                         : "bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]",
@@ -646,7 +703,11 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
             </div>
           </div>
 
-          <div className={`shrink-0 flex items-center gap-2 ${showArrows ? "" : "opacity-0 pointer-events-none"}`}>
+          <div
+            className={`shrink-0 flex items-center gap-2 ${
+              showArrows ? "" : "pointer-events-none opacity-0"
+            }`}
+          >
             <button
               type="button"
               onClick={(e) => {
@@ -656,7 +717,9 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
               aria-label="Précédent"
               disabled={atStart}
               className={`inline-flex h-10 w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
-                !atStart ? "border-gray-200 hover:border-[#00A8E8]" : "border-gray-100 opacity-40 cursor-not-allowed"
+                !atStart
+                  ? "border-gray-200 hover:border-[#00A8E8]"
+                  : "border-gray-100 cursor-not-allowed opacity-40"
               }`}
             >
               <FiChevronLeft className="h-5 w-5" />
@@ -670,7 +733,9 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
               aria-label="Suivant"
               disabled={atEnd}
               className={`inline-flex h-10 w-10 items-center justify-center rounded-full border bg-white text-gray-700 ${
-                !atEnd ? "border-gray-200 hover:border-[#00A8E8]" : "border-gray-100 opacity-40 cursor-not-allowed"
+                !atEnd
+                  ? "border-gray-200 hover:border-[#00A8E8]"
+                  : "border-gray-100 cursor-not-allowed opacity-40"
               }`}
             >
               <FiChevronRight className="h-5 w-5" />
@@ -678,14 +743,15 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
           </div>
         </div>
 
-        {catsError && <div className="mt-2 text-sm text-red-600"></div>}
+        {catsError && (
+          <div className="mt-2 text-sm text-red-600">{/* message si besoin */}</div>
+        )}
       </div>
 
-
-  {/* Bandeau Résultats pour ... */}
+      {/* Bandeau Résultats pour ... */}
       {q && (
-        <div className="max-w-screen-4xl mx-auto px-5 mt-6">
-          <div className="rounded-lg border border-[#00A8E8]/40 bg-[#E5F7FF] px-4 py-3 text-sm md:text-[15px] text-gray-800 shadow-sm">
+        <div className="mx-auto mt-6 max-w-screen-4xl px-5">
+          <div className="rounded-lg border border-[#00A8E8]/40 bg-[#E5F7FF] px-4 py-3 text-sm text-gray-800 shadow-sm md:text-[15px]">
             <span className="font-medium">Résultats pour&nbsp;</span>
             <span className="font-semibold text-[#00A8E8]">“{q}”</span>
           </div>
@@ -694,27 +760,34 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
 
       {/* ===== CONTENU (Sidebar + Grille) ===== */}
       <div className="bg-white">
-        <div className=" max-w-screen-4xl mx-auto px-5  py-6 lg:py-20">
-          <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)] gap-8">
+        <div className="mx-auto max-w-screen-4xl px-5 py-6 lg:py-20">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)]">
             {/* Sidebar desktop */}
             <aside
               className="
                 hidden lg:block sticky top-24
-                rounded-2xl border border-gray-200 bg-white p-5 shadow-sm
                 max-h-[calc(100vh-7rem)]
                 overflow-y-hidden hover:overflow-y-auto
+                rounded-2xl border border-gray-200 bg-white p-5 shadow-sm
               "
             >
-              <h3 className="text-lg font-bold text-gray-900"> {t("mobile.filters")}</h3>
+              <h3 className="text-lg font-bold text-gray-900">
+                {t("mobile.filters")}
+              </h3>
               <div className="mt-4 border-t border-[#00A8E8] pt-4">
                 {(filtersLoading ? [] : FILTERS).map((f) => (
-                  <FilterGroup key={f.code} {...f} selected={selected[f.code] ?? ""} onSelect={onSelect} />
+                  <FilterGroup
+                    key={f.code}
+                    {...f}
+                    selected={selected[f.code] ?? ""}
+                    onSelect={onSelect}
+                  />
                 ))}
 
                 {FILTERS.length > 0 && (
                   <div className="mt-4 flex gap-2">
                     <button
-                      className="flex-1 rounded-lg border px-3 py-2 text-sm font-medium bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
+                      className="flex-1 rounded-lg border bg-white px-3 py-2 text-sm font-medium text-gray-700 border-gray-200 hover:border-[#00A8E8]"
                       onClick={() => setSelected({})}
                     >
                       Réinitialiser
@@ -725,16 +798,15 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
             </aside>
 
             {/* Produits + pagination */}
-                       {/* Produits + pagination */}
             <main>
-              {/* 🔄 Loader pendant le chargement initial */}
+              {/* Loader initial */}
               {productsLoading && products.length === 0 && (
-                <div className="py-16 flex items-center justify-center">
+                <div className="flex w-full items-center justify-center py-16">
                   <GlobalLoader />
                 </div>
               )}
 
-              {/* 🟥 Message si aucun produit après chargement */}
+              {/* Aucun produit */}
               {!productsLoading && products.length === 0 && (
                 <div className="py-10 text-center text-gray-500">
                   {q
@@ -743,29 +815,40 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
                 </div>
               )}
 
-              {/* ✅ Grille de produits (uniquement quand on a des données) */}
+              {/* Grille produits */}
               {!productsLoading && products.length > 0 && (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 md:grid-cols-4">
                     {products.map((p) => {
-                      const img = firstImageUrl(p) || FALLBACK_IMG;
+                      const original = firstImageUrl(p);
+                      const optimized = original
+                        ? optimizedImg(original, 800, 600)
+                        : "";
+                      const imgSrc =
+                        optimized || original || FALLBACK_IMG;
+
                       return (
                         <ProductCard
                           key={p.id}
                           name={p.nom}
                           price={
-                            p?.prix_from != null ? Number(p.prix_from as any) : null
+                            p?.prix_from != null
+                              ? Number(p.prix_from as any)
+                              : null
                           }
                           oldPrice={
                             p?.promo_now && p?.old_price_from != null
                               ? Number(p.old_price_from as any)
                               : null
                           }
-                          img={img}
+                          img={imgSrc}
+                          originalImg={original}
                           desc={p.description_courte}
                           promoNow={p.promo_now}
                           promoFin={p.promo_fin ?? null}
-                          onOrder={() => orderAndTrack(p, img)}
+                          onOrder={() =>
+                            orderAndTrack(p, original || imgSrc)
+                          }
                         />
                       );
                     })}
@@ -809,17 +892,24 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
                 </>
               )}
             </main>
-
           </div>
         </div>
       </div>
 
       {/* ===== TIROIR CATÉGORIES — MOBILE ===== */}
       {mobileCatsOpen && (
-        <div className="fixed inset-0 z-[9999]" aria-modal="true" role="dialog">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileCatsOpen(false)} aria-hidden="true" />
-          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[360px] bg-white shadow-2xl p-5 overflow-y-auto">
-            <div className="flex items-center justify-between mb-2">
+        <div
+          className="fixed inset-0 z-[9999]"
+          aria-modal="true"
+          role="dialog"
+        >
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobileCatsOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[360px] overflow-y-auto bg-white p-5 shadow-2xl">
+            <div className="mb-2 flex items-center justify-between">
               <h3 className="text-base font-bold">Catégories</h3>
               <button
                 type="button"
@@ -840,7 +930,7 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
                     setSubSlug("");
                     setMobileCatsOpen(false);
                   }}
-                  className={`rounded-xl border px-4 py-2 text-sm font-medium text-left ${
+                  className={`rounded-xl border px-4 py-2 text-left text-sm font-medium ${
                     categorySlug === "tous"
                       ? `${ACCENT} ${ACCENT_HOVER}`
                       : "bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
@@ -849,20 +939,21 @@ const orderAndTrack = async (prod: ApiProduct, img: string) => {
                   Tous
                 </button>
 
-                {(catsLoading ? [] :topCats).map((c) => {
+                {(catsLoading ? [] : topCats).map((c) => {
                   const active = categorySlug === c.slug;
                   return (
                     <button
                       key={c.slug}
                       type="button"
                       onClick={() => {
-                        setCategorySlug(active ? "tous" : (c.slug || ""));
-setSubSlug("");
-setMobileCatsOpen(false);
-
+                        setCategorySlug(active ? "tous" : c.slug || "");
+                        setSubSlug("");
+                        setMobileCatsOpen(false);
                       }}
-                      className={`rounded-xl border px-4 py-2 text-sm font-medium text-left ${
-                        active ? `${ACCENT} ${ACCENT_HOVER}` :  "bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
+                      className={`rounded-xl border px-4 py-2 text-left text-sm font-medium ${
+                        active
+                          ? `${ACCENT} ${ACCENT_HOVER}`
+                          : "bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
                       }`}
                     >
                       {c.nom}
@@ -877,11 +968,19 @@ setMobileCatsOpen(false);
 
       {/* ===== TIROIR FILTRES — MOBILE ===== */}
       {mobileFiltersOpen && (
-        <div className="fixed inset-0 z-[9999]" aria-modal="true" role="dialog">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileFiltersOpen(false)} aria-hidden="true" />
-          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[360px] bg-white shadow-2xl p-5 overflow-y-auto">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-base font-bold"> {t("mobile.filters")}</h3>
+        <div
+          className="fixed inset-0 z-[9999]"
+          aria-modal="true"
+          role="dialog"
+        >
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobileFiltersOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[360px] overflow-y-auto bg-white p-5 shadow-2xl">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-base font-bold">{t("mobile.filters")}</h3>
               <button
                 type="button"
                 aria-label="Fermer"
@@ -894,26 +993,14 @@ setMobileCatsOpen(false);
 
             <div className="border-t border-[#00A8E8] pt-4">
               {(filtersLoading ? [] : FILTERS).map((f) => (
-                <FilterGroup key={f.code} {...f} selected={selected[f.code] ?? ""} onSelect={onSelect} />
+                <FilterGroup
+                  key={f.code}
+                  {...f}
+                  selected={selected[f.code] ?? ""}
+                  onSelect={onSelect}
+                />
               ))}
             </div>
-
-            {/* <div className="sticky bottom-0 -mx-5 mt-4 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 p-5 border-t">
-              <div className="flex gap-3">
-                <button
-                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${ACCENT} ${ACCENT_HOVER}`}
-                  onClick={() => setMobileFiltersOpen(false)}
-                >
-                  Appliquer
-                </button>
-                <button
-                  className="flex-1 rounded-lg border px-3 py-2 text-sm font-medium bg-white text-gray-700 border-gray-200 hover:border-[#00A8E8]"
-                  onClick={() => setSelected({})}
-                >
-                  Réinitialiser
-                </button>
-              </div>
-            </div> */}
           </div>
         </div>
       )}

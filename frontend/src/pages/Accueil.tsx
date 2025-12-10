@@ -1,11 +1,10 @@
-// src/pages/Accueil.tsx
 import React, { useEffect, Suspense, lazy } from "react";
+import { Helmet } from "react-helmet-async"; // 👈 ajoute ça
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
 import { forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
 
-// 🔹 Sections lourdes en lazy
 const Sponsor = lazy(() => import("../components/Sponsor"));
 const HeroCarousel = lazy(() => import("../components/HeroCarousel"));
 const ContactSection = lazy(() => import("../components/ContactSection"));
@@ -24,9 +23,17 @@ const Accueil: React.FC = () => {
 
   return (
     <>
+      {/* 🧠 SEO pour la home */}
+      <Helmet>
+        <title>Christland Tech – Boutique high-tech au Cameroun</title>
+        <meta
+          name="description"
+          content="Christland Tech est une boutique high-tech au Cameroun spécialisée dans la vente de smartphones, ordinateurs, gaming et accessoires. Livraison rapide à Douala et Yaoundé. Meilleurs prix et produits garantis. Livraison rapide et service client réactif."
+        />
+      </Helmet>
+
       <Navbar />
 
-      {/* Sections lazy chargées dans un Suspense */}
       <Suspense fallback={null}>
         <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 pt-8 md:pt-28 lg:pt-32">
           <HeroCarousel />

@@ -166,7 +166,7 @@ const AssistanceHero: React.FC<Props> = ({
             transition={{ delay: 0.08 }}
           >
             {loading && !hero?.slug ? (
-              <p className="mb-3 opacity-70">Chargement…</p>
+              <p className="mb-3 opacity-70"></p>
             ) : (
               <p className="mb-3 break-words">{hero?.slug || ""}</p>
             )}

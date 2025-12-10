@@ -6,7 +6,7 @@ import type { Variants, Transition } from "framer-motion";
 
 type Post = {
   id: number | string;
-  image: string;
+  image: string;   // URL ORIGINALE complète (media)
   title: string;   // <- affichera "extrait"
   excerpt: string; // <- affichera "contenu"
 };
@@ -14,6 +14,14 @@ type Post = {
 // ✅ Fallback très léger si l’API ne renvoie pas d’image
 const FALLBACK_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='16'%3EImage%20indisponible%3C/text%3E%3C/svg%3E";
+
+// ✅ Helper pour générer une version optimisée via wsrv.nl
+function optimizedImg(fullUrl: string, width = 800, height = 450) {
+  if (!fullUrl) return "";
+  return `https://wsrv.nl/?url=${encodeURIComponent(
+    fullUrl
+  )}&w=${width}&h=${height}&fit=cover&webp=1&q=80`;
+}
 
 // Transitions/variants
 const TWEEN_SLOW: Transition = {
@@ -38,7 +46,9 @@ const cardFadeUpOnView: Variants = {
 
 /* --- Carte TOP : horizontale dès md --- */
 const CardTop: React.FC<{ post: Post }> = ({ post }) => {
-  const imgSrc = post.image || FALLBACK_IMG;
+  const originalUrl = post.image || "";
+  const optimizedUrl = originalUrl ? optimizedImg(originalUrl, 800, 450) : "";
+  const imgSrc = optimizedUrl || FALLBACK_IMG;
 
   return (
     <motion.div
@@ -64,10 +74,9 @@ const CardTop: React.FC<{ post: Post }> = ({ post }) => {
         title={post.title}
       >
         <img
-        width={300}
-           height={300}
+          width={300}
+          height={300}
           src={imgSrc}
-          
           alt={post.title}
           className="
             absolute inset-0 h-full w-full object-cover
@@ -78,6 +87,14 @@ const CardTop: React.FC<{ post: Post }> = ({ post }) => {
           decoding="async"
           onError={(e) => {
             const img = e.currentTarget as HTMLImageElement;
+
+            // 1️⃣ si l'image optimisée casse, on retente avec l'URL originale
+            if (originalUrl && img.src !== originalUrl) {
+              img.src = originalUrl;
+              return;
+            }
+
+            // 2️⃣ si même l'original casse → fallback
             if (img.src !== FALLBACK_IMG) {
               img.src = FALLBACK_IMG;
             }
@@ -115,7 +132,9 @@ const CardTop: React.FC<{ post: Post }> = ({ post }) => {
 
 /* --- Carte BOTTOM : verticale jusqu’à lg, horizontale à partir de lg --- */
 const CardBottom: React.FC<{ post: Post }> = ({ post }) => {
-  const imgSrc = post.image || FALLBACK_IMG;
+  const originalUrl = post.image || "";
+  const optimizedUrl = originalUrl ? optimizedImg(originalUrl, 800, 450) : "";
+  const imgSrc = optimizedUrl || FALLBACK_IMG;
 
   return (
     <motion.div
@@ -139,8 +158,8 @@ const CardBottom: React.FC<{ post: Post }> = ({ post }) => {
         title={post.title}
       >
         <img
-        width={300}
-                      height={300}
+          width={300}
+          height={300}
           src={imgSrc}
           alt={post.title}
           className="
@@ -152,6 +171,14 @@ const CardBottom: React.FC<{ post: Post }> = ({ post }) => {
           decoding="async"
           onError={(e) => {
             const img = e.currentTarget as HTMLImageElement;
+
+            // 1️⃣ si l'image optimisée casse, on retente avec l'URL originale
+            if (originalUrl && img.src !== originalUrl) {
+              img.src = originalUrl;
+              return;
+            }
+
+            // 2️⃣ si même l'original casse → fallback
             if (img.src !== FALLBACK_IMG) {
               img.src = FALLBACK_IMG;
             }
@@ -186,7 +213,7 @@ const CardBottom: React.FC<{ post: Post }> = ({ post }) => {
 };
 
 const PostsSection: React.FC = () => {
-  const { data } = useBlogPosts();   // 👈 plus de loading / error ici
+  const { data } = useBlogPosts(); // 👈 plus de loading / error ici
 
   // image  <- image (image_couverture côté API)
   // title  <- extrait
@@ -194,11 +221,11 @@ const PostsSection: React.FC = () => {
   const postsTop: Post[] = React.useMemo(() => {
     const items = data?.top ?? [];
     return items.map((a) => {
-      const rawImage = a.image || "";
-      const img = rawImage ? media(rawImage) : "";
+      const rawImage = a.image || ""; // (ou a.image_couverture selon ton API)
+      const fullUrl = rawImage ? media(rawImage) : "";
       return {
         id: a.id,
-        image: img || FALLBACK_IMG,
+        image: fullUrl, // URL ORIGINALE, on l'optimise ensuite dans la carte
         title: a.excerpt || "",
         excerpt: a.content || "",
       };
@@ -209,10 +236,10 @@ const PostsSection: React.FC = () => {
     const items = data?.bottom ?? [];
     return items.map((a) => {
       const rawImage = a.image || "";
-      const img = rawImage ? media(rawImage) : "";
+      const fullUrl = rawImage ? media(rawImage) : "";
       return {
         id: a.id,
-        image: img || FALLBACK_IMG,
+        image: fullUrl,
         title: a.excerpt || "",
         excerpt: a.content || "",
       };

@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import { useKeenSlider } from "keen-slider/react";
 import "keen-slider/keen-slider.min.css";
-
+import { media } from "../hooks/useFetchQuery"; 
 import { useLatestProducts } from "../hooks/useFetchQuery";
 import GlobalLoader from "./GlobalLoader";
 
@@ -29,6 +29,10 @@ const FALLBACK_SVG =
     <rect x="150" y="200" width="180" height="22" rx="11" fill="#d1d5db"/>
   </g>
 </svg>`);
+
+
+
+
 
 /** Hook: 1 / 2 / 3 colonnes selon la largeur */
 function useVisibleSlides() {
@@ -163,6 +167,12 @@ export default function Nouveautes() {
           })
         : null;
 
+// ✅ On passe toujours par `media()` pour préparer les futures optimisations
+  const rawImage: string =
+    p.image || p.image_url || p.image_couverture || "";
+  const imgSrc = rawImage ? media(rawImage) : FALLBACK_SVG;
+
+
     return (
       <motion.div
         key={p.id}
@@ -177,23 +187,24 @@ export default function Nouveautes() {
         hover:shadow-lg transition-shadow
       "
       >
-        <div className="space-y-2">
-          <div className="w-full rounded-2xl overflow-hidden">
-            <div className="h-[190px] sm:h-[220px] md:h-[250px]">
-              <img
-                src={p.image || FALLBACK_SVG}
-                alt={p.nom}
-                width={300}
-                 height={300}
-                className="w-full h-full object-contain object-center block"
-                loading="lazy"
-                onError={(e) => {
-                  const img = e.currentTarget as HTMLImageElement;
-                  if (img.src !== FALLBACK_SVG) img.src = FALLBACK_SVG;
-                }}
-              />
-            </div>
+       <div className="space-y-2">
+        <div className="w-full rounded-2xl overflow-hidden">
+          <div className="h-[190px] sm:h-[220px] md:h-[250px]">
+            <img
+              src={imgSrc}
+              alt={p.nom}
+              width={300}          // 👈 taille logique
+              height={300}         // 👈 taille logique
+              loading="lazy"
+              decoding="async"     // 👈 aide le navigateur
+              className="w-full h-full object-contain object-center block"
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                if (img.src !== FALLBACK_SVG) img.src = FALLBACK_SVG;
+              }}
+            />
           </div>
+        </div>
 
           <h4 className="text-xs sm:text-sm text-gray-500 text-center">
             {p.marque?.nom || ""}
