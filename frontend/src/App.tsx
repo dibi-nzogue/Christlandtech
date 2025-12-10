@@ -1,6 +1,6 @@
-// src/App.tsx
+/// src/App.tsx
 import React, { Suspense, lazy } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import PrivateRoute from "./components/PrivateRoute";
@@ -25,14 +25,31 @@ const AddCathegorie = lazy(() => import("./pages/AddCathegorie"));
 
 const App: React.FC = () => {
   const { i18n } = useTranslation();
-  const isLoading = useGlobalLoading(); // 👈 loader global (React Query, appels API, etc.)
+  const isLoading = useGlobalLoading();          // état du loader global (fetch)
+  const location = useLocation();                // chemin actuel
+  const pathname = location.pathname;
+
+  // 👉 on ne montre le gros loader global que sur /produits et /dashboard
+  const isHeavyRoute =
+    pathname.startsWith("/produits") || pathname.startsWith("/dashboard");
 
   return (
     <>
-      {isLoading && <GlobalLoader />}
+      {/* Loader global pour les appels API lourds (produits / dashboard) */}
+      {isHeavyRoute && isLoading && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-white/80">
+          <GlobalLoader />
+        </div>
+      )}
 
-      {/* 👇 Suspense = loader pendant le chargement des CHUNKS (JS) */}
-      <Suspense fallback={null}>
+      {/* Loader pendant le CHARGEMENT des pages (lazy + suspense) */}
+      <Suspense
+        fallback={
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-white">
+            <GlobalLoader />
+          </div>
+        }
+      >
         <main className="relative min-h-screen">
           <Routes key={i18n.language}>
             {/* === PUBLIC (chemins canoniques) === */}
@@ -47,26 +64,70 @@ const App: React.FC = () => {
             <Route path="/dashboard/connexion" element={<Connexion />} />
 
             {/* === DASHBOARD PRIVÉ (canoniques) === */}
-            <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-            <Route path="/dashboard/ajouter-produit" element={<PrivateRoute><AddProduct /></PrivateRoute>} />
-            <Route path="/dashboard/ajouter-article" element={<PrivateRoute><AddArticle /></PrivateRoute>} />
-            <Route path="/dashboard/modifier/:id" element={<PrivateRoute><UpdateProduct /></PrivateRoute>} />
-            <Route path="/dashboard/articles/:id/edit" element={<PrivateRoute><UpdateArticle /></PrivateRoute>} />
-            <Route path="/dashboard/categories/:id/edit" element={<PrivateRoute><UpdateCathegorie /></PrivateRoute>} />
-            <Route path="/dashboard/ajouter-categorie" element={<PrivateRoute><AddCathegorie /></PrivateRoute>} />
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ajouter-produit"
+              element={
+                <PrivateRoute>
+                  <AddProduct />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ajouter-article"
+              element={
+                <PrivateRoute>
+                  <AddArticle />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/modifier/:id"
+              element={
+                <PrivateRoute>
+                  <UpdateProduct />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/articles/:id/edit"
+              element={
+                <PrivateRoute>
+                  <UpdateArticle />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/categories/:id/edit"
+              element={
+                <PrivateRoute>
+                  <UpdateCathegorie />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/ajouter-categorie"
+              element={
+                <PrivateRoute>
+                  <AddCathegorie />
+                </PrivateRoute>
+              }
+            />
 
             {/* === ANCIENNES ROUTES (majuscules / underscores) → REDIRECT === */}
-            {/* Pages publiques anciennes */}
             <Route path="/Produits" element={<Navigate to="/produits" replace />} />
             <Route path="/Services" element={<Navigate to="/services" replace />} />
             <Route path="/Assistance" element={<Navigate to="/assistance" replace />} />
-
-            {/* Dashboard + auth anciennes */}
             <Route path="/Dashboard" element={<Navigate to="/dashboard" replace />} />
             <Route path="/Dashboard/Connexion" element={<Navigate to="/dashboard/connexion" replace />} />
             <Route path="/Dashboard/Sighup" element={<Navigate to="/dashboard/inscription" replace />} />
-
-            {/* Anciennes routes dashboard avec underscores / majuscules */}
             <Route path="/Dashboard/Ajouter_produit" element={<Navigate to="/dashboard/ajouter-produit" replace />} />
             <Route path="/Dashboard/Ajouter_article" element={<Navigate to="/dashboard/ajouter-article" replace />} />
             <Route path="/Dashboard/Ajouter_categorie" element={<Navigate to="/dashboard/ajouter-categorie" replace />} />

@@ -1,9 +1,9 @@
 // src/pages/About.tsx
-import React, { useEffect, Suspense, lazy } from "react";
+import React, {  Suspense, lazy } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
-import { forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
+
 
 
 // 🔹 Sections lourdes en lazy
@@ -13,13 +13,6 @@ const BoardManage = lazy(() => import("../components/BoardManage"));
 const StatsSection = lazy(() => import("../components/StatsSection"));
 
 const About: React.FC = () => {
-  useEffect(() => {
-    forceStartLoading();
-    const timer = setTimeout(() => {
-      forceStopLoading();
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
 
   return (
     <div>
