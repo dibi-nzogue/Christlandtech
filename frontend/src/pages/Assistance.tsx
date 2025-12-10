@@ -4,7 +4,6 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
 import { forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
-import { Helmet } from "react-helmet-async"; // 👈 SEO
 
 const AssistanceHero = lazy(() => import("../components/AssistanceHero"));
 const PostsSection = lazy(() => import("../components/PostsSection"));
@@ -19,13 +18,11 @@ const Assistance: React.FC = () => {
 
   return (
     <div>
-      <Helmet>
         <title>Assistance – Christland Tech</title>
         <meta
           name="description"
           content="Centre d’assistance Christland Tech : guides, réponses aux questions fréquentes, support technique et accompagnement personnalisé."
         />
-      </Helmet>
 
       <Navbar />
 

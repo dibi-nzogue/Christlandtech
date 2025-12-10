@@ -4,7 +4,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
 import { forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
-import { Helmet } from "react-helmet-async"; // 👈 SEO ici
+
 
 // 🔹 Sections lourdes en lazy
 const HeroAbout = lazy(() => import("../components/HeroAbout"));
@@ -24,13 +24,13 @@ const About: React.FC = () => {
   return (
     <div>
       {/* 🧠 SEO de la page À propos */}
-      <Helmet>
+
         <title>À propos – Christland Tech</title>
         <meta
           name="description"
           content="Découvrez Christland Tech : notre mission, nos valeurs et l’équipe qui vous accompagne pour tous vos besoins high-tech au Cameroun."
         />
-      </Helmet>
+
 
       <Navbar />
 

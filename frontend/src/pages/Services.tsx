@@ -4,7 +4,6 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
 import { forceStartLoading, forceStopLoading } from "../hooks/useFetchQuery";
-import { Helmet } from "react-helmet-async"; // 👈 SEO
 
 const ServiceIntro = lazy(() => import("../components/ServiceIntro"));
 const ServicesBloc = lazy(() => import("../components/ServicesBloc"));
@@ -20,13 +19,13 @@ const Services: React.FC = () => {
 
   return (
     <div>
-      <Helmet>
+
         <title>Nos Services – Christland Tech</title>
         <meta
           name="description"
           content="Découvrez les services professionnels de Christland Tech : maintenance informatique, installation, conseil, accompagnement et solutions high-tech pour entreprises et particuliers."
         />
-      </Helmet>
+
 
       <Navbar />
 
