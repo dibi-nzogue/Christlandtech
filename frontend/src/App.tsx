@@ -31,7 +31,7 @@ const App: React.FC = () => {
 
   // 👉 on ne montre le gros loader global que sur /produits et /dashboard
   const isHeavyRoute =
-    pathname.startsWith("/produits") || pathname.startsWith("/dashboard");
+    pathname.startsWith("/produits");
 
   // 👉 Loader affiché pendant le chargement des chunks (lazy)
   const suspenseFallback = (
