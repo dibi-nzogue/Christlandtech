@@ -180,10 +180,38 @@ const CathegorieForm: React.FC = () => {
   };
 
   /* ---------- Validation & submit ---------- */
-  const validateRequired = (): string | null => {
-    if (!formData.nom.trim()) return "Le nom de la catégorie est requis.";
-    return null;
-  };
+const validateRequired = (): string | null => {
+  if (!formData.nom.trim()) {
+    return "Le nom de la catégorie est requis.";
+  }
+
+  // 👉 Règle "tout ou rien" pour les sous-catégories
+  for (let i = 0; i < subCategories.length; i++) {
+    const sub = subCategories[i];
+
+    // ligne complètement vide => on ignore
+    const isEmptyLine =
+      !sub.nom.trim() &&
+      !sub.description.trim() &&
+      !sub.image_url;
+
+    if (isEmptyLine) {
+      continue;
+    }
+
+    // il y a quelque chose : on exige un nom
+    if (!sub.nom.trim()) {
+      return `Veuillez renseigner le nom de la sous-catégorie #${i + 1}.`;
+    }
+
+    // et on exige une image
+    if (!sub.image_url) {
+      return `Veuillez renseigner une image pour la sous-catégorie « ${sub.nom || `#${i + 1}`} ».`;
+    }
+  }
+
+  return null;
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,18 +234,21 @@ const CathegorieForm: React.FC = () => {
         est_actif: formData.est_actif,
       });
 
-      // 2) Création de chaque sous-catégorie liée au parentCreated.id
-      for (const sub of subCategories) {
-        if (!sub.nom.trim()) continue; // ignore les lignes vides
+ // 2) On ne garde que les vraies sous-catégories remplies
+const validSubCategories = subCategories.filter(
+  (sub) => sub.nom.trim() !== ""
+);
 
-        await createDashboardCategory({
-          nom: sub.nom.trim(),
-          description: sub.description,
-          parent: parentCreated.id, // 🔗 parent_id = catégorie principale
-          image_url: sub.image_url || null,
-          est_actif: sub.est_actif,
-        });
-      }
+for (const sub of validSubCategories) {
+  await createDashboardCategory({
+    nom: sub.nom.trim(),
+    description: sub.description,
+    parent: parentCreated.id,
+    image_url: sub.image_url,  // on sait déjà qu'elle existe grâce à validateRequired()
+    est_actif: sub.est_actif,
+  });
+}
+
 
       setToast({
         kind: "success",

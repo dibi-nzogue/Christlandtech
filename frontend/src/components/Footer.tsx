@@ -27,7 +27,11 @@ const Footer: React.FC = () => {
     <footer className="bg-[#f5f5f5] text-gray-500 pt-10 pb-5 px-6 md:px-16">
       {/* --- Haut du footer --- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
-        <Link to="/" className="flex items-center gap-4 min-w-0" aria-label="Accueil Christland Tech">
+        <Link
+          to="/"
+          className="flex items-center gap-4 min-w-0"
+          aria-label="Accueil Christland Tech"
+        >
           <div className="h-10 md:h-16 w-10 md:w-16 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
             <img
               src={logo}
@@ -35,6 +39,7 @@ const Footer: React.FC = () => {
               height={300}
               alt="CHRISTLAND TECH"
               loading="lazy"
+              decoding="async"
               className="h-full w-full object-cover"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).style.display = "none";
@@ -52,46 +57,46 @@ const Footer: React.FC = () => {
         </Link>
 
         {/* Réseaux sociaux */}
-        <div
+        <nav
           className="flex items-center gap-5 mt-5 md:mt-0 text-black text-lg"
-          aria-label="Réseaux sociaux"
+          aria-label="Réseaux sociaux Christland Tech"
         >
           <a
             href="#"
-            aria-label="Twitter"
+            aria-label="Christland Tech sur X (Twitter)"
             className="hover:text-[#00A9DC] transition-colors cursor-pointer"
           >
             <FaXTwitter />
           </a>
           <a
             href="#"
-            aria-label="LinkedIn"
+            aria-label="Christland Tech sur LinkedIn"
             className="hover:text-[#00A9DC] transition-colors cursor-pointer"
           >
             <FaLinkedinIn />
           </a>
           <a
             href="#"
-            aria-label="Facebook"
+            aria-label="Christland Tech sur Facebook"
             className="hover:text-[#00A9DC] transition-colors cursor-pointer"
           >
             <FaFacebookF />
           </a>
           <a
             href="#"
-            aria-label="Instagram"
+            aria-label="Christland Tech sur Instagram"
             className="hover:text-[#00A9DC] transition-colors cursor-pointer"
           >
             <FaInstagram />
           </a>
           <a
             href="#"
-            aria-label="YouTube"
+            aria-label="Christland Tech sur YouTube"
             className="hover:text-[#00A9DC] transition-colors cursor-pointer"
           >
             <FaYoutube />
           </a>
-        </div>
+        </nav>
       </div>
 
       {/* --- Contenu principal --- */}
@@ -106,7 +111,7 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Colonne 2 : Liens */}
-        <div className="space-y-2">
+        <nav className="space-y-2" aria-label="Liens du pied de page">
           {footerLinks.map((link) => (
             <Link
               key={link.key}
@@ -116,10 +121,10 @@ const Footer: React.FC = () => {
               {t(link.key)}
             </Link>
           ))}
-        </div>
+        </nav>
 
         {/* Colonne 3 : Contact */}
-        <div className="space-y-3 text-sm">
+        <address className="space-y-3 text-sm not-italic">
           <div className="flex items-center gap-2">
             <FaEnvelope className="text-gray-400" />
             <a href="mailto:info@christland.tech" className="hover:underline">
@@ -138,7 +143,7 @@ const Footer: React.FC = () => {
               676 089 671
             </a>
           </div>
-        </div>
+        </address>
       </div>
 
       {/* --- Bas du footer --- */}
