@@ -214,53 +214,55 @@ const Navbar: React.FC = () => {
 
               <div className="bg-white py-4 pr-1" />
 
-{/* Langue desktop */}
-<div className="relative">
-  <button
-    type="button"
-    onClick={() => setLangOpen((v) => !v)}
-    aria-haspopup="menu"
-    aria-expanded={langOpen}
-    aria-label={t("Changer de langue")}
-    className="flex items-center gap-1 rounded-md px-2 py-1 text-white"
-  >
-    <FaGlobe className="h-5 w-5" />
-    <FaChevronDown className="h-3 w-3" />
-  </button>
-  {langOpen && (
-    <div className="absolute right-0 mt-2 w-36 rounded-md bg-white text-gray-900 py-1 shadow-lg ring-1 ring-black/5">
-      <button
-        type="button"
-        className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${
-          currentLang === "fr" ? "font-semibold text-[#00A9DC]" : ""
-        }`}
-        onClick={() => {
-          i18n.changeLanguage("fr");
-          setUiLang("fr");
-          setLangOpen(false);
-          recomputeNameVisibility();
-        }}
-      >
-        {t("Français")}
-      </button>
-      <button
-        type="button"
-        className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${
-          currentLang === "en" ? "font-semibold text-[#00A9DC]" : ""
-        }`}
-        onClick={() => {
-          i18n.changeLanguage("en");
-          setUiLang("en");
-          setLangOpen(false);
-          recomputeNameVisibility();
-        }}
-      >
-        {t("Anglais")}
-      </button>
-    </div>
-  )}
-</div>
-
+              {/* Langue desktop */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setLangOpen((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={langOpen}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-white"
+                >
+                  <FaGlobe className="h-5 w-5" />
+                  <FaChevronDown className="h-3 w-3" />
+                </button>
+                {langOpen && (
+                  <div className="absolute right-0 mt-2 w-36 rounded-md bg-white text-gray-900 py-1 shadow-lg ring-1 ring-black/5">
+                    <button
+                      type="button"
+                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${
+                        currentLang === "fr"
+                          ? "font-semibold text-[#00A9DC]"
+                          : ""
+                      }`}
+                      onClick={() => {
+                        i18n.changeLanguage("fr");
+                        setUiLang("fr");
+                        setLangOpen(false);
+                        recomputeNameVisibility();
+                      }}
+                    >
+                      {t("Français")}
+                    </button>
+                    <button
+                      type="button"
+                      className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${
+                        currentLang === "en"
+                          ? "font-semibold text-[#00A9DC]"
+                          : ""
+                      }`}
+                      onClick={() => {
+                        i18n.changeLanguage("en");
+                        setUiLang("en");
+                        setLangOpen(false);
+                        recomputeNameVisibility();
+                      }}
+                    >
+                      {t("Anglais")}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Actions mobiles (quand le panneau est fermé) */}
