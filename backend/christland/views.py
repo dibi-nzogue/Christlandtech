@@ -3080,13 +3080,6 @@ from django.db.models import Q
 from rest_framework import status
 from rest_framework.response import Response
 
-from django.db import transaction, IntegrityError
-from django.utils import timezone
-from django.utils.text import slugify
-from django.db.models import Q
-from rest_framework import status
-from rest_framework.response import Response
-
 class DashboardCategoryListCreateView(generics.ListCreateAPIView):
     """
     GET  /christland/api/dashboard/categories/manage/
@@ -3097,53 +3090,84 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    # ton def get(...) reste comme tu l’avais
+    def get(self, request, *args, **kwargs):
+        q = (request.query_params.get("q") or "").strip()
 
-@transaction.atomic
-def post(self, request, *args, **kwargs):
-    nom = (request.data.get("nom") or "").strip()
-    description = (request.data.get("description") or "").strip()
-    est_actif = bool(request.data.get("est_actif", False))
-    position = request.data.get("position")  # peut être null / vide
+        qs = Categories.objects.all().order_by("position", "cree_le", "id")
 
-    parent_id = request.data.get("parent") or request.data.get("parent_id")
-    parent = None
-    if parent_id:
-        try:
-            parent = Categories.objects.get(pk=int(parent_id))
-        except (Categories.DoesNotExist, ValueError, TypeError):
+        if q:
+            qs = qs.filter(
+                Q(nom__icontains=q) |
+                Q(description__icontains=q)
+            )
+
+        paginator = SmallPagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+
+        rows = []
+        for c in page:
+            rows.append({
+                "id": c.id,
+                "nom": c.nom or "",
+                "slug": c.slug or "",
+                "description": c.description or "",
+                "est_actif": bool(c.est_actif),
+                "parent_id": c.parent_id,
+                "parent_nom": c.parent.nom if c.parent_id else "",
+                "position": c.position,
+            })
+
+        return paginator.get_paginated_response(rows)
+
+    def post(self, request, *args, **kwargs):
+        nom = (request.data.get("nom") or "").strip()
+        description = (request.data.get("description") or "").strip()
+        est_actif = bool(request.data.get("est_actif", False))
+        position = request.data.get("position")  # peut être null / vide
+
+        # parent: on accepte "parent" ou "parent_id"
+        parent_id = request.data.get("parent") or request.data.get("parent_id")
+        parent = None
+        if parent_id:
+            try:
+                parent = Categories.objects.get(pk=int(parent_id))
+            except (Categories.DoesNotExist, ValueError, TypeError):
+                return Response(
+                    {"field": "parent", "error": "Catégorie parente invalide."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if not nom:
             return Response(
-                {"field": "parent", "error": "Catégorie parente invalide."},
+                {"field": "nom", "error": "Le nom de la catégorie est requis."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-    if not nom:
-        return Response(
-            {"field": "nom", "error": "Le nom de la catégorie est requis."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        # ✅ Vérifier si une catégorie avec ce NOM existe déjà
+        # (insensible à la casse, à adapter si tu veux par parent)
+        if Categories.objects.filter(nom__iexact=nom).exists():
+            return Response(
+                {
+                    "field": "nom",
+                    "error": f"Cette catégorie existe déjà (« {nom} »).",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-    # ✅ on génère quand même un slug, mais on NE vérifie PLUS son unicité ici
-    slug_val = slugify(nom)
+        # ✅ slug automatique, mais SANS contrainte d'unicité
+        slug_val = slugify(nom)
 
-    # IMAGE
-    raw_image = request.data.get("image_url")
-    image_val = _normalize_category_image(raw_image)
-
-    # image OBLIGATOIRE pour les sous-catégories
-    if parent is not None and not image_val:
-        return Response(
-            {
-                "field": "image_url",
-                "error": "Veuillez renseigner une image pour cette sous-catégorie.",
-            },
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    try:
+        # 🔹 Normaliser l'image (optionnelle pour parent ET sous-catégorie)
+        raw_image = request.data.get("image_url")
+        image_val = _normalize_category_image(raw_image)
+        
+        # 🔹 On ne veut AUCUNE erreur : si rien → chaîne vide
+        if not image_val:
+            image_val = ""   # ou None si tu as mis null=True dans le modèle
+        # Ici plus besoin d'IntegrityError pour l'unicité du slug/nom
         cat = Categories.objects.create(
             nom=nom,
-            slug=slug_val,  # 👈 juste rempli, mais plus de contrôle dessus
+            slug=slug_val,
             description=description,
             est_actif=est_actif,
             parent=parent,
@@ -3151,33 +3175,21 @@ def post(self, request, *args, **kwargs):
             cree_le=timezone.now(),
             image_url=image_val,
         )
-    except IntegrityError:
-        # ⚠️ si tu as encore unique=True sur slug, ça continuera à tomber ici !
+
         return Response(
             {
-                "error": (
-                    "Erreur lors de l’enregistrement de la catégorie. "
-                    "Veuillez réessayer ou contacter l’administrateur."
-                )
+                "id": cat.id,
+                "nom": cat.nom,
+                "slug": cat.slug or "",
+                "description": cat.description,
+                "est_actif": cat.est_actif,
+                "parent_id": cat.parent_id,
+                "parent_nom": cat.parent.nom if cat.parent_id else "",
+                "position": cat.position,
             },
-            status=status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_201_CREATED,
         )
 
-    return Response(
-        {
-            "id": cat.id,
-            "nom": cat.nom,
-            "slug": cat.slug or "",
-            "description": cat.description,
-            "est_actif": cat.est_actif,
-            "parent_id": cat.parent_id,
-            "parent_nom": cat.parent.nom if cat.parent_id else "",
-            "position": cat.position,
-        },
-        status=status.HTTP_201_CREATED,
-    )
-
-        
 class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET    /christland/api/dashboard/categories/manage/<id>/

@@ -204,10 +204,7 @@ const validateRequired = (): string | null => {
       return `Veuillez renseigner le nom de la sous-catégorie #${i + 1}.`;
     }
 
-    // et on exige une image
-    if (!sub.image_url) {
-      return `Veuillez renseigner une image pour la sous-catégorie « ${sub.nom || `#${i + 1}`} ».`;
-    }
+    
   }
 
   return null;
@@ -234,21 +231,18 @@ const validateRequired = (): string | null => {
         est_actif: formData.est_actif,
       });
 
- // 2) On ne garde que les vraies sous-catégories remplies
-const validSubCategories = subCategories.filter(
-  (sub) => sub.nom.trim() !== ""
-);
+      // 2) Création de chaque sous-catégorie liée au parentCreated.id
+      for (const sub of subCategories) {
+        if (!sub.nom.trim()) continue; // ignore les lignes vides
 
-for (const sub of validSubCategories) {
-  await createDashboardCategory({
-    nom: sub.nom.trim(),
-    description: sub.description,
-    parent: parentCreated.id,
-    image_url: sub.image_url,  // on sait déjà qu'elle existe grâce à validateRequired()
-    est_actif: sub.est_actif,
-  });
-}
-
+        await createDashboardCategory({
+          nom: sub.nom.trim(),
+          description: sub.description,
+          parent: parentCreated.id, // 🔗 parent_id = catégorie principale
+          image_url: sub.image_url || null,
+          est_actif: sub.est_actif,
+        });
+      }
 
       setToast({
         kind: "success",

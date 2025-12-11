@@ -51,17 +51,14 @@ class Traduction(models.Model):
         return f"{self.app_label}.{self.model}[{self.object_id}].{self.field}.{self.lang} ({self.status})"
 
 
-
-#
 class Categories(models.Model):
     nom = models.CharField(max_length=255, blank=True)
     slug = models.CharField(max_length=255, blank=True)
     description = models.CharField(max_length=255, blank=True)
-    image_url = models.CharField(max_length=255, blank=True)
+    image_url = models.CharField(max_length=255, blank=True, null=True)
     est_actif = models.BooleanField(default=False)
     position = models.IntegerField(null=True, blank=True)
     cree_le = models.DateTimeField(null=True, blank=True)
-
     # ✅ Auto-référence (catégorie parente)
     parent = models.ForeignKey(
         'self',
