@@ -24,6 +24,13 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
   const [ok, setOk] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // IDs pour association label ↔ champ
+  const nameId = "contact-name";
+  const emailId = "contact-email";
+  const phoneId = "contact-phone";
+  const subjectId = "contact-subject";
+  const messageId = "contact-message";
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setOk(null);
@@ -69,99 +76,136 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, amount: 0.6 }}
+      aria-labelledby="contact-section-title"
     >
       <div className="grid md:grid-cols-2 gap-10 items-center">
         {/* gauche : infos */}
         <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-6">
           <p className="text-gray-700 leading-relaxed max-w-sm">
-          {t("com.con")  || "Laissez-nous un message et nous vous répondrons rapidement."}
+            {t("com.con") || "Laissez-nous un message et nous vous répondrons rapidement."}
           </p>
 
           <img
             src={profil}
             width={300}
-                      height={300}
+            height={300}
             alt="Profil"
             loading="lazy"
             className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
           />
 
           <div className="space-y-3 text-gray-600">
-  <div className="flex items-center justify-center md:justify-start gap-3">
-    <Mail className="text-gray-400" size={18} />
-    <span className="text-sm">info@christland.tech</span>
-  </div>
+            <div className="flex items-center justify-center md:justify-start gap-3">
+              <Mail className="text-gray-400" size={18} />
+              <span className="text-sm">info@christland.tech</span>
+            </div>
 
-  <div className="flex items-center justify-center md:justify-start gap-3">
-    <Phone className="text-gray-400" size={18} />
-    <span className="text-sm">691 554 641</span>
-  </div>
+            <div className="flex items-center justify-center md:justify-start gap-3">
+              <Phone className="text-gray-400" size={18} />
+              <span className="text-sm">691 554 641</span>
+            </div>
 
-  <div className="flex items-center justify-center md:justify-start gap-3">
-    <Phone className="text-gray-400" size={18} />
-    <span className="text-sm">676 089 671</span>
-  </div>
+            <div className="flex items-center justify-center md:justify-start gap-3">
+              <Phone className="text-gray-400" size={18} />
+              <span className="text-sm">676 089 671</span>
+            </div>
 
-  {/* ✅ Ligne ville + icône */}
-  <div className="flex items-center justify-center md:justify-start gap-3">
-    <MapPin className="text-gray-400" size={18} />
-    <span className="text-sm"> Yaoundé, Cameroun</span>
-  </div>
-</div>
-
+            {/* ✅ Ligne ville + icône */}
+            <div className="flex items-center justify-center md:justify-start gap-3">
+              <MapPin className="text-gray-400" size={18} />
+              <span className="text-sm">Yaoundé, Cameroun</span>
+            </div>
+          </div>
         </div>
 
         {/* droite : formulaire */}
         <div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">
-            {t("form.description")  || "Contactez-nous"}
+          <h2
+            id="contact-section-title"
+            className="text-xl font-semibold text-gray-800 mb-6"
+          >
+            {t("form.description") || "Contactez-nous"}
           </h2>
 
           {ok && (
-            <div className="mb-4 rounded-md bg-green-50 p-3 text-green-700 text-sm">
+            <div
+              className="mb-4 rounded-md bg-green-50 p-3 text-green-700 text-sm"
+              role="status"
+              aria-live="polite"
+            >
               {ok}
             </div>
           )}
           {err && (
-            <div className="mb-4 rounded-md bg-red-50 p-3 text-red-700 text-sm">
+            <div
+              className="mb-4 rounded-md bg-red-50 p-3 text-red-700 text-sm"
+              role="alert"
+            >
               {err}
             </div>
           )}
 
-          <form className="space-y-4" onSubmit={onSubmit}>
+          <form className="space-y-4" onSubmit={onSubmit} noValidate>
             <div>
-              <label className="block text-gray-700 mb-1 text-sm">{t("name.input") || "Nom"}</label>
+              <label
+                htmlFor={nameId}
+                className="block text-gray-700 mb-1 text-sm"
+              >
+                {t("name.input") || "Nom"}
+              </label>
               <input
+                id={nameId}
                 type="text"
                 value={nom}
                 onChange={(e) => setNom(e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                autoComplete="name"
               />
             </div>
 
             <div>
-              <label className="block text-gray-700 mb-1 text-sm">{t("email.input") || "Email"}</label>
+              <label
+                htmlFor={emailId}
+                className="block text-gray-700 mb-1 text-sm"
+              >
+                {t("email.input") || "Email"}
+              </label>
               <input
+                id={emailId}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                autoComplete="email"
               />
             </div>
 
             <div>
-              <label className="block text-gray-700 mb-1 text-sm">{t("phone.input") || "Téléphone (optionnel)"}</label>
+              <label
+                htmlFor={phoneId}
+                className="block text-gray-700 mb-1 text-sm"
+              >
+                {t("phone.input") || "Téléphone (optionnel)"}
+              </label>
               <input
+                id={phoneId}
                 type="tel"
                 value={telephone}
                 onChange={(e) => setTelephone(e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A9DC]"
+                autoComplete="tel"
               />
             </div>
 
             <div>
-              <label className="block text-gray-700 mb-1 text-sm">{t("subject.input") || "Sujet"}</label>
+              <label
+                htmlFor={subjectId}
+                className="block text-gray-700 mb-1 text-sm"
+              >
+                {t("subject.input") || "Sujet"}
+              </label>
               <input
+                id={subjectId}
                 type="text"
                 value={sujet}
                 onChange={(e) => setSujet(e.target.value)}
@@ -170,8 +214,14 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
             </div>
 
             <div>
-              <label className="block text-gray-700 mb-1 text-sm">{t("message.input") || "Message"}</label>
+              <label
+                htmlFor={messageId}
+                className="block text-gray-700 mb-1 text-sm"
+              >
+                {t("message.input") || "Message"}
+              </label>
               <textarea
+                id={messageId}
                 rows={4}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -182,9 +232,11 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
             <button
               type="submit"
               disabled={submitting}
-              className={`bg-[#00A9DC] hover:bg-sky-600 text-white font-medium px-6 py-2 rounded-full shadow transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed`}
+              className="bg-[#00A9DC] hover:bg-sky-600 text-white font-medium px-6 py-2 rounded-full shadow transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {submitting ? (t("form.button") || "Envoi…") : (t("form.button") || "Envoyer")}
+              {submitting
+                ? t("form.button") || "Envoi…"
+                : t("form.button") || "Envoyer"}
             </button>
           </form>
         </div>

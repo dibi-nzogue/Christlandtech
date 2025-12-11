@@ -8,18 +8,19 @@ const FALLBACK = "/Dispositivos.webp";
 const RightPanel2: React.FC = () => {
   const { data, loading, error } = useLatestArticles(2);
 
-  // ✅ corrige ici : si data est null ou undefined, on met []
   const lastTwo: ApiArticle[] = data ?? [];
 
   return (
-    <div className="space-y-4 w-full md:w-1/4 h-[80vh] md:h-[50vh] lg:h-[65vh]">
-      <div className="bg-white p-4 rounded-xl shadow-sm mt-4">
+    <aside className="w-full lg:w-1/4 mt-6 lg:mt-0 lg:self-start">
+      <div className="bg-white p-4 rounded-xl shadow-sm max-h-[65vh] overflow-y-auto">
         <h3 className="font-semibold mb-3">Derniers articles</h3>
 
         {loading && <div className="text-sm text-gray-500">Chargement…</div>}
+
         {error && (
           <div className="text-sm text-rose-600">Erreur : {String(error)}</div>
         )}
+
         {!loading && !error && lastTwo.length === 0 && (
           <div className="text-sm text-gray-500">
             Aucun article pour le moment.
@@ -37,8 +38,8 @@ const RightPanel2: React.FC = () => {
               <div className="relative w-full overflow-hidden rounded-lg bg-gray-0">
                 <div className="pt-[56.25%]" />
                 <img
-                width={300}
-                      height={300}
+                  width={300}
+                  height={300}
                   src={a.image || FALLBACK}
                   alt={a.titre}
                   loading="lazy"
@@ -48,14 +49,16 @@ const RightPanel2: React.FC = () => {
                   }
                 />
               </div>
-              <p className="mt-2 text-sm font-medium line-clamp-1">{a.titre}</p>
+              <p className="mt-2 text-sm font-medium line-clamp-1">
+                {a.titre}
+              </p>
               <p className="mt-1 text-xs text-gray-600 line-clamp-2">
                 {a.extrait || ""}
               </p>
             </Link>
           ))}
       </div>
-    </div>
+    </aside>
   );
 };
 

@@ -9,7 +9,6 @@ import ReactCountryFlag from "react-country-flag";
 // @ts-ignore : la lib n'a pas de types, on ignore juste l'erreur TS
 import { allCountries } from "country-telephone-data";
 
-
 import {
   useFetchQuery,
   api,
@@ -25,8 +24,6 @@ const ACCENT_HOVER = "hover:opacity-90";
 const WHATSAPP_DEFAULT_PHONE = "+237692548739";
 const TELEGRAM_USERNAME = "dibiye2"; // ton compte service client, sans @
 const SIGNAL_NUMBER = "+237699281882"; // si tu veux un numéro Signal fixe
-
-
 
 const FALLBACK_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='16'%3EImage indisponible%3C/text%3E%3C/svg%3E";
@@ -44,7 +41,6 @@ type RawCountry = {
   name: string;
   iso2: string;
   dialCode: string;
-  // (il y a d'autres champs mais on s'en fiche ici)
 };
 
 const COUNTRY_OPTIONS: CountryOption[] = (allCountries as RawCountry[])
@@ -53,9 +49,7 @@ const COUNTRY_OPTIONS: CountryOption[] = (allCountries as RawCountry[])
     code: c.iso2.toUpperCase(),
     dial: `+${c.dialCode}`,
   }))
-  // on filtre au cas où (évite les "+undefined")
   .filter((c) => c.name && c.code && c.dial);
-
 
 // Type minimal du produit utilisé par le bouton Commander
 export type ProduitMini = {
@@ -94,6 +88,13 @@ const AchatProduit: React.FC<Props> = ({
   refEl,
 }) => {
   const { t } = useTranslation();
+
+  // 🔑 IDs accessibles pour les champs de formulaire
+  const typeId = React.useId();
+  const qteId = React.useId();
+  const nomId = React.useId();
+  const telId = React.useId();
+  const countrySearchId = React.useId();
 
   // Décide si on doit fetcher
   const shouldFetch = !produit && (!!productId || !!productSlug);
@@ -135,7 +136,6 @@ const AchatProduit: React.FC<Props> = ({
 
   const [canal, setCanal] = React.useState<CanalContact>("whatsapp");
   const [submitting, setSubmitting] = React.useState(false);
-
 
   const filteredCountries = React.useMemo(() => {
     const term = countrySearch.trim().toLowerCase();
@@ -197,59 +197,56 @@ const AchatProduit: React.FC<Props> = ({
     return p;
   };
 
-const openChatChannel = (channel: CanalContact, fullMsg: string) => {
-  const encoded = encodeURIComponent(fullMsg);
+  const openChatChannel = (channel: CanalContact, fullMsg: string) => {
+    const encoded = encodeURIComponent(fullMsg);
 
-  if (channel === "whatsapp") {
-    const recipient = ensureRecipientPhone();
-    if (!recipient) return;
-    window.open(`https://wa.me/${recipient}?text=${encoded}`, "_blank");
-    return;
-  }
-
-  if (channel === "telegram") {
-    window.open(`https://t.me/${TELEGRAM_USERNAME}?text=${encoded}`, "_blank");
-    return;
-  }
-
-  if (channel === "signal") {
-    const openSignal = () => {
-      window.open(`https://signal.me/#p/${SIGNAL_NUMBER}`, "_blank");
-    };
-
-    // On essaie de copier le message dans le presse-papier
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard
-        .writeText(fullMsg)
-        .then(() => {
-          openSignal();
-          alert(
-            "Signal va s'ouvrir.\nLe message a été copié, il vous suffit de le coller dans la conversation et de l'envoyer."
-          );
-        })
-        .catch(() => {
-          // Si la copie échoue, on affiche le texte à copier manuellement
-          window.prompt(
-            "Copiez ce message puis collez-le dans Signal :",
-            fullMsg
-          );
-          openSignal();
-        });
-    } else {
-      // Contexte non sécurisé (http, localhost, ancien navigateur) → copie manuelle
-      window.prompt(
-        "Copiez ce message puis collez-le dans Signal :",
-        fullMsg
-      );
-      openSignal();
+    if (channel === "whatsapp") {
+      const recipient = ensureRecipientPhone();
+      if (!recipient) return;
+      window.open(`https://wa.me/${recipient}?text=${encoded}`, "_blank");
+      return;
     }
 
-    return;
-  }
+    if (channel === "telegram") {
+      window.open(
+        `https://t.me/${TELEGRAM_USERNAME}?text=${encoded}`,
+        "_blank"
+      );
+      return;
+    }
 
-};
+    if (channel === "signal") {
+      const openSignal = () => {
+        window.open(`https://signal.me/#p/${SIGNAL_NUMBER}`, "_blank");
+      };
 
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard
+          .writeText(fullMsg)
+          .then(() => {
+            openSignal();
+            alert(
+              "Signal va s'ouvrir.\nLe message a été copié, il vous suffit de le coller dans la conversation et de l'envoyer."
+            );
+          })
+          .catch(() => {
+            window.prompt(
+              "Copiez ce message puis collez-le dans Signal :",
+              fullMsg
+            );
+            openSignal();
+          });
+      } else {
+        window.prompt(
+          "Copiez ce message puis collez-le dans Signal :",
+          fullMsg
+        );
+        openSignal();
+      }
 
+      return;
+    }
+  };
 
   const baseBtnClasses =
     "flex w-full max-w-[360px] sm:max-w-[420px] md:max-w-[480px] lg:max-w-[520px] mx-auto items-center justify-center gap-2 rounded-xl border px-4 py-3.5 text-[15px] font-semibold transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed";
@@ -298,7 +295,6 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
       return;
     }
 
-  
     const fullMsg = `Bonjour, je suis intéressé par le produit : ${mini.nom} (${mini.ref ?? "—"})
     Type de demande : ${typeDemande}
     Quantité : ${qte || "—"}
@@ -326,7 +322,7 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
     return (
       <section ref={refEl} className="w-full">
         <div className="mx-auto max-w-screen-2xl px-4 py-10 text-center text-red-600">
-          
+          Impossible de charger ce produit pour le moment.
         </div>
       </section>
     );
@@ -341,11 +337,11 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
   const imgSrc = mini.image || FALLBACK_IMG;
 
   return (
-    <section ref={refEl} className="w-full">
+    <section ref={refEl} className="w-full" aria-labelledby="achat-produit-titre">
       <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8 py-6 md:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-6 lg:gap-8">
           {/* ---- CARTE PROMO ---- */}
-          <article className="relative md:self-center">
+          <article className="relative md:self-center" aria-label="Promotions Christland Tech">
             <div
               className="relative overflow-hidden rounded-2xl border border-gray-200 shadow-sm bg-black h-[360px] sm:h-[380px] md:h-[420px] lg:h-[460px]"
               onMouseEnter={stopAuto}
@@ -368,7 +364,7 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                       src={src}
                       width={300}
                       height={300}
-                      alt={`Promo ${i + 1}`}
+                      alt={`Promotion ${i + 1}`}
                       loading="lazy"
                       className="h-full w-full object-cover"
                     />
@@ -396,10 +392,11 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                       setPromoIndex((i) => (i + 1) % PROMOS.length)
                     }
                     className="group inline-flex items-center gap-3 text-sm font-semibold"
+                    aria-label={t("com.vo") || "Voir une autre promotion"}
                   >
                     <span className="tracking-wide">{t("com.vo")}</span>
                     <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-black ring-2 ring-white/70 shadow-sm transition-transform duration-200 group-hover:translate-x-0.5">
-                      <FiChevronRight className="h-4 w-4" />
+                      <FiChevronRight className="h-4 w-4" aria-hidden="true" />
                     </span>
                   </button>
                 </div>
@@ -478,7 +475,7 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                     src={logo}
                     loading="lazy"
                     width={300}
-                      height={300}
+                    height={300}
                     alt=""
                     aria-hidden="true"
                     draggable={false}
@@ -486,7 +483,10 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                   />
 
                   <div className="relative z-10 pt-4">
-                    <h2 className="text-[18px] md:text-[22px] font-extrabold tracking-wide text-gray-900 text-center mb-8">
+                    <h2
+                      id="achat-produit-titre"
+                      className="text-[18px] md:text-[22px] font-extrabold tracking-wide text-gray-900 text-center mb-8"
+                    >
                       {t("com.ach")}
                     </h2>
 
@@ -503,11 +503,15 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                     <form className="mt-2 px-4 sm:px-0" onSubmit={handleSubmit}>
                       <div className="grid gap-6 sm:gap-8 md:gap-10 w-full max-w-[620px] mx-auto pt-9 md:pt-10 pb-8">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-800 mb-1">
+                          <label
+                            htmlFor={typeId}
+                            className="block text-sm font-semibold text-gray-800 mb-1"
+                          >
                             {t("com.type")}{" "}
                             <span className="text-red-500">*</span>
                           </label>
                           <select
+                            id={typeId}
                             value={typeDemande}
                             onChange={(e) => setTypeDemande(e.target.value)}
                             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm focus:border-[#00A8E8] focus:ring-2 focus:ring-[#00A8E8]/30"
@@ -520,11 +524,15 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-800 mb-1">
+                          <label
+                            htmlFor={qteId}
+                            className="block text-sm font-semibold text-gray-800 mb-1"
+                          >
                             {t("com.quc")}{" "}
                             <span className="text-red-500">*</span>
                           </label>
                           <input
+                            id={qteId}
                             type="number"
                             min={1}
                             placeholder="Ex: 3"
@@ -536,11 +544,15 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-800 mb-1">
+                          <label
+                            htmlFor={nomId}
+                            className="block text-sm font-semibold text-gray-800 mb-1"
+                          >
                             {t("com.np")}{" "}
                             <span className="text-red-500">*</span>
                           </label>
                           <input
+                            id={nomId}
                             type="text"
                             placeholder="Ex: Nzogue Rachel"
                             value={nom}
@@ -552,7 +564,10 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
 
                         {/* TÉLÉPHONE : champ custom avec drapeau + indicatif + numéro */}
                         <div>
-                          <label className="block text-sm font-semibold text-gray-800 mb-1">
+                          <label
+                            htmlFor={telId}
+                            className="block text-sm font-semibold text-gray-800 mb-1"
+                          >
                             {t("com.tel")}{" "}
                             <span className="text-red-500">*</span>
                           </label>
@@ -567,6 +582,13 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                                   setCountryOpen((open) => !open)
                                 }
                                 className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 border-r border-gray-200"
+                                aria-label={
+                                  t("com.chooseCountry") ||
+                                  "Choisir le pays du numéro de téléphone"
+                                }
+                                aria-haspopup="listbox"
+                                aria-expanded={countryOpen}
+                                aria-controls="country-listbox"
                               >
                                 <ReactCountryFlag
                                   svg
@@ -576,11 +598,15 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                                 <span className="font-medium text-gray-800">
                                   {country.dial}
                                 </span>
-                                <FiChevronDown className="h-3 w-3 text-gray-500" />
+                                <FiChevronDown
+                                  className="h-3 w-3 text-gray-500"
+                                  aria-hidden="true"
+                                />
                               </button>
 
                               {/* Input numéro local */}
                               <input
+                                id={telId}
                                 type="tel"
                                 value={telLocal}
                                 onChange={(e) => setTelLocal(e.target.value)}
@@ -595,19 +621,30 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                               <div className="absolute z-20 mt-2 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
                                 {/* champ recherche */}
                                 <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
+                                  <label
+                                    htmlFor={countrySearchId}
+                                    className="sr-only"
+                                  >
+                                    Rechercher un pays
+                                  </label>
                                   <input
+                                    id={countrySearchId}
                                     type="text"
                                     value={countrySearch}
                                     onChange={(e) =>
                                       setCountrySearch(e.target.value)
                                     }
-                                    placeholder="Search"
+                                    placeholder="Rechercher un pays"
                                     className="w-full text-sm bg-transparent outline-none"
                                   />
                                 </div>
 
                                 {/* liste pays */}
-                                <ul className="max-h-64 overflow-y-auto text-sm">
+                                <ul
+                                  id="country-listbox"
+                                  className="max-h-64 overflow-y-auto text-sm"
+                                  role="listbox"
+                                >
                                   {filteredCountries.map((c) => (
                                     <li key={c.code}>
                                       <button
@@ -618,6 +655,8 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                                           setCountrySearch("");
                                         }}
                                         className="flex w-full items-center gap-2 px-3 py-1.5 hover:bg-gray-50 text-left"
+                                        role="option"
+                                        aria-selected={c.code === country.code}
                                       >
                                         <ReactCountryFlag
                                           svg
@@ -640,12 +679,19 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                         </div>
 
                         {/* Choix du canal */}
-                        <div>
-                          <span className="block text-gray-700 mb-2 text-sm">
+                        <fieldset className="mt-2">
+                          <legend className="block text-gray-700 mb-2 text-sm">
                             {t("contact.channel.label") ||
                               "Canal de contact préféré"}
-                          </span>
-                          <div className="flex flex-wrap gap-2">
+                          </legend>
+                          <div
+                            className="flex flex-wrap gap-2"
+                            role="radiogroup"
+                            aria-label={
+                              t("contact.channel.label") ||
+                              "Canal de contact préféré"
+                            }
+                          >
                             {[
                               {
                                 key: "whatsapp",
@@ -677,13 +723,15 @@ const openChatChannel = (channel: CanalContact, fullMsg: string) => {
                                       ? "bg-[#00A8E8] text-white border-[#00A8E8]"
                                       : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                                   }`}
+                                  role="radio"
+                                  aria-checked={active}
                                 >
                                   {opt.label}
                                 </button>
                               );
                             })}
                           </div>
-                        </div>
+                        </fieldset>
 
                         <div
                           className="pt-2 px-4 sm:px-0 flex justify-center mt-4 sm:mt-5 mb-6 sm:mb-8"

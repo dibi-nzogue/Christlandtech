@@ -1,4 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+// src/components/ComboCreate.tsx
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEventHandler,
+} from "react";
 import clsx from "clsx";
 
 export type ComboOption = {
@@ -6,7 +13,7 @@ export type ComboOption = {
   label: string;
 };
 
-type Props = {
+type ComboCreateProps = {
   options: ComboOption[];
   value: ComboOption | null;
   onChange: (opt: ComboOption | null) => void;
@@ -18,7 +25,7 @@ type Props = {
   dropdownPlacement?: "bottom-start" | "top-start";
 };
 
-const ComboCreate: React.FC<Props> = ({
+const ComboCreate: React.FC<ComboCreateProps> = ({
   options,
   value,
   onChange,
@@ -37,7 +44,9 @@ const ComboCreate: React.FC<Props> = ({
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       if (!ref.current) return;
-      if (!ref.current.contains(e.target as any)) setOpen(false);
+      if (!ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
@@ -59,16 +68,16 @@ const ComboCreate: React.FC<Props> = ({
     setOpen(false);
   };
 
-  const onKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
+  const onKeyDown: KeyboardEventHandler<HTMLInputElement> = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      // if exact match, pick it; else create
+      const normalized = query.toLowerCase().trim();
       const exact = options.find(
-        (o) => o.label.toLowerCase() === query.toLowerCase().trim()
+        (o) => o.label.toLowerCase() === normalized
       );
       if (exact) {
         pick(exact);
-      } else if (allowCreate && query.trim()) {
+      } else if (allowCreate && normalized) {
         onChange({ id: undefined, label: query.trim() });
         setOpen(false);
       }
@@ -80,7 +89,9 @@ const ComboCreate: React.FC<Props> = ({
   const showCreate =
     allowCreate &&
     query.trim().length > 0 &&
-    !options.some((o) => o.label.toLowerCase() === query.toLowerCase().trim());
+    !options.some(
+      (o) => o.label.toLowerCase() === query.toLowerCase().trim()
+    );
 
   return (
     <div ref={ref} className={clsx("relative", containerClassName)}>
@@ -103,12 +114,16 @@ const ComboCreate: React.FC<Props> = ({
         <div
           className={clsx(
             "absolute z-50 max-h-64 overflow-auto shadow-lg rounded-xl bg-white border w-full",
-            dropdownPlacement === "top-start" ? "bottom-full mb-1" : "top-full mt-1",
+            dropdownPlacement === "top-start"
+              ? "bottom-full mb-1"
+              : "top-full mt-1",
             menuClassName
           )}
         >
           {list.length === 0 && !showCreate && (
-            <div className="px-3 py-2 text-sm text-gray-500">Aucun résultat</div>
+            <div className="px-3 py-2 text-sm text-gray-500">
+              Aucun résultat
+            </div>
           )}
 
           {list.map((o) => (
@@ -124,7 +139,9 @@ const ComboCreate: React.FC<Props> = ({
 
           {showCreate && (
             <>
-              {list.length > 0 && <div className="h-px bg-gray-200 my-1" />}
+              {list.length > 0 && (
+                <div className="h-px bg-gray-200 my-1" />
+              )}
               <button
                 type="button"
                 className="w-full text-left px-3 py-2 hover:bg-gray-100"

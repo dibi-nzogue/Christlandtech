@@ -7,8 +7,8 @@ import type { Variants, Transition } from "framer-motion";
 type Post = {
   id: number | string;
   image: string;
-  title: string;   // <- affichera "extrait"
-  excerpt: string; // <- affichera "contenu"
+  title: string;   // <- affichera "extrait" / "excerpt"
+  excerpt: string; // <- affichera "contenu" / "content"
 };
 
 // ✅ Fallback très léger si l’API ne renvoie pas d’image
@@ -64,10 +64,9 @@ const CardTop: React.FC<{ post: Post }> = ({ post }) => {
         title={post.title}
       >
         <img
-        width={300}
-           height={300}
+          width={300}
+          height={300}
           src={imgSrc}
-          
           alt={post.title}
           className="
             absolute inset-0 h-full w-full object-cover
@@ -139,8 +138,8 @@ const CardBottom: React.FC<{ post: Post }> = ({ post }) => {
         title={post.title}
       >
         <img
-        width={300}
-                      height={300}
+          width={300}
+          height={300}
           src={imgSrc}
           alt={post.title}
           className="
@@ -186,38 +185,55 @@ const CardBottom: React.FC<{ post: Post }> = ({ post }) => {
 };
 
 const PostsSection: React.FC = () => {
-  const { data } = useBlogPosts();   // 👈 plus de loading / error ici
+  const { data } = useBlogPosts(); // 👈 loader global géré ailleurs
 
-  // image  <- image (image_couverture côté API)
-  // title  <- extrait
-  // excerpt<- contenu
+  // image  <- image / image_couverture
+  // title  <- excerpt / extrait
+  // excerpt<- content / contenu
   const postsTop: Post[] = React.useMemo(() => {
     const items = data?.top ?? [];
-    return items.map((a) => {
-      const rawImage = a.image || "";
+    return items.map((a: any) => {
+      const rawImage =
+        a.image || a.image_couverture || "";
       const img = rawImage ? media(rawImage) : "";
+      const title =
+        a.excerpt || a.extrait || "";
+      const body =
+        a.content || a.contenu || "";
+
       return {
         id: a.id,
         image: img || FALLBACK_IMG,
-        title: a.excerpt || "",
-        excerpt: a.content || "",
+        title: title,
+        excerpt: body,
       };
     });
   }, [data?.top]);
 
   const postsBottom: Post[] = React.useMemo(() => {
     const items = data?.bottom ?? [];
-    return items.map((a) => {
-      const rawImage = a.image || "";
+    return items.map((a: any) => {
+      const rawImage =
+        a.image || a.image_couverture || "";
       const img = rawImage ? media(rawImage) : "";
+      const title =
+        a.excerpt || a.extrait || "";
+      const body =
+        a.content || a.contenu || "";
+
       return {
         id: a.id,
         image: img || FALLBACK_IMG,
-        title: a.excerpt || "",
-        excerpt: a.content || "",
+        title: title,
+        excerpt: body,
       };
     });
   }, [data?.bottom]);
+
+  if (!postsTop.length && !postsBottom.length) {
+    // Si aucun article, on évite un gros bloc vide
+    return null;
+  }
 
   return (
     <motion.section

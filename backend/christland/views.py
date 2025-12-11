@@ -3056,20 +3056,27 @@ class MeView(APIView):
 #   CATEGORIES - DASHBOARD
 # ==========================
 
+from django.db import IntegrityError
+from django.utils import timezone
+from django.utils.text import slugify
+from django.db.models import Q
+from rest_framework import status
+from rest_framework.response import Response
+
 class DashboardCategoryListCreateView(generics.ListCreateAPIView):
     """
     GET  /christland/api/dashboard/categories/manage/
     POST /christland/api/dashboard/categories/manage/
     """
-    queryset = Categories.objects.all().order_by("-id")
+    queryset = Categories.objects.all().order_by("position", "cree_le", "id")
     serializer_class = CategoryDashboardSerializer
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-    
+
     def get(self, request, *args, **kwargs):
         q = (request.query_params.get("q") or "").strip()
 
-        qs = Categories.objects.all().order_by("-cree_le", "-id")
+        qs = Categories.objects.all().order_by("position", "cree_le", "id")
 
         if q:
             qs = qs.filter(
@@ -3085,20 +3092,21 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
             rows.append({
                 "id": c.id,
                 "nom": c.nom or "",
-                "slug": c.slug or "",   # 👈 avec le fix 1)
+                "slug": c.slug or "",
                 "description": c.description or "",
                 "est_actif": bool(c.est_actif),
                 "parent_id": c.parent_id,
                 "parent_nom": c.parent.nom if c.parent_id else "",
+                "position": c.position,
             })
 
         return paginator.get_paginated_response(rows)
 
-
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         nom = (request.data.get("nom") or "").strip()
         description = (request.data.get("description") or "").strip()
         est_actif = bool(request.data.get("est_actif", False))
+        position = request.data.get("position")  # peut être null / vide
 
         # parent: on accepte "parent" ou "parent_id"
         parent_id = request.data.get("parent") or request.data.get("parent_id")
@@ -3118,35 +3126,73 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # slug automatique simple
+        # slug automatique à partir du nom
         slug_val = slugify(nom)
+
+        # vérifier unicité du slug AVANT insert
+        if Categories.objects.filter(slug=slug_val).exists():
+            return Response(
+                {
+                    "field": "nom",
+                    "error": (
+                        f"Une catégorie avec ce nom existe déjà (« {nom} »). "
+                        "Veuillez choisir un autre nom."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # image obligatoire pour les SOUS-catégories
         raw_image = request.data.get("image_url")
-        image_val = normalize_image_url(raw_image)
+        if parent is not None and not (raw_image or "").strip():
+            return Response(
+                {
+                    "field": "image_url",
+                    "error": "Veuillez renseigner une image pour cette sous-catégorie.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        cat = Categories.objects.create(
-            nom=nom,
-            slug=slug_val,
-            description=description,
-            est_actif=est_actif,
-            parent=parent,
-            cree_le=timezone.now(),
-            image_url=image_val,
-        )
+        image_val = normalize_image_url(raw_image) if raw_image else None
 
+        try:
+            cat = Categories.objects.create(
+                nom=nom,
+                slug=slug_val,
+                description=description,
+                est_actif=est_actif,
+                parent=parent,
+                position=position,
+                cree_le=timezone.now(),
+                image_url=image_val,
+            )
+        except IntegrityError:
+            # sécurité au cas où un doublon passe quand même
+            return Response(
+                {
+                    "field": "nom",
+                    "error": (
+                        f"Une catégorie avec ce nom existe déjà (« {nom} »). "
+                        "Veuillez choisir un autre nom."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response(
             {
                 "id": cat.id,
                 "nom": cat.nom,
+                "slug": cat.slug or "",
                 "description": cat.description,
                 "est_actif": cat.est_actif,
                 "parent_id": cat.parent_id,
                 "parent_nom": cat.parent.nom if cat.parent_id else "",
+                "position": cat.position,
             },
             status=status.HTTP_201_CREATED,
         )
-
-
+        
 class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET    /christland/api/dashboard/categories/manage/<id>/
@@ -3157,15 +3203,13 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = CategoryDashboardSerializer
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-    
+
     def get_object(self):
         pk = self.kwargs.get("pk")
         return get_object_or_404(Categories, pk=pk)
-    
+
     def patch(self, request, pk: int):
-        # on réutilise la même logique que PUT
         return self.put(request, pk)
-    
 
     def get(self, request, pk: int):
         c = self.get_object()
@@ -3178,15 +3222,28 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
                 "est_actif": bool(c.est_actif),
                 "parent_id": c.parent_id,
                 "parent_nom": c.parent.nom if c.parent_id else "",
+                "position": c.position,
             }
         )
-
 
     def put(self, request, pk: int):
         c = self.get_object()
         nom = (request.data.get("nom") or "").strip()
         description = (request.data.get("description") or "").strip()
         est_actif = bool(request.data.get("est_actif", False))
+
+        # position
+        position_raw = request.data.get("position")
+        if position_raw not in (None, ""):
+            try:
+                c.position = int(position_raw)
+            except (TypeError, ValueError):
+                return Response(
+                    {"field": "position", "error": "La position doit être un nombre entier."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            c.position = None
 
         parent_id = request.data.get("parent") or request.data.get("parent_id")
         parent = None
@@ -3199,10 +3256,12 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # sécurité : empêcher qu'une catégorie soit son propre parent
             if parent.id == c.id:
                 return Response(
-                    {"field": "parent", "error": "Une catégorie ne peut pas être son propre parent."},
+                    {
+                        "field": "parent",
+                        "error": "Une catégorie ne peut pas être son propre parent.",
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -3212,20 +3271,41 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # 🔹 vérification slug unique (en excluant la catégorie elle-même)
+        slug_val = slugify(nom)
+        if Categories.objects.filter(slug=slug_val).exclude(pk=c.pk).exists():
+            return Response(
+                {
+                    "field": "nom",
+                    "error": (
+                        f"Une catégorie avec ce nom existe déjà (« {nom} »). "
+                        "Veuillez choisir un autre nom."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 🔹 image obligatoire si on est (ou devient) une sous-catégorie
+        raw_image = request.data.get("image_url", None)
+        if parent is not None and not (raw_image or c.image_url):
+            return Response(
+                {
+                    "field": "image_url",
+                    "error": "Veuillez renseigner une image pour cette sous-catégorie.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         c.nom = nom
-        
         c.description = description
         c.est_actif = est_actif
         c.parent = parent
-        raw_image = request.data.get("image_url", None)
+        c.slug = slug_val or c.slug
+
         if raw_image is not None:
             new_image = normalize_image_url(raw_image)
             if new_image:
                 c.image_url = new_image
-
-        # on recalcule le slug si vide
-        if not c.slug:
-            c.slug = slugify(nom)
 
         c.save()
 
@@ -3238,25 +3318,52 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
                 "est_actif": c.est_actif,
                 "parent_id": c.parent_id,
                 "parent_nom": c.parent.nom if c.parent_id else "",
+                "position": c.position,
             },
             status=status.HTTP_200_OK,
         )
 
-
     def delete(self, request, pk: int):
         c = self.get_object()
 
-        # Empêcher la suppression si des sous-catégories existent
-        if Categories.objects.filter(parent=c).exists():
+        # 👉 récupérer l'ID de la catégorie + tous ses descendants
+        def collect_ids(cat):
+            ids = [cat.id]
+            for child in Categories.objects.filter(parent=cat):
+                ids.extend(collect_ids(child))
+            return ids
+
+        cat_ids = collect_ids(c)
+
+        # 1️⃣ Produits dans la catégorie OU dans une sous-catégorie
+        if Produits.objects.filter(categorie_id__in=cat_ids).exists():
             return Response(
-                {"error": "Impossible de supprimer une catégorie qui possède des sous-catégories."},
+                {
+                    "error": (
+                        "Impossible de supprimer cette catégorie car des produits y sont rattachés. "
+                        "Veuillez d’abord supprimer ou déplacer ces produits vers une autre catégorie."
+                    )
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # 2️⃣ Sous-catégories restantes
+        if Categories.objects.filter(parent=c).exists():
+            return Response(
+                {
+                    "error": (
+                        "Impossible de supprimer une catégorie qui possède des sous-catégories."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 3️⃣ OK, suppression
         c.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    
+
+
+
 class DashboardCategoriesSelectView(APIView):
     """
     GET /christland/api/dashboard/categories/select/

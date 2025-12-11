@@ -10,11 +10,10 @@ const ScrollToTopButton: React.FC = () => {
       else setIsVisible(false);
     };
 
-    window.addEventListener("scroll", toggleVisibility);
+    window.addEventListener("scroll", toggleVisibility, { passive: true });
     return () => window.removeEventListener("scroll", toggleVisibility);
   }, []);
 
-  
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
@@ -34,6 +33,7 @@ const ScrollToTopButton: React.FC = () => {
         onClick={scrollToTop}
         className="hover:bg-[#00A9DC] text-[#00A9DC] hover:text-white transition-colors bg-white py-5 px-5 rounded-full text-md shadow-lg hover:shadow-xl shadow-slate-700"
         title="Retour en haut"
+        aria-label="Remonter en haut de la page"
       >
         <div className="-rotate-90 text-md">
           <FaArrowRight />

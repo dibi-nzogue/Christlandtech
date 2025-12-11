@@ -1255,10 +1255,21 @@ export async function getDashboardCategories(
 export async function deleteDashboardCategory(id: number) {
   const url = api(`/api/dashboard/categories/manage/${id}/`);
   const res = await authedFetch(url, { method: "DELETE" });
+
   if (!res.ok && res.status !== 204) {
-    throw new Error("Erreur suppression catégorie");
+    let msg = "Erreur suppression catégorie";
+    try {
+      const data = await res.json();
+      if (data?.error) msg = data.error;
+    } catch {
+      // on garde le msg par défaut
+    }
+    throw new Error(msg);
   }
+
+  return true;
 }
+
 
 /** Modifier une catégorie (PUT ou PATCH) */
 /** Détail d'une catégorie (pour le formulaire d'édition) */

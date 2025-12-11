@@ -8,29 +8,36 @@ const Toast: React.FC<{
   kind: "success" | "error";
   msg: string;
   onClose(): void;
-}> = ({ kind, msg, onClose }) => (
-  <div
-    className={`fixed top-4 right-4 z-[9999] rounded-xl shadow-lg px-4 py-3 text-white ${
-      kind === "success" ? "bg-emerald-600" : "bg-rose-600"
-    }`}
-    role="status"
-  >
-    <div className="flex items-start gap-3">
-      <span className="font-semibold">
-        {kind === "success" ? "Succès" : "Erreur"}
-      </span>
-      <span className="opacity-90">{msg}</span>
-      <button
-        type="button"
-        onClick={onClose}
-        className="ml-3 text-white/90 hover:text-white"
-        aria-label="Fermer"
-      >
-        ×
-      </button>
+}> = ({ kind, msg, onClose }) => {
+  const role = kind === "error" ? "alert" : "status";
+  const live = kind === "error" ? "assertive" : "polite";
+
+  return (
+    <div
+      className={`fixed top-4 right-4 z-[9999] rounded-xl shadow-lg px-4 py-3 text-white ${
+        kind === "success" ? "bg-emerald-600" : "bg-rose-600"
+      }`}
+      role={role}
+      aria-live={live}
+      aria-atomic="true"
+    >
+      <div className="flex items-start gap-3">
+        <span className="font-semibold">
+          {kind === "success" ? "Succès" : "Erreur"}
+        </span>
+        <span className="opacity-90">{msg}</span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="ml-3 text-white/90 hover:text-white"
+          aria-label="Fermer la notification"
+        >
+          ×
+        </button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ---------- Types locaux ---------- */
 type CategoryFormState = {
@@ -236,7 +243,12 @@ const CathegorieForm: React.FC = () => {
   /* ---------- UI ---------- */
   return (
     // 🔽 max-h + overflow-y-auto = scroll à l’intérieur de la carte
-    <div className="bg-gray-50 rounded-xl shadow-lg w-full lg:w-4/5 max-h-[75vh] overflow-y-auto overscroll-contain pr-2 pb-6">
+    <div
+      className="bg-gray-50 rounded-xl shadow-lg w-full lg:w-4/5 max-h-[75vh] overflow-y-auto overscroll-contain pr-2 pb-6"
+      role="region"
+      aria-labelledby="category-form-heading"
+      aria-busy={submitting || imageUploading}
+    >
       {toast && (
         <Toast
           kind={toast.kind}
@@ -248,8 +260,12 @@ const CathegorieForm: React.FC = () => {
       <form
         onSubmit={handleSubmit}
         className="rounded-2xl p-6 space-y-6"
+        noValidate
       >
-        <h2 className="text-xl font-semibold mb-2">
+        <h2
+          id="category-form-heading"
+          className="text-xl font-semibold mb-2"
+        >
           Ajouter une catégorie
         </h2>
 
@@ -257,7 +273,7 @@ const CathegorieForm: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1">
             <label htmlFor="nom" className="text-sm text-gray-700">
-              Nom de la catégorie *
+              Nom de la catégorie <span className="text-red-600">*</span>
             </label>
             <input
               id="nom"
@@ -266,17 +282,20 @@ const CathegorieForm: React.FC = () => {
               onChange={handleChange}
               placeholder="Nom de la catégorie *"
               className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
+              required
+              aria-required="true"
             />
           </div>
         </div>
 
         {/* Image catégorie principale */}
         <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-700">
+          <label className="text-sm text-gray-700" htmlFor="cat-image-input">
             Image de la catégorie
           </label>
 
           <input
+            id="cat-image-input"
             type="file"
             accept="image/*"
             onChange={handleImageFileChange}
@@ -286,10 +305,14 @@ const CathegorieForm: React.FC = () => {
                        file:text-sm file:font-semibold
                        file:bg-[#00A9DC] file:text-white
                        hover:file:bg-[#0797c4]"
+            aria-describedby={imageUploading ? "category-image-help" : undefined}
           />
 
           {imageUploading && (
-            <span className="text-xs text-gray-500">
+            <span
+              id="category-image-help"
+              className="text-xs text-gray-500"
+            >
               Upload de l’image en cours...
             </span>
           )}
@@ -297,10 +320,10 @@ const CathegorieForm: React.FC = () => {
           {formData.image_url && (
             <div className="flex items-center gap-4 mt-2">
               <img
-              width={300}
-                      height={300}
+                width={300}
+                height={300}
                 src={formData.image_url}
-                alt={formData.nom}
+                alt={formData.nom || "Aperçu de la catégorie"}
                 loading="lazy"
                 className="h-20 w-20 object-cover rounded-lg border"
                 onError={(e) => {
@@ -320,7 +343,10 @@ const CathegorieForm: React.FC = () => {
         </div>
 
         {/* Sous-catégories (bloc scrollable si long) */}
-        <div className="border rounded-xl p-4 bg-white space-y-3 max-h-80 overflow-y-auto">
+        <div
+          className="border rounded-xl p-4 bg-white space-y-3 max-h-80 overflow-y-auto"
+          aria-label="Sous-catégories de la catégorie"
+        >
           <div className="flex items-center justify-between">
             <h3 className="font-medium text-sm md:text-base">
               Sous-catégories (optionnel)
@@ -329,6 +355,7 @@ const CathegorieForm: React.FC = () => {
               type="button"
               onClick={addSubCategory}
               className="text-xs md:text-sm px-3 py-1 rounded-full bg-[#00A9DC] text-white hover:bg-[#0797c4]"
+              aria-label="Ajouter une nouvelle sous-catégorie"
             >
               + Ajouter une sous-catégorie
             </button>
@@ -354,54 +381,68 @@ const CathegorieForm: React.FC = () => {
                   type="button"
                   onClick={() => removeSubCategory(index)}
                   className="text-xs text-red-600 hover:underline"
+                  aria-label={`Supprimer la sous-catégorie numéro ${index + 1}`}
                 >
                   Supprimer
                 </button>
               </div>
 
               {/* Nom */}
-              <input
-                type="text"
-                value={sub.nom}
-                onChange={(e) =>
-                  handleSubChange(index, "nom", e.target.value)
-                }
-                placeholder="Nom de la sous-catégorie"
-                className="border rounded-lg p-2 w-full text-sm"
-              />
+              <label className="block text-xs text-gray-700">
+                Nom
+                <input
+                  type="text"
+                  value={sub.nom}
+                  onChange={(e) =>
+                    handleSubChange(index, "nom", e.target.value)
+                  }
+                  placeholder="Nom de la sous-catégorie"
+                  className="mt-1 border rounded-lg p-2 w-full text-sm"
+                />
+              </label>
 
               {/* Description */}
-              <textarea
-                value={sub.description}
-                onChange={(e) =>
-                  handleSubChange(index, "description", e.target.value)
-                }
-                placeholder="Description"
-                className="border rounded-lg p-2 w-full text-sm"
-              />
+              <label className="block text-xs text-gray-700">
+                Description
+                <textarea
+                  value={sub.description}
+                  onChange={(e) =>
+                    handleSubChange(index, "description", e.target.value)
+                  }
+                  placeholder="Description"
+                  className="mt-1 border rounded-lg p-2 w-full text-sm"
+                />
+              </label>
 
               {/* Upload image */}
               <div>
+                <label
+                  htmlFor={`subcat-image-${index}`}
+                  className="block text-xs text-gray-700"
+                >
+                  Image de la sous-catégorie
+                </label>
                 <input
+                  id={`subcat-image-${index}`}
                   type="file"
                   accept="image/*"
                   onChange={(e) => handleSubImageFileChange(index, e)}
-                  className="block w-full text-xs"
+                  className="mt-1 block w-full text-xs"
                 />
                 {sub.image_url && (
                   <img
-                  width={300}
-                      height={300}
+                    width={300}
+                    height={300}
                     src={sub.image_url}
                     loading="lazy"
-                    alt={sub.nom}
+                    alt={sub.nom || `Image sous-catégorie ${index + 1}`}
                     className="mt-2 h-16 w-16 object-cover rounded-md border"
                   />
                 )}
               </div>
 
               {/* Actif ? */}
-              <label className="inline-flex items-center gap-2">
+              <label className="inline-flex items-center gap-2 text-xs">
                 <input
                   type="checkbox"
                   checked={sub.est_actif}
@@ -410,7 +451,7 @@ const CathegorieForm: React.FC = () => {
                   }
                   className="w-4 h-4"
                 />
-                <span className="text-xs">Sous-catégorie active</span>
+                <span>Sous-catégorie active</span>
               </label>
             </div>
           ))}
@@ -452,6 +493,7 @@ const CathegorieForm: React.FC = () => {
           <button
             type="submit"
             disabled={submitting}
+            aria-disabled={submitting}
             className="bg-[#00A9DC] disabled:opacity-60 text-white px-5 py-2 rounded-lg hover:bg-[#0797c4] transition"
           >
             {submitting ? "Création..." : "Créer la catégorie"}

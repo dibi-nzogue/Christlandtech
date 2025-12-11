@@ -12,10 +12,9 @@ import {
 import logo from "../assets/images/logo1.webp";
 import { useLocation, useNavigate } from "react-router-dom";
 import { auth } from "../auth";
-// tout en haut du fichier (facultatif, juste pour éviter la répétition)
+
 const GA_URL =
   "https://analytics.google.com/analytics/web/?authuser=0#/p377242813";
-
 
 const Sidebar: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -29,101 +28,121 @@ const Sidebar: React.FC = () => {
 
   const go = (path: string) => {
     navigate(path);
-    setOpen(false); // ferme le menu mobile
+    setOpen(false);
   };
 
   const NavContent = () => (
     <>
       {/* Logo */}
-      <div className="w-10 h-10">
-        <img src={logo} alt="Logo" loading="lazy" width={300} height={300}className="w-full h-full object-contain" />
+      <div className="w-10 h-10" aria-hidden="true">
+        <img
+          src={logo}
+          alt="Christland Tech"
+          loading="lazy"
+          width={300}
+          height={300}
+          className="w-full h-full object-contain"
+        />
       </div>
 
       {/* Liens */}
-      <nav className="flex flex-col gap-8 mt-16">
-        <div
+      <nav
+        className="flex flex-col gap-8 mt-16"
+        aria-label="Navigation tableau de bord"
+      >
+        <button
+          type="button"
           title="Tableau de bord"
           aria-label="Tableau de bord"
+          aria-current={pathname === "/dashboard" ? "page" : undefined}
           onClick={() => go("/dashboard")}
           className={itemCls(pathname === "/dashboard")}
         >
-          <Home size={22} />
-        </div>
+          <Home size={22} aria-hidden="true" />
+        </button>
 
-        <div
-  title="Statistiques"
-  aria-label="Statistiques"
-  onClick={() => window.open(GA_URL, "_blank", "noopener,noreferrer")}
-  className={itemCls(false)} // ou itemCls(pathname.startsWith("/dashboard/stats")) si tu veux garder le style
->
-  <BarChart2 size={22} />
-</div>
+        <button
+          type="button"
+          title="Statistiques"
+          aria-label="Statistiques Google Analytics"
+          onClick={() =>
+            window.open(GA_URL, "_blank", "noopener,noreferrer")
+          }
+          className={itemCls(false)}
+        >
+          <BarChart2 size={22} aria-hidden="true" />
+        </button>
 
-
-        <div
+        <button
+          type="button"
           title="Paramètres"
           aria-label="Paramètres"
+          aria-current={
+            pathname.startsWith("/dashboard/settings") ? "page" : undefined
+          }
           onClick={() => go("/dashboard")}
           className={itemCls(pathname.startsWith("/dashboard/settings"))}
         >
-          <Settings size={22} />
-        </div>
+          <Settings size={22} aria-hidden="true" />
+        </button>
 
-        <div
+        <button
+          type="button"
           title="Créer un compte"
           aria-label="Créer un compte"
+          aria-current={
+            pathname === "/dashboard/Sighup" ? "page" : undefined
+          }
           onClick={() => go("/dashboard/Sighup")}
           className={itemCls(pathname === "/dashboard/Sighup")}
         >
-          <UserPlus size={22} />
-        </div>
+          <UserPlus size={22} aria-hidden="true" />
+        </button>
       </nav>
 
       {/* Logout */}
-      <div
-        role="button"
+      <button
+        type="button"
         title="Se déconnecter"
         aria-label="Se déconnecter"
-        tabIndex={0}
         className="text-gray-300 hover:text-white cursor-pointer focus:outline-none mt-auto"
         onClick={() => auth.logout()}
-        onKeyDown={(e) => e.key === "Enter" && auth.logout()}
       >
-        <LogOut size={22} />
-      </div>
+        <LogOut size={22} aria-hidden="true" />
+      </button>
     </>
   );
 
   return (
     <>
-      {/* ───────── MOBILE (< md) : bouton + menu flottant, ne pousse PAS le contenu ───────── */}
+      {/* MOBILE */}
       <div className="md:hidden">
-        {/* Bouton burger par-dessus le header */}
         <button
           onClick={() => setOpen(!open)}
           className="absolute top-4 left-4 z-50 bg-black text-white p-2 rounded-lg focus:outline-none flex items-center gap-2"
-          aria-label="Ouvrir le menu"
+          aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
+          aria-expanded={open}
+          aria-controls="dashboard-sidebar-mobile"
         >
-          {open ? <X size={22} /> : <Menu size={22} />}
-         
+          {open ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
         </button>
 
-        {/* Panel du menu : positionné en haut, par-dessus, sans prendre de place dans le flux */}
         {open && (
-          <div className="absolute top-16 left-3 right-3 z-40">
-            <div className="bg-black text-white rounded-3xl py-4 flex flex-col items-center gap-6">
+          <div
+            id="dashboard-sidebar-mobile"
+            className="absolute top-16 left-3 right-3 z-40"
+          >
+            <div className="bg-black text-white rounded-3xl py-4 flex flex-col items-center">
               <NavContent />
             </div>
           </div>
         )}
       </div>
 
-      {/* ───────── DESKTOP / TABLETTE (md+) : sidebar FIXE ───────── */}
-      {/* espace réservé dans le flex pour ne pas recouvrir le contenu */}
-      <div className="hidden md:block w-20" />
+      {/* DESKTOP / TABLETTE */}
+      <div className="hidden md:block w-20" aria-hidden="true" />
 
-      {/* barre réelle, fixée à gauche */}
-      <div className="hidden md:block">
+      <div className="hidden md:block" aria-label="Barre latérale">
         <div className="fixed top-8 left-8 z-40">
           <div className="bg-black text-white w-16 md:w-20 h-[91vh] rounded-3xl py-6 flex flex-col items-center">
             <NavContent />

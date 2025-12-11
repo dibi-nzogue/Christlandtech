@@ -8,18 +8,16 @@ const Header: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ⏺ Met à jour l'input quand on revient / rafraîchit avec ?q=...
+  // Met à jour l'input quand on revient / rafraîchit avec ?q=...
   React.useEffect(() => {
     const params = new URLSearchParams(location.search);
     const initial = params.get("q") || "";
     setQ(initial);
   }, [location.search]);
 
-  // 🔍 Lance la recherche
   const submitSearch = () => {
     const query = q.trim();
     if (!query) {
-      // 👇 Si le champ est vide, retour à /Dashboard sans paramètres
       navigate("/dashboard", { replace: true });
       return;
     }
@@ -29,7 +27,7 @@ const Header: React.FC = () => {
     });
   };
 
-  // ⚡ Détection automatique : si l’utilisateur vide le champ → retour /Dashboard
+  // Si l’utilisateur vide le champ → retour /Dashboard
   React.useEffect(() => {
     if (q.trim().length === 0) {
       const params = new URLSearchParams(location.search);
@@ -46,9 +44,13 @@ const Header: React.FC = () => {
         <h1 className="text-xl font-bold">Bon retour !</h1>
       </div>
 
-      <div className="flex justify-between items-center gap-5 lg:gap-10 xl:gap-20">
-        <div className="relative">
+      <div className="flex justify-between items-center gap-5 lg:gap-10 xl:gap-20 w-full lg:w-auto">
+        <div className="relative w-full lg:w-auto">
+          <label htmlFor="dashboard-search" className="sr-only">
+            Rechercher (produits, articles)
+          </label>
           <input
+            id="dashboard-search"
             type="text"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -72,8 +74,20 @@ const Header: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-5">
-          <ShoppingCart className="text-gray-700 cursor-pointer" />
-          <Bell className="text-gray-700 cursor-pointer" />
+          <button
+            type="button"
+            aria-label="Panier"
+            className="text-gray-700 cursor-pointer"
+          >
+            <ShoppingCart />
+          </button>
+          <button
+            type="button"
+            aria-label="Notifications"
+            className="text-gray-700 cursor-pointer"
+          >
+            <Bell />
+          </button>
         </div>
       </div>
     </div>

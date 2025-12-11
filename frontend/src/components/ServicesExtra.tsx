@@ -3,7 +3,6 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, type Variants } from "framer-motion";
 
-// images (remplace par les tiennes)
 import imgSecurite from "../assets/images/achat/69249ff2-e5f5-438f-9427-d61c3295ca52.webp";
 import imgReseau from "../assets/images/achat/Réseau informatique_.webp";
 import imgMerci from "../assets/images/achat/Profession.webp";
@@ -11,10 +10,9 @@ import imgMerci from "../assets/images/achat/Profession.webp";
 type ExtraItem = {
   title: string;
   accroche: string;
-  points: string[]; // [sectionTitle, ...bullets]
+  points: string[];
   image: string;
 };
-
 
 const Bullet = <T extends React.ElementType = "li">({
   as,
@@ -30,20 +28,19 @@ const Bullet = <T extends React.ElementType = "li">({
   const Component = as ?? "li";
   return (
     <Component
-      {...(variants ? { variants } : {})} // transmis uniquement si motion.* utilisé
+      {...(variants ? { variants } : {})}
       className={`flex gap-2 md:gap-2.5 lg:gap-3 leading-[1.55] md:leading-7 lg:leading-8 ${className}`}
     >
       <span className="mt-[7px] h-2 w-2 rounded-full bg-[#00A8E8]" />
-      <span className="text-[13px] sm:text-[14px] lg:text-[15px]">{children}</span>
+      <span className="text-[13px] sm:text-[14px] lg:text-[15px]">
+        {children}
+      </span>
     </Component>
   );
 };
 
-
-// helper i18n → array
 const toArray = (v: unknown): string[] => (Array.isArray(v) ? (v as string[]) : []);
 
-/* ===================== Variants Framer Motion ===================== */
 const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 32 },
   show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: "easeOut" } },
@@ -59,13 +56,11 @@ const itemUp: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
 };
 
-// Croisé (texte/image opposés)
 const fromSide = (dir: "left" | "right"): Variants => ({
   hidden: { opacity: 0, x: dir === "left" ? -36 : 36 },
   show: { opacity: 1, x: 0, transition: { duration: 0.55, ease: "easeOut" } },
 });
 
-// Dernière section : image du bas, texte de la droite
 const fromBottom: Variants = {
   hidden: { opacity: 0, y: 40 },
   show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
@@ -75,10 +70,9 @@ const fromRight: Variants = {
   show: { opacity: 1, x: 0, transition: { duration: 0.6, ease: "easeOut" } },
 };
 
-/* ---------- Sous-composant : une ligne avec clamp & Voir plus + ANIM + HOVER ZOOM ---------- */
 const ExtraRow: React.FC<{
   item: ExtraItem;
-  reverseOnMd?: boolean; // inverse la grille + les sens d'apparition
+  reverseOnMd?: boolean;
 }> = ({ item, reverseOnMd }) => {
   const { t } = useTranslation();
   const imgBoxRef = useRef<HTMLDivElement>(null);
@@ -109,10 +103,13 @@ const ExtraRow: React.FC<{
 
   useEffect(() => {
     if (!textWrapRef.current) return;
-    textWrapRef.current.style.maxHeight = open ? "none" : imgHeight ? `${imgHeight}px` : "none";
+    textWrapRef.current.style.maxHeight = open
+      ? "none"
+      : imgHeight
+      ? `${imgHeight}px`
+      : "none";
   }, [open, imgHeight]);
 
-  // Sens croisé : si reverseOnMd = true → texte arrive de la droite, image de la gauche
   const textVariants = fromSide(reverseOnMd ? "right" : "left");
   const imageVariants = fromSide(reverseOnMd ? "left" : "right");
 
@@ -124,17 +121,17 @@ const ExtraRow: React.FC<{
       viewport={{ once: true, amount: 0.25 }}
       className="grid grid-cols-12 items-start gap-3 md:gap-5 lg:gap-6"
     >
-      {/* Colonne TEXTE (toujours 1ère dans le DOM pour mobile) */}
       <motion.div
         variants={textVariants}
-        className={`col-span-12 md:col-span-7 ${reverseOnMd ? "md:order-2" : "md:order-1"}`}
+        className={`col-span-12 md:col-span-7 ${
+          reverseOnMd ? "md:order-2" : "md:order-1"
+        }`}
       >
         <h3 className="text-[17px] sm:text-[18px] md:text-[20px] lg:text-[22px] font-semibold text-gray-900 mb-2">
           {item.title}
         </h3>
 
         <div className="relative">
-          {/* zone clampée */}
           <div
             ref={textWrapRef}
             className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
@@ -149,7 +146,6 @@ const ExtraRow: React.FC<{
                   <p className="text-[13px] sm:text-[14px] font-medium text-gray-800 mb-1">
                     {item.points[0]}
                   </p>
-                  {/* Stagger des puces */}
                   <motion.ul
                     variants={listStagger}
                     initial="hidden"
@@ -168,7 +164,6 @@ const ExtraRow: React.FC<{
             </div>
           </div>
 
-          {/* dégradé quand fermé & overflow */}
           {!open && overflowing && (
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white to-transparent rounded-b-xl" />
           )}
@@ -179,16 +174,18 @@ const ExtraRow: React.FC<{
             type="button"
             onClick={() => setOpen((v) => !v)}
             className="mt-3 inline-flex items-center rounded-full bg-[#00A8E8] px-3 py-1 text-[12px] font-medium text-white hover:opacity-90"
+            aria-expanded={open}
           >
             {open ? t("see.less") : t("see.more")}
           </button>
         )}
       </motion.div>
 
-      {/* Colonne IMAGE (avec zoom hover) */}
       <motion.div
         variants={imageVariants}
-        className={`col-span-12 md:col-span-5 ${reverseOnMd ? "md:order-1" : "md:order-2"}`}
+        className={`col-span-12 md:col-span-5 ${
+          reverseOnMd ? "md:order-1" : "md:order-2"
+        }`}
       >
         <div
           ref={imgBoxRef}
@@ -197,7 +194,7 @@ const ExtraRow: React.FC<{
           <motion.img
             src={item.image}
             width={300}
-                      height={300}
+            height={300}
             alt={item.title}
             className="w-full object-cover
                        aspect-[16/10] sm:aspect-[4/3]
@@ -235,21 +232,19 @@ const ServicesExtra: React.FC = () => {
   ];
 
   return (
-    <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
+    <section
+      className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10"
+      aria-label="Services supplémentaires Christland Tech"
+    >
       <div className="space-y-10 lg:space-y-12">
-        {/* Bloc 1 : TEXTE (gauche) | IMAGE (droite) */}
         <ExtraRow item={items[0]} />
-
-        {/* Bloc 2 : IMAGE (gauche) | TEXTE (droite) -> reverseOnMd */}
         <ExtraRow item={items[1]} reverseOnMd />
 
-        {/* ===== Dernière section (image du bas vers le haut, texte de droite vers gauche) ===== */}
         <motion.div
           variants={fromBottom}
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, amount: 0.25 }}
-          // zoom léger au survol de la grande image
           whileHover={{ scale: 1.06 }}
           transition={{ type: "spring", stiffness: 200, damping: 22 }}
           className="
@@ -261,7 +256,8 @@ const ServicesExtra: React.FC = () => {
             backgroundImage: `url(${imgMerci})`,
             backgroundPosition: "center 68%",
           }}
-          aria-label="Merci"
+          role="img"
+          aria-label={t("ser.me")}
         />
 
         <motion.div

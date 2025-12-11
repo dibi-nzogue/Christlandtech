@@ -11,7 +11,15 @@ import hero from "../assets/images/hero.webp";
 import hero1 from "../assets/images/hero1.webp";
 import hero2 from "../assets/images/hero2.webp";
 
-const slides = [
+type SlideConfig = {
+  title: string;
+  highlighted: string;
+  description: string;
+  button: string;
+  image: string;
+};
+
+const slides: SlideConfig[] = [
   {
     title: "hero.title",
     highlighted: "highlighted",
@@ -35,30 +43,34 @@ const slides = [
   },
 ];
 
-const NextArrow = ({ onClick }: { onClick: () => void }) => (
-  <div
+const NextArrow: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <button
+    type="button"
+    aria-label="Slide suivant"
     className="absolute right-5 top-2/3 md:top-1/2 z-10 cursor-pointer bg-white rounded-full p-2 lg:p-3 text-gray-900 text-sm md:text-md"
     onClick={onClick}
   >
     <FaArrowRight />
-  </div>
+  </button>
 );
 
-const PrevArrow = ({ onClick }: { onClick: () => void }) => (
-  <div
+const PrevArrow: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <button
+    type="button"
+    aria-label="Slide précédent"
     className="absolute left-5 top-2/3 md:top-1/2 z-10 cursor-pointer bg-white rounded-full p-2 lg:p-3 text-gray-900 text-sm md:text-md"
     onClick={onClick}
   >
     <FaArrowLeft />
-  </div>
+  </button>
 );
 
 const HeroCarousel: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const isInView = useInView(containerRef, { once: true, margin: "-100px" });
 
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -69,7 +81,7 @@ const HeroCarousel: React.FC = () => {
     },
   });
 
-  // Autoplay (au lieu de autoplay dans les options)
+  // Autoplay
   useEffect(() => {
     if (!isInView || !instanceRef.current) return;
     const slider = instanceRef.current;
@@ -82,16 +94,16 @@ const HeroCarousel: React.FC = () => {
   }, [instanceRef, isInView]);
 
   return (
-    <div ref={ref}>
+    <div ref={containerRef}>
       <div className="relative">
         <div ref={sliderRef} className="keen-slider">
           {slides.map((slide, index) => (
             <div key={index} className="keen-slider__slide relative px-2">
               <img
                 src={slide.image}
-                alt={slide.title}
+                alt={t(slide.title)}
                 width={300}
-                      height={300}
+                height={300}
                 loading="lazy"
                 className="w-full h-[60vh] md:h-[70vh] object-cover rounded-2xl"
               />
@@ -117,6 +129,7 @@ const HeroCarousel: React.FC = () => {
                 </motion.p>
 
                 <motion.button
+                  type="button"
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={isInView ? { opacity: 1, scale: 1 } : {}}
                   transition={{ duration: 0.6, delay: 0.6 }}
@@ -139,7 +152,10 @@ const HeroCarousel: React.FC = () => {
           {slides.map((_, idx) => (
             <button
               key={idx}
+              type="button"
               onClick={() => instanceRef.current?.moveToIdx(idx)}
+              aria-label={`Aller au slide ${idx + 1}`}
+              aria-current={idx === currentSlide ? "true" : "false"}
               className={`w-2 h-2 rounded-full ${
                 idx === currentSlide ? "bg-white" : "bg-white/50"
               }`}

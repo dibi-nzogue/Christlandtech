@@ -1,5 +1,5 @@
 // src/components/ServicesBloc.tsx
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, type Variants } from "framer-motion";
 
@@ -44,6 +44,9 @@ const ServiceRow: React.FC<{ item: ServiceItem }> = ({ item }) => {
   const [overflowing, setOverflowing] = useState<boolean>(false);
   const [open, setOpen] = useState<boolean>(false);
 
+  const titleId = useId();
+  const contentId = useId();
+
   const measure = () => {
     const ih = imgBoxRef.current?.getBoundingClientRect().height ?? 0;
     const fullTextH = textInnerRef.current?.scrollHeight ?? 0;
@@ -74,6 +77,8 @@ const ServiceRow: React.FC<{ item: ServiceItem }> = ({ item }) => {
       whileInView="show"
       viewport={{ once: true, amount: 0.25 }}
       className="bg-white p-3 sm:p-4 lg:p-5 shadow-none"
+      role="article"
+      aria-labelledby={item.title ? titleId : undefined}
     >
       <motion.div
         variants={containerStagger}
@@ -88,8 +93,8 @@ const ServiceRow: React.FC<{ item: ServiceItem }> = ({ item }) => {
             <motion.img
               src={item.image}
               width={300}
-                      height={300}
-              alt={item.title ?? "illustration"}
+              height={300}
+              alt={item.title ?? "Illustration d’un service Christland Tech"}
               className="h-full w-full object-cover sm:h-[240px] md:h-[300px] lg:h-[340px] transform-gpu will-change-transform"
               loading="lazy"
               onLoad={measure}
@@ -101,9 +106,13 @@ const ServiceRow: React.FC<{ item: ServiceItem }> = ({ item }) => {
         </motion.div>
 
         {/* Texte */}
-        <motion.div variants={itemUp} className="pt-1 max-w-[760px] leading-[1.65] relative">
+        <motion.div
+          variants={itemUp}
+          className="pt-1 max-w-[760px] leading-[1.65] relative"
+        >
           {item.title && (
             <motion.h3
+              id={titleId}
               variants={itemUp}
               className="text-[17px] sm:text-[18px] md:text-[20px] lg:text-[22px] font-semibold text-gray-900 mb-2"
             >
@@ -114,6 +123,9 @@ const ServiceRow: React.FC<{ item: ServiceItem }> = ({ item }) => {
           <div className="relative">
             <div
               ref={textWrapRef}
+              id={contentId}
+              role="region"
+              aria-label={item.title ?? "Détails du service"}
               className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
             >
               <div ref={textInnerRef}>
@@ -156,6 +168,8 @@ const ServiceRow: React.FC<{ item: ServiceItem }> = ({ item }) => {
               type="button"
               onClick={() => setOpen((v) => !v)}
               className="mt-3 inline-flex items-center rounded-full bg-[#00A8E8] px-3 py-1 text-[12px] font-medium text-white hover:opacity-90"
+              aria-expanded={open}
+              aria-controls={contentId}
             >
               {open ? "Voir moins" : "Voir plus"}
             </button>
@@ -194,6 +208,7 @@ const ServicesBloc: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
       className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10"
+      aria-label="Section des services informatiques Christland Tech"
     >
       <div className="space-y-8 lg:space-y-10">
         {items.map((it, idx) => {
@@ -212,11 +227,10 @@ const ServicesBloc: React.FC = () => {
               >
                 <motion.div variants={itemUp} className="rounded-2xl overflow-hidden">
                   <motion.img
-                  
                     src={it.image}
                     width={300}
-                      height={300}
-                    alt="illustration"
+                    height={300}
+                    alt="Illustration d’un service Christland Tech"
                     className="w-full h-[200px] sm:h-[260px] md:h-[340px] lg:h-[400px] object-cover transform-gpu will-change-transform"
                     loading="lazy"
                     whileHover={{ scale: 1.06 }}
@@ -224,7 +238,10 @@ const ServicesBloc: React.FC = () => {
                     transition={{ type: "spring", stiffness: 220, damping: 20 }}
                   />
                 </motion.div>
-                <motion.div variants={itemUp} className="rounded-2xl bg-white p-4 sm:p-6 lg:p-7">
+                <motion.div
+                  variants={itemUp}
+                  className="rounded-2xl bg-white p-4 sm:p-6 lg:p-7"
+                >
                   <p className="text-[12px] sm:text-[14px] md:text-[16px] lg:text-[18px] leading-relaxed text-gray-700">
                     {it.accroche}
                   </p>

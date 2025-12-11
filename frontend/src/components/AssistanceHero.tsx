@@ -1,4 +1,4 @@
-// src/components/AssistanceHero.tsx 
+// src/components/AssistanceHero.tsx
 import React from "react";
 import imgMerci from "../assets/images/achat/𝕮𝖔𝖒𝖕𝖚𝖙𝖊𝖗𝕸𝖔𝖈𝖐.webp";
 import { useBlogHero } from "../hooks/useFetchQuery";
@@ -6,31 +6,24 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { Variants, Transition } from "framer-motion";
 
 type Props = {
-  titleLeft?: string;   // "ARTICLE"
-  titleRight?: string;  // "BLOG"
+  titleLeft?: string;
+  titleRight?: string;
 };
 
 const CONTAINER = "mx-auto max-w-screen-2xl px-6 sm:px-8 lg:px-10";
 
-/* ----------------- Transitions & Variants ----------------- */
-
-// tween lent, fluide
 const TWEEN_SLOW: Transition = {
   type: "tween",
   duration: 1.15,
   ease: [0.22, 1, 0.36, 1],
 };
 
-// image reveal (fade + léger zoom-out)
 const EASE_IMG: Transition = { duration: 0.9, ease: [0.22, 1, 0.36, 1] };
 
-// fade global de la section
 const fadeIn: Variants = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { duration: 0.6 } },
 };
-
-/* ------ HERO: ARTICLE puis BLOG (du haut vers le bas) ------ */
 
 const titleOrchestrator: Variants = {
   hidden: {},
@@ -51,8 +44,6 @@ const slideFromTopSlow: Variants = {
   },
 };
 
-/* ------ Texte (slug) : du bas vers le haut à l’entrée ------ */
-
 const riseFromBottomOnView: Variants = {
   hidden: { y: 28, opacity: 0 },
   show: {
@@ -62,7 +53,6 @@ const riseFromBottomOnView: Variants = {
   },
 };
 
-/* -------------------------------- Helpers -------------------------------- */
 function splitTitle(title?: string | null) {
   const t = (title || "").trim();
   if (!t) return { first: "BIENVENUE", rest: "DANS NOTRE UNIVERS" };
@@ -70,12 +60,11 @@ function splitTitle(title?: string | null) {
   return { first: first || "", rest: restArr.join(" ") || "" };
 }
 
-/* ------------------------------- Component ------------------------------- */
 const AssistanceHero: React.FC<Props> = ({
   titleLeft = "ARTICLE",
   titleRight = "BLOG",
 }) => {
-  const { data: hero, loading } = useBlogHero(); // { title, slug }
+  const { data: hero, loading } = useBlogHero();
   const { first, rest } = React.useMemo(() => splitTitle(hero?.title), [hero?.title]);
 
   return (
@@ -84,15 +73,16 @@ const AssistanceHero: React.FC<Props> = ({
       initial="hidden"
       animate="show"
       variants={fadeIn}
+      aria-labelledby="assistance-hero-title"
     >
-      {/* HERO plein écran */}
       <div className="relative w-full h-[240px] md:h-[360px] lg:h-[780px]">
         <motion.img
-        loading="lazy"
+          loading="lazy"
           src={imgMerci}
           width={300}
-                      height={300}
-          alt="Bannière Assistance"
+          height={300}
+          alt=""
+          aria-hidden="true"
           className="absolute inset-0 h-full w-full object-cover"
           initial={{ scale: 1.04, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -106,23 +96,20 @@ const AssistanceHero: React.FC<Props> = ({
           transition={{ duration: 0.6 }}
         />
 
-        {/* Titre HERO: ARTICLE (haut→bas) puis BLOG (haut→bas). "/" en fade, sans mouvement. */}
         <div className="relative h-full flex items-center justify-center">
           <AnimatePresence mode="wait">
             <motion.h1
+              id="assistance-hero-title"
               key={`${titleLeft}-${titleRight}`}
-              className="sm:text-3xl md:text-5xl lg:text-6xl font-extrabold tracking-wide overflow-hidden transform-gpu will-change-transform"
+              className="sm:text-3xl md:text-5xl lg:text-6xl font-extrabold tracking-wide overflow-hidden transform-gpu will-change-transform text-center text-white"
               variants={titleOrchestrator}
               initial="hidden"
               animate="show"
               exit="hidden"
             >
-              {/* 1) ARTICLE — arrive du haut vers le bas */}
-              <motion.span variants={slideFromTopSlow} className="inline-block text-white">
+              <motion.span variants={slideFromTopSlow} className="inline-block">
                 {titleLeft}
               </motion.span>
-
-              {/* "/" — juste un fade */}
               <motion.span
                 className="inline-block mx-2 text-white/60"
                 initial={{ opacity: 0 }}
@@ -131,9 +118,10 @@ const AssistanceHero: React.FC<Props> = ({
               >
                 /
               </motion.span>
-
-              {/* 2) BLOG — arrive du haut vers le bas */}
-              <motion.span variants={slideFromTopSlow} className="inline-block text-[#00A8E8]">
+              <motion.span
+                variants={slideFromTopSlow}
+                className="inline-block text-[#00A8E8]"
+              >
                 {titleRight}
               </motion.span>
             </motion.h1>
@@ -141,22 +129,18 @@ const AssistanceHero: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* CONTENU */}
       <div className={`relative z-10 ${CONTAINER} py-10`}>
         <div className="py-6 md:py-10">
-          {/* H2 — le titre ENTIER glisse de la GAUCHE → vers sa place (immédiat) */}
           <motion.h2
             className="text-center font-semibold tracking-wide lg:text-[20px] md:text-[18px] sm:text-[15px] text-[12px]"
             initial={{ x: -40, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={TWEEN_SLOW}
           >
-            {/* on montre toujours quelque chose grâce au fallback de splitTitle */}
             <span className="text-[#00A8E8]">{first}</span>{" "}
             <span className="text-gray-900">{rest}</span>
           </motion.h2>
 
-          {/* Texte (slug) — du bas vers le haut (au scroll) */}
           <motion.div
             className="mt-5 lg:text-[18px] md:text-[16px] sm:text-[14px] text-[12px] text-gray-700"
             variants={riseFromBottomOnView}
@@ -166,7 +150,7 @@ const AssistanceHero: React.FC<Props> = ({
             transition={{ delay: 0.08 }}
           >
             {loading && !hero?.slug ? (
-              <p className="mb-3 opacity-70"></p>
+              <p className="mb-3 opacity-70" aria-live="polite" />
             ) : (
               <p className="mb-3 break-words">{hero?.slug || ""}</p>
             )}

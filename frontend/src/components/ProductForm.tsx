@@ -1005,12 +1005,16 @@ const renderAttrInput = (
     />
   </div>
 
-  {/* État */}
+    {/* État */}
   <div className="flex flex-col gap-1">
-    <label className="text-sm text-gray-700 font-medium">
+    <label
+      id="etat-label"
+      className="text-sm text-gray-700 font-medium"
+    >
       État *
     </label>
     <ComboCreate
+      aria-labelledby="etat-label"
       options={etatOptions}
       value={etatValue}
       onChange={onEtatChange}
@@ -1024,10 +1028,14 @@ const renderAttrInput = (
 
   {/* Catégorie */}
   <div className="flex flex-col gap-1">
-    <label className="text-sm text-gray-700 font-medium">
+    <label
+      id="categorie-label"
+      className="text-sm text-gray-700 font-medium"
+    >
       Catégorie *
     </label>
     <ComboCreate
+      aria-labelledby="categorie-label"
       options={categoryOptions}
       value={categoryValue}
       onChange={onCategoryChange}
@@ -1039,36 +1047,43 @@ const renderAttrInput = (
     />
   </div>
 
-{/* Sous-catégorie */}
-{subcategoryOptions.length > 0 ? (
-  <div className="flex flex-col gap-1">
-    <label className="text-sm text-gray-700 font-medium">
-      Sous-catégorie
-    </label>
-    <ComboCreate
-      options={subcategoryOptions}
-      value={subcategoryValue}
-      onChange={onSubcategoryChange}
-      placeholder={`-- Choisir une sous-catégorie (${subcategoryOptions.length}) --`}
-      allowCreate={false}
-      dropdownPlacement="bottom-start"
-      className="w-full"
-      menuClassName="z-50"
-    />
-  </div>
-) : formData.categorie ? (
-  <div className="flex flex-col gap-1 text-xs text-gray-500">
-    <label>Aucune sous-catégorie trouvée pour cette catégorie.</label>
-  </div>
-) : null}
-
+  {/* Sous-catégorie */}
+  {subcategoryOptions.length > 0 ? (
+    <div className="flex flex-col gap-1">
+      <label
+        id="sous-categorie-label"
+        className="text-sm text-gray-700 font-medium"
+      >
+        Sous-catégorie
+      </label>
+      <ComboCreate
+        aria-labelledby="sous-categorie-label"
+        options={subcategoryOptions}
+        value={subcategoryValue}
+        onChange={onSubcategoryChange}
+        placeholder={`-- Choisir une sous-catégorie (${subcategoryOptions.length}) --`}
+        allowCreate={false}
+        dropdownPlacement="bottom-start"
+        className="w-full"
+        menuClassName="z-50"
+      />
+    </div>
+  ) : formData.categorie ? (
+    <div className="flex flex-col gap-1 text-xs text-gray-500">
+      <span>Aucune sous-catégorie trouvée pour cette catégorie.</span>
+    </div>
+  ) : null}
 
   {/* Marque */}
   <div className="flex flex-col gap-1">
-    <label className="text-sm text-gray-700 font-medium">
+    <label
+      id="marque-label"
+      className="text-sm text-gray-700 font-medium"
+    >
       Marque *
     </label>
     <ComboCreate
+      aria-labelledby="marque-label"
       options={brandOptions}
       value={brandValue}
       onChange={onBrandChange}
@@ -1080,20 +1095,33 @@ const renderAttrInput = (
     />
   </div>
 
-  {/* Statut + visibilité */}
-  <div className="flex flex-col gap-1 col-span-2">
-    <span className="text-sm text-gray-700 font-medium">Statut</span>
-    <div className="flex items-center gap-4">
-      <label className="inline-flex items-center gap-2">
+   {/* Statut + visibilité */}
+  <fieldset
+    className="flex flex-col gap-1 col-span-2"
+    aria-describedby="statut-help"
+  >
+    <legend className="text-sm text-gray-700 font-medium">
+      Statut du produit
+    </legend>
+    <p id="statut-help" className="text-xs text-gray-500">
+      Indique si le produit est actif et visible sur le site.
+    </p>
+
+    <div className="flex items-center gap-4 mt-1">
+      <div className="flex items-center gap-2">
         <input
+          id="est_actif"
           type="checkbox"
           name="est_actif"
           checked={formData.est_actif}
           onChange={handleChange}
           className="w-5 h-5 outline-[#00A9DC]"
         />
-        <span className="text-gray-700">Produit actif</span>
-      </label>
+        <label htmlFor="est_actif" className="text-gray-700">
+          Produit actif
+        </label>
+      </div>
+
       <div className="flex flex-col gap-1">
         <label htmlFor="visible" className="text-xs text-gray-600">
           Visible sur le site
@@ -1103,6 +1131,7 @@ const renderAttrInput = (
           name="visible"
           value={formData.visible ?? ""}
           onChange={handleChange}
+          aria-label="Visibilité du produit sur le site"
           className="border rounded-lg p-2 bg-gray-100 w-40 outline-[#00A9DC]"
         >
           <option value="">Visible…</option>
@@ -1111,7 +1140,8 @@ const renderAttrInput = (
         </select>
       </div>
     </div>
-  </div>
+  </fieldset>
+
 </div>
 <div className="flex flex-col gap-1">
   <label htmlFor="description_long" className="text-sm text-gray-700 font-medium">
@@ -1130,7 +1160,11 @@ const renderAttrInput = (
   {/* ===== Images ===== */}
 <div>
   <h3 className="text-lg font-semibold mb-2">Images *</h3>
-  <div className="space-y-3">
+  <fieldset
+    className="space-y-3"
+    aria-label="Images du produit"
+  >
+    <legend className="sr-only">Images du produit</legend>
     {images.map((img, idx) => (
       <div
         key={idx}
@@ -1181,11 +1215,12 @@ const renderAttrInput = (
         </div>
 
         {/* Principale */}
-        <div className="md:col-span-1">
+                <div className="md:col-span-1">
           <label className="inline-flex items-center gap-2">
             <input
               type="radio"
               name="principale"
+              aria-label={`Définir l'image ${idx + 1} comme image principale`}
               checked={!!img.principale}
               onChange={() => setPrincipale(idx)}
               className="w-5 h-5 outline-[#00A9DC]"
@@ -1195,6 +1230,7 @@ const renderAttrInput = (
             </span>
           </label>
         </div>
+
 
         {/* Bouton supprimer */}
         <div className="md:col-span-1 flex justify-end">
@@ -1241,7 +1277,7 @@ const renderAttrInput = (
         </div>
       </div>
     ))}
-  </div>
+ </fieldset>
 
   <div className="mt-3">
     <button
@@ -1275,10 +1311,14 @@ const renderAttrInput = (
 
   {/* Couleur */}
   <div className="flex flex-col gap-1">
-    <label className="text-sm text-gray-700 font-medium">
+    <label
+      id="couleur-label"
+      className="text-sm text-gray-700 font-medium"
+    >
       Couleur (optionnel)
     </label>
     <ComboCreate
+      aria-labelledby="couleur-label"
       options={colorOptions}
       value={colorValue}
       onChange={onColorChange}
@@ -1289,6 +1329,7 @@ const renderAttrInput = (
       menuClassName="z-50"
     />
   </div>
+
 
   {/* SKU */}
   <div className="flex flex-col gap-1">
@@ -1518,8 +1559,14 @@ const renderAttrInput = (
           </div>
 {/* Couleur de cette variante */}
 <div className="flex flex-col gap-1">
-  <label className="text-xs text-gray-700">Couleur</label>
+  <label
+    id={`variante-${idx}-couleur-label`}
+    className="text-xs text-gray-700"
+  >
+    Couleur
+  </label>
   <ComboCreate
+    aria-labelledby={`variante-${idx}-couleur-label`}
     options={colorOptions}
     value={
       v.couleur === "__custom__"
@@ -1551,6 +1598,7 @@ const renderAttrInput = (
     menuClassName="z-50"
   />
 </div>
+
 
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-700">Prix</label>

@@ -1,4 +1,3 @@
-// src/components/RightPanel1.tsx
 import React from "react";
 import { useLatestProducts } from "../hooks/useFetchQuery";
 
@@ -10,10 +9,9 @@ const fmt = (v?: string | null) =>
 const RightPanel1: React.FC = () => {
   const { data: latest, loading } = useLatestProducts();
 
-  const items = (latest ?? []).slice(0, 2); // <= ne garder que 2
+  const items = (latest ?? []).slice(0, 2);
 
   return (
-    // 👉 wrapper responsive : full width sur mobile, colonne sur grand écran
     <aside className="w-full lg:w-1/4 mt-6 lg:mt-0 lg:self-start">
       <div className="bg-white p-4 rounded-xl shadow-sm max-h-[65vh] overflow-y-auto">
         <h3 className="font-semibold mb-3">Les Plus Récents</h3>
@@ -33,8 +31,8 @@ const RightPanel1: React.FC = () => {
               <div className="relative w-full overflow-hidden rounded-lg bg-gray-50">
                 <div className="pt-[56.25%]" />
                 <img
-                width={300}
-                      height={300}
+                  width={300}
+                  height={300}
                   src={p.image || FALLBACK}
                   loading="lazy"
                   alt={p.nom}

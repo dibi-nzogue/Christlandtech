@@ -1,3 +1,4 @@
+// src/components/CategoriesCarousel.tsx
 import React, { useRef } from "react";
 import { useKeenSlider } from "keen-slider/react";
 import "keen-slider/keen-slider.min.css";
@@ -11,7 +12,6 @@ import {
 } from "../hooks/useFetchQuery";
 import GlobalLoader from "./GlobalLoader";
 
-// ✅ Fallback inline SVG si pas d'image
 const FALLBACK_SVG =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(`
@@ -35,7 +35,6 @@ const CategoriesCarousel: React.FC = () => {
   const { data: cats, loading, error } = useTopCategories1();
   const items: ApiCategory[] = cats ?? [];
 
-  // ======== Keen Slider =========
   const [sliderRef, instanceRef] = useKeenSlider<HTMLDivElement>({
     loop: false,
     slides: {
@@ -58,7 +57,6 @@ const CategoriesCarousel: React.FC = () => {
     },
   });
 
-  // Framer Motion pour l'animation d'apparition
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const isInView = useInView(sectionRef, { once: true, margin: "-80px" });
 
@@ -72,50 +70,64 @@ const CategoriesCarousel: React.FC = () => {
   };
 
   return (
-    <div className="bg-white py-8" ref={sectionRef}>
+    <section
+      className="bg-white py-8"
+      ref={sectionRef}
+      aria-labelledby="categories-carousel-title"
+      role="region"
+    >
       <div className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-10">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.4 }}
-          className="mb-6 flex items-center justify-between"
+          className="mb-6 flex items-center justify-between gap-3"
         >
-          <h2 className="text-lg sm:text-xl md:text-2xl font-semibold">
+          <h2
+            id="categories-carousel-title"
+            className="text-lg sm:text-xl md:text-2xl font-semibold"
+          >
             {t("categorie")}
           </h2>
           <div className="flex gap-2">
             <button
               onClick={() => instanceRef.current?.prev()}
-              className="p-2 rounded-full hover:bg-gray-200"
-              aria-label="Précédent"
+              className="p-2 rounded-full hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00A8E8]"
+              aria-label="Afficher les catégories précédentes"
             >
-              <FaArrowLeft />
+              <FaArrowLeft aria-hidden="true" />
             </button>
             <button
               onClick={() => instanceRef.current?.next()}
-              className="p-2 rounded-full hover:bg-gray-200"
-              aria-label="Suivant"
+              className="p-2 rounded-full hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00A8E8]"
+              aria-label="Afficher les catégories suivantes"
             >
-              <FaArrowRight />
+              <FaArrowRight aria-hidden="true" />
             </button>
           </div>
         </motion.div>
 
-        {/* Erreur */}
-        {error && <p className="mb-4 text-red-600">{error}</p>}
+        {error && (
+          <p className="mb-4 text-red-600" role="status">
+            {error}
+          </p>
+        )}
 
-        {/* Loader local (optionnel, tu peux le retirer si tu gères déjà dans App) */}
         {loading && items.length === 0 && (
           <div className="py-10 flex items-center justify-center">
             <GlobalLoader />
           </div>
         )}
 
-        {/* Carousel */}
         {!loading && items.length > 0 && (
           <div className="pb-10">
-            <div ref={sliderRef} className="keen-slider">
+            <div
+              ref={sliderRef}
+              className="keen-slider"
+              aria-live="polite"
+              aria-roledescription="carrousel de catégories"
+            >
               {items.map((cat, i) => {
                 const rawImage = cat.image_url || (cat as any).image || "";
                 const imgSrc = rawImage ? media(rawImage) : FALLBACK_SVG;
@@ -124,27 +136,25 @@ const CategoriesCarousel: React.FC = () => {
                   <div
                     key={cat.id}
                     className="keen-slider__slide px-2 sm:px-3"
+                    role="group"
+                    aria-label={`${cat.nom}`}
                   >
                     <motion.div
                       custom={i}
                       variants={cardVariants}
                       initial="hidden"
                       animate={isInView ? "visible" : "hidden"}
-                      className="
-                        relative flex flex-col items-center
-                        rounded-xl bg-gray-50 p-4 sm:p-5
-                        shadow-md hover:shadow-lg
-                        min-h-[230px]
-                      "
+                      className="relative flex flex-col items-center rounded-xl bg-gray-50 p-4 sm:p-5 shadow-md hover:shadow-lg min-h-[230px]"
                     >
-                      {/* Image */}
                       <div className="relative aspect-square w-24 md:w-28 lg:w-32 overflow-hidden rounded-lg ring-1 ring-gray-200 bg-white/70">
                         <motion.img
                           src={imgSrc}
                           alt={cat.nom}
                           className="absolute inset-0 h-full w-full object-cover"
                           initial={{ scale: 0.94, opacity: 0 }}
-                          animate={isInView ? { scale: 1, opacity: 1 } : {}}
+                          animate={
+                            isInView ? { scale: 1, opacity: 1 } : undefined
+                          }
                           transition={{ duration: 0.45, delay: i * 0.06 }}
                           loading="lazy"
                           width={300}
@@ -159,18 +169,9 @@ const CategoriesCarousel: React.FC = () => {
                         />
                       </div>
 
-                      {/* Titre */}
-                      <div
-                        className="
-                          mt-3 w-full flex items-center justify-center
-                          h-[48px]
-                        "
-                      >
+                      <div className="mt-3 w-full flex items-center justify-center h-[48px]">
                         <p
-                          className="max-w-[11rem] mx-auto text-center
-                                     text-[13px] sm:text-sm md:text-base
-                                     leading-snug font-medium
-                                     break-words overflow-hidden text-ellipsis"
+                          className="max-w-[11rem] mx-auto text-center text-[13px] sm:text-sm md:text-base leading-snug font-medium break-words overflow-hidden text-ellipsis"
                           title={cat.nom}
                         >
                           {cat.nom}
@@ -185,10 +186,12 @@ const CategoriesCarousel: React.FC = () => {
         )}
 
         {!loading && !error && items.length === 0 && (
-          <p className="text-gray-500">{t("Aucune catégorie disponible")}</p>
+          <p className="text-gray-500" role="status">
+            {t("categorie.empty") || "Aucune catégorie disponible pour le moment."}
+          </p>
         )}
       </div>
-    </div>
+    </section>
   );
 };
 

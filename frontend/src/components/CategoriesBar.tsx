@@ -1,7 +1,8 @@
+// src/components/CategoriesBar.tsx
 import React from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
-type Props = {
+type CategoriesBarProps = {
   items: string[];
   value?: string;
   onChange?: (v: string) => void;
@@ -13,9 +14,16 @@ const pillBase =
 const pillOn = `${pillBase} border-[#00A8E8] text-[#00A8E8]`;
 const pillOff = `${pillBase} border-gray-200 text-gray-700 hover:border-[#00A8E8]`;
 
-const CategoriesBar: React.FC<Props> = ({ items, value, onChange, onOpenFilters }) => {
+const CategoriesBar: React.FC<CategoriesBarProps> = ({
+  items,
+  value,
+  onChange,
+  onOpenFilters,
+}) => {
   const scrollerRef = React.useRef<HTMLDivElement>(null);
-  const scrollBy = (x: number) => scrollerRef.current?.scrollBy({ left: x, behavior: "smooth" });
+
+  const scrollBy = (x: number) =>
+    scrollerRef.current?.scrollBy({ left: x, behavior: "smooth" });
 
   return (
     <div className="relative">
@@ -48,7 +56,7 @@ const CategoriesBar: React.FC<Props> = ({ items, value, onChange, onOpenFilters 
           onClick={onOpenFilters}
           className="shrink-0 snap-start inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[12px] font-medium border border-gray-200 bg-white hover:border-[#00A8E8] ml-1"
         >
-          <span className="inline-block h-[10px] w-4 bg-gray-800"></span>
+          <span className="inline-block h-[10px] w-4 bg-gray-800" />
           Filtres
         </button>
       </div>

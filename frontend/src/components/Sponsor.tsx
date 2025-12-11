@@ -12,7 +12,13 @@ import lenovo from "../assets/images/Logos/lenovo.webp";
 import canon from "../assets/images/Logos/canon.webp";
 import android from "../assets/images/Logos/android.webp";
 
-const logos = [hp, apple, lenovo, canon, android];
+const logos = [
+  { src: hp, alt: "Logo HP" },
+  { src: apple, alt: "Logo Apple" },
+  { src: lenovo, alt: "Logo Lenovo" },
+  { src: canon, alt: "Logo Canon" },
+  { src: android, alt: "Logo Android" },
+];
 
 /** 🔁 Plugin autoplay pour Keen Slider */
 const autoplayPlugin: KeenSliderPlugin = (slider) => {
@@ -28,7 +34,7 @@ const autoplayPlugin: KeenSliderPlugin = (slider) => {
     if (!mouseOver) {
       timeout = setTimeout(() => {
         slider.next();
-      }, 3000); // ⏱️ 3s entre chaque slide
+      }, 3000);
     }
   }
 
@@ -50,8 +56,7 @@ const autoplayPlugin: KeenSliderPlugin = (slider) => {
 };
 
 const Sponsor: React.FC = () => {
-  // ⭐ Desktop animation (inchangé)
-  const containerRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const isInView = useInView(containerRef, { once: true, margin: "-100px" });
 
   const containerVariants: Variants = {
@@ -70,7 +75,6 @@ const Sponsor: React.FC = () => {
     },
   };
 
-  // 📱 Mobile slider avec Keen
   const [sliderRef] = useKeenSlider<HTMLDivElement>(
     {
       loop: true,
@@ -92,52 +96,65 @@ const Sponsor: React.FC = () => {
   );
 
   return (
-    <div
+    <section
       ref={containerRef}
-      className="bg-[#C5BFBF]/50 py-4 md:py-6 lg:py-8 my-5 md:my-10 lg:my-16 "
+      className="bg-[#C5BFBF]/50 py-4 md:py-6 lg:py-8 my-5 md:my-10 lg:my-16"
+      aria-label="Marques et partenaires Christland Tech"
     >
       <div className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
-        {/* Desktop */}
+        {/* Desktop : liste de logos */}
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate={isInView ? "visible" : "hidden"}
           className="hidden lg:flex justify-between items-center"
+          role="list"
         >
           {logos.map((logo, index) => (
             <motion.img
-            width={300}
-            height={300}
               key={index}
               loading="lazy"
-              src={logo}
-              alt={`Sponsor ${index}`}
-              className="h-[50px] object-contain"
+              src={logo.src}
+              alt={logo.alt}
+              width={160}
+              height={50}
+              className="h-[50px] w-auto object-contain"
               variants={itemVariants}
+              decoding="async"
             />
           ))}
         </motion.div>
 
         {/* Mobile (Keen Slider) */}
         <div className="lg:hidden">
-          <div ref={sliderRef} className="keen-slider">
+          <div
+            ref={sliderRef}
+            className="keen-slider"
+            aria-roledescription="carousel"
+            aria-label="Logos des partenaires"
+          >
             {logos.map((logo, index) => (
               <div
                 key={index}
                 className="keen-slider__slide flex justify-center items-center"
+                role="group"
+                aria-label={`${index + 1} sur ${logos.length}`}
               >
                 <img
-                  src={logo}
-                  alt={`Sponsor ${index}`}
+                  src={logo.src}
+                  alt={logo.alt}
                   loading="lazy"
+                  width={120}
+                  height={50}
                   className="w-[40%] h-[50px] object-contain mx-auto"
+                  decoding="async"
                 />
               </div>
             ))}
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 

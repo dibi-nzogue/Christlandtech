@@ -15,7 +15,7 @@ const Accueil: React.FC = () => {
   return (
     <>
       {/* 🧠 SEO pour la home */}
-      <title>Christland Tech – Boutique high-tech au Cameroun</title>
+      <title>Christland Tech – vente de materiel en ligne au Cameroun</title>
       <meta
         name="description"
         content="Christland Tech est une boutique high-tech au Cameroun spécialisée dans la vente de smartphones, ordinateurs, gaming et accessoires. Livraison rapide à Douala et Yaoundé. Meilleurs prix et produits garantis. Livraison rapide et service client réactif."

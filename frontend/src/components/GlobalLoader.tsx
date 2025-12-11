@@ -1,27 +1,33 @@
 import React from "react";
 import logo from "../assets/images/logo.webp";
+
 const GlobalLoader: React.FC = () => {
   return (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+      role="status"
+      aria-live="polite"
+      aria-label="Chargement de la page"
+    >
       {/* Halo flou derrière */}
-      <div className="absolute inset-0 opacity-40">
+      <div className="absolute inset-0 opacity-40 pointer-events-none">
         <div className="w-72 h-72 bg-indigo-500/40 rounded-full blur-3xl absolute -top-10 -left-10" />
         <div className="w-72 h-72 bg-cyan-500/30 rounded-full blur-3xl absolute -bottom-10 -right-10" />
       </div>
+
       {/* Carte centrale */}
       <div className="relative bg-slate-900/80 border border-slate-700/60 shadow-2xl rounded-3xl px-8 py-7 flex flex-col items-center gap-5 backdrop-blur-xl">
         {/* Logo / icône animée */}
         <div className="relative">
           <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <img
-            width={300}
-                      height={300}
-  src={logo}
-  alt="Christland Tech"
-  loading="lazy"
-  className="h-10 w-auto animate-pulse"
-/>
-
+              width={300}
+              height={300}
+              src={logo}
+              alt="Christland Tech"
+              loading="lazy"
+              className="h-10 w-auto animate-pulse"
+            />
           </div>
           <div className="absolute -inset-1 rounded-3xl border border-indigo-500/30 animate-ping opacity-40" />
         </div>
@@ -34,9 +40,7 @@ const GlobalLoader: React.FC = () => {
           <p className="text-xs text-slate-300/80">
             Chargement de la page en cours...
           </p>
-          <p className="text-[11px] text-slate-400/70">
-            Merci de patienter
-          </p>
+          <p className="text-[11px] text-slate-400/70">Merci de patienter</p>
         </div>
 
         {/* Barre de progression animée */}
