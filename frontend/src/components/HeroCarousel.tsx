@@ -19,6 +19,8 @@ type SlideConfig = {
   image: string;
 };
 
+const SLIDER_ID = "hero-main-carousel";
+
 const slides: SlideConfig[] = [
   {
     title: "hero.title",
@@ -43,10 +45,14 @@ const slides: SlideConfig[] = [
   },
 ];
 
-const NextArrow: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+const NextArrow: React.FC<{ onClick: () => void; ariaControls?: string }> = ({
+  onClick,
+  ariaControls,
+}) => (
   <button
     type="button"
     aria-label="Slide suivant"
+    aria-controls={ariaControls}
     className="absolute right-5 top-2/3 md:top-1/2 z-10 cursor-pointer bg-white rounded-full p-2 lg:p-3 text-gray-900 text-sm md:text-md"
     onClick={onClick}
   >
@@ -54,10 +60,14 @@ const NextArrow: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   </button>
 );
 
-const PrevArrow: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+const PrevArrow: React.FC<{ onClick: () => void; ariaControls?: string }> = ({
+  onClick,
+  ariaControls,
+}) => (
   <button
     type="button"
     aria-label="Slide précédent"
+    aria-controls={ariaControls}
     className="absolute left-5 top-2/3 md:top-1/2 z-10 cursor-pointer bg-white rounded-full p-2 lg:p-3 text-gray-900 text-sm md:text-md"
     onClick={onClick}
   >
@@ -69,7 +79,7 @@ const HeroCarousel: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLElement | null>(null);
   const isInView = useInView(containerRef, { once: true, margin: "-100px" });
 
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -94,68 +104,109 @@ const HeroCarousel: React.FC = () => {
   }, [instanceRef, isInView]);
 
   return (
-    <div ref={containerRef}>
+    <section
+      ref={containerRef}
+      aria-label={t("hero.carouselLabel") || "Carrousel principal"}
+      aria-roledescription="carrousel"
+    >
       <div className="relative">
-        <div ref={sliderRef} className="keen-slider">
-          {slides.map((slide, index) => (
-            <div key={index} className="keen-slider__slide relative px-2">
-              <img
-                src={slide.image}
-                alt={t(slide.title)}
-                width={300}
-                height={300}
-                loading="lazy"
-                className="w-full h-[60vh] md:h-[70vh] object-cover rounded-2xl"
-              />
+        <div
+          ref={sliderRef}
+          id={SLIDER_ID}
+          className="keen-slider"
+          aria-live="polite"
+        >
+          {slides.map((slide, index) => {
+            const isActive = index === currentSlide;
+            const isFirst = index === 0;
 
-              <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-6 gap-4 md:gap-10 lg:gap-16">
-                <motion.h2
-                  initial={{ opacity: 0, y: 50 }}
-                  animate={isInView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ duration: 0.7, delay: 0.2 }}
-                  className="text-3xl md:text-4xl lg:text-5xl xl:text-7xl font-bold text-white mb-4"
-                >
-                  {t(slide.title)}
-                  <span className="text-[#00A9DC]"> {t(slide.highlighted)}</span>
-                </motion.h2>
+            return (
+              <div
+                key={index}
+                className="keen-slider__slide relative px-2"
+                role="group"
+                aria-roledescription="slide"
+                aria-label={`${index + 1} / ${slides.length}`}
+                aria-hidden={isActive ? "false" : "true"}
+              >
+                <img
+                  src={slide.image}
+                  alt={t(slide.title)}
+                  width={300}
+                  height={300}
+                  // ⚡ LCP : première image en eager + priorité haute
+                  loading={isFirst ? "eager" : "lazy"}
+                  fetchPriority={isFirst ? "high" : "auto"}
+                  decoding="async"
+                  className="w-full h-[55vh] md:h-[65vh] object-cover rounded-2xl"
+                />
 
-                <motion.p
-                  initial={{ opacity: 0, y: 50 }}
-                  animate={isInView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ duration: 0.8, delay: 0.4 }}
-                  className="text-white/90 max-w-xl mb-6 text-md md:text-lg lg:text-xl"
-                >
-                  {t(slide.description)}
-                </motion.p>
+                <div className="absolute inset-0 flex flex-col justify-center items-center text-center px-6 gap-4 md:gap-10 lg:gap-16">
+                  <motion.h2
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={isInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.7, delay: 0.2 }}
+                    className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-4"
+                  >
+                    {t(slide.title)}
+                    <span className="text-[#00A9DC]">
+                      {" "}
+                      {t(slide.highlighted)}
+                    </span>
+                  </motion.h2>
 
-                <motion.button
-                  type="button"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={isInView ? { opacity: 1, scale: 1 } : {}}
-                  transition={{ duration: 0.6, delay: 0.6 }}
-                  onClick={() => navigate("/produits")}
-                  className="bg-[#00A9DC] text-white px-2 md:px-4 py-1 md:py-2 rounded-md text-md md:text-lg"
-                >
-                  {t(slide.button)}
-                </motion.button>
+                  <motion.p
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={isInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.8, delay: 0.4 }}
+                    className="text-white/90 max-w-xl mb-6 text-md md:text-lg lg:text-xl"
+                  >
+                    {t(slide.description)}
+                  </motion.p>
+
+                  <motion.button
+                    type="button"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={isInView ? { opacity: 1, scale: 1 } : {}}
+                    transition={{ duration: 0.6, delay: 0.6 }}
+                    onClick={() => navigate("/produits")}
+                    className="bg-[#00A9DC] text-white px-2 md:px-4 py-1 md:py-2 rounded-md text-md md:text-lg"
+                  >
+                    {t(slide.button)}
+                  </motion.button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Flèches */}
-        <PrevArrow onClick={() => instanceRef.current?.prev()} />
-        <NextArrow onClick={() => instanceRef.current?.next()} />
+        <PrevArrow
+          onClick={() => instanceRef.current?.prev()}
+          ariaControls={SLIDER_ID}
+        />
+        <NextArrow
+          onClick={() => instanceRef.current?.next()}
+          ariaControls={SLIDER_ID}
+        />
 
         {/* Dots */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 custom-dots">
+        <div
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 custom-dots"
+          role="tablist"
+          aria-label={t("hero.carouselPagination") || "Navigation du carrousel"}
+        >
           {slides.map((_, idx) => (
             <button
               key={idx}
               type="button"
               onClick={() => instanceRef.current?.moveToIdx(idx)}
-              aria-label={`Aller au slide ${idx + 1}`}
-              aria-current={idx === currentSlide ? "true" : "false"}
+              aria-label={`${t("hero.goToSlide") || "Aller au slide"} ${
+                idx + 1
+              }`}
+              role="tab"
+              aria-selected={idx === currentSlide}
+              aria-controls={SLIDER_ID}
               className={`w-2 h-2 rounded-full ${
                 idx === currentSlide ? "bg-white" : "bg-white/50"
               }`}
@@ -163,7 +214,7 @@ const HeroCarousel: React.FC = () => {
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 

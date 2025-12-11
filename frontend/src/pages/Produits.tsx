@@ -29,10 +29,10 @@ const Produits: React.FC = () => {
 
   // 🔹 SEO sans Helmet (compatible prod)
   React.useEffect(() => {
-    // Title
+    // 🧠 1) Title
     document.title = "Tous nos produits – Christland Tech";
 
-    // Meta description
+    // 🧠 2) Meta description
     const descContent =
       "Parcourez tous les produits Christland Tech : ordinateurs, téléphones, gaming, électroménager, réseau, accessoires et plus encore. Toutes les catégories réunies sur une seule page.";
 
@@ -47,7 +47,7 @@ const Produits: React.FC = () => {
     }
     descTag.content = descContent;
 
-    // (optionnel) meta keywords
+    // 🧠 3) Meta keywords (optionnel mais OK)
     const keywordsContent =
       "christland, christland tech, boutique high-tech, ordinateurs, téléphones, gaming, électroménager, réseau, accessoires, cameroun";
 
@@ -61,6 +61,19 @@ const Produits: React.FC = () => {
       document.head.appendChild(keywordsTag);
     }
     keywordsTag.content = keywordsContent;
+
+    // 🧠 4) Canonical pour /produits
+    const canonicalHref = "https://christland.tech/produits";
+    let canonicalLink = document.querySelector(
+      'link[rel="canonical"]'
+    ) as HTMLLinkElement | null;
+
+    if (!canonicalLink) {
+      canonicalLink = document.createElement("link");
+      canonicalLink.rel = "canonical";
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.href = canonicalHref;
   }, []);
 
   return (

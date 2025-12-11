@@ -109,6 +109,23 @@ def normalize_image_url(raw):
     path = path.lstrip("/")
 
     return path or None
+def _normalize_category_image(raw):
+    """
+    Nettoie la valeur d'image envoyée depuis le front :
+    - "", None, "null", "undefined", "None" => None
+    - sinon on passe par normalize_image_url
+    """
+    if raw is None:
+        return None
+
+    s = str(raw).strip()
+    if not s:
+        return None
+
+    if s.lower() in ("null", "none", "undefined"):
+        return None
+
+    return normalize_image_url(s)
 
 
 def _to_bool(raw, default=False):
@@ -3073,42 +3090,16 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def get(self, request, *args, **kwargs):
-        q = (request.query_params.get("q") or "").strip()
+    # ... ton def get(...) NE BOUGE PAS ...
 
-        qs = Categories.objects.all().order_by("position", "cree_le", "id")
-
-        if q:
-            qs = qs.filter(
-                Q(nom__icontains=q) |
-                Q(description__icontains=q)
-            )
-
-        paginator = SmallPagination()
-        page = paginator.paginate_queryset(qs, request, view=self)
-
-        rows = []
-        for c in page:
-            rows.append({
-                "id": c.id,
-                "nom": c.nom or "",
-                "slug": c.slug or "",
-                "description": c.description or "",
-                "est_actif": bool(c.est_actif),
-                "parent_id": c.parent_id,
-                "parent_nom": c.parent.nom if c.parent_id else "",
-                "position": c.position,
-            })
-
-        return paginator.get_paginated_response(rows)
-
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
         nom = (request.data.get("nom") or "").strip()
         description = (request.data.get("description") or "").strip()
         est_actif = bool(request.data.get("est_actif", False))
         position = request.data.get("position")  # peut être null / vide
 
-        # parent: on accepte "parent" ou "parent_id"
+        # 🔹 parent: on accepte "parent" ou "parent_id"
         parent_id = request.data.get("parent") or request.data.get("parent_id")
         parent = None
         if parent_id:
@@ -3120,16 +3111,17 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        # 🔹 nom obligatoire
         if not nom:
             return Response(
                 {"field": "nom", "error": "Le nom de la catégorie est requis."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # slug automatique à partir du nom
+        # 🔹 slug automatique à partir du nom
         slug_val = slugify(nom)
 
-        # vérifier unicité du slug AVANT insert
+        # 🔹 vérifier unicité du slug AVANT insert (tout ou rien)
         if Categories.objects.filter(slug=slug_val).exists():
             return Response(
                 {
@@ -3142,9 +3134,15 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # image obligatoire pour les SOUS-catégories
+        # 🔹 IMAGE
+        # on lit ce qui vient du front
         raw_image = request.data.get("image_url")
-        if parent is not None and not (raw_image or "").strip():
+        # on normalise proprement
+        image_val = _normalize_category_image(raw_image)
+
+        # 🔹 image OBLIGATOIRE pour les sous-catégories
+        if parent is not None and not image_val:
+            # 👉 ICI on bloque AVANT toute insertion en base
             return Response(
                 {
                     "field": "image_url",
@@ -3153,9 +3151,8 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        image_val = normalize_image_url(raw_image) if raw_image else None
-
         try:
+            # 🔒 tout ce qui est en dessous est dans une transaction
             cat = Categories.objects.create(
                 nom=nom,
                 slug=slug_val,
@@ -3164,7 +3161,7 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
                 parent=parent,
                 position=position,
                 cree_le=timezone.now(),
-                image_url=image_val,
+                image_url=image_val,  # peut être None uniquement pour une catégorie parent
             )
         except IntegrityError:
             # sécurité au cas où un doublon passe quand même

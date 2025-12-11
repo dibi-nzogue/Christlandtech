@@ -103,7 +103,7 @@ const Sponsor: React.FC = () => {
     >
       <div className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
         {/* Desktop : liste de logos */}
-        <motion.div
+        <motion.ul
           variants={containerVariants}
           initial="hidden"
           animate={isInView ? "visible" : "hidden"}
@@ -111,19 +111,24 @@ const Sponsor: React.FC = () => {
           role="list"
         >
           {logos.map((logo, index) => (
-            <motion.img
+            <motion.li
               key={index}
-              loading="lazy"
-              src={logo.src}
-              alt={logo.alt}
-              width={160}
-              height={50}
-              className="h-[50px] w-auto object-contain"
+              className="list-none"
               variants={itemVariants}
-              decoding="async"
-            />
+              role="listitem"
+            >
+              <img
+                loading="lazy"
+                src={logo.src}
+                alt={logo.alt}
+                width={160}
+                height={50}
+                className="h-[50px] w-auto object-contain"
+                decoding="async"
+              />
+            </motion.li>
           ))}
-        </motion.div>
+        </motion.ul>
 
         {/* Mobile (Keen Slider) */}
         <div className="lg:hidden">

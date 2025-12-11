@@ -13,7 +13,7 @@ const resources = {
       "Rechercher": "Search",
       "Français": "French",
       "Anglais": "English",
-
+      "Changer de langue": "Change language", 
       // Hero / general
       "hero.button": "Buy Now",
       "highlighted": "technology",
@@ -197,7 +197,7 @@ const resources = {
       "Rechercher": "Rechercher",
       "Français": "Français",
       "Anglais": "Anglais",
-
+      "Changer de langue": "Change language", 
       // Hero / general
       "hero.button": "Acheter Maintenant",
       "highlighted": "technologie",

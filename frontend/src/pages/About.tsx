@@ -9,18 +9,34 @@ import ContactSection from "../components/ContactSection";
 import BoardManage from "../components/BoardManage";
 import StatsSection from "../components/StatsSection";
 
+function setMeta(name: string, content: string) {
+  let tag = document.querySelector(
+    `meta[name="${name}"]`
+  ) as HTMLMetaElement | null;
+
+  if (!tag) {
+    tag = document.createElement("meta");
+    tag.name = name;
+    document.head.appendChild(tag);
+  }
+
+  tag.content = content;
+}
+
 const About: React.FC = () => {
+  React.useEffect(() => {
+    document.title = "À propos – Christland Tech";
+
+    setMeta(
+      "description",
+      "Découvrez Christland Tech : notre mission, nos valeurs et l’équipe qui vous accompagne pour tous vos besoins high-tech au Cameroun. Expertise, conseils et service client de proximité."
+    );
+  }, []);
+
   return (
     <div>
-      <title>À propos – Christland Tech</title>
-      <meta
-        name="description"
-        content="Découvrez Christland Tech : notre mission, nos valeurs et l’équipe qui vous accompagne pour tous vos besoins high-tech au Cameroun."
-      />
-
       <Navbar />
 
-      {/* 👉 plus de Suspense ici */}
       <HeroAbout />
       <BoardManage />
       <StatsSection />

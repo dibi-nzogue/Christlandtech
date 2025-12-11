@@ -195,13 +195,10 @@ class CategorieMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
 
 
 class CategoryDashboardSerializer(serializers.ModelSerializer):
-    # on veut traduire nom + description
-    # i18n_fields = ["nom", "description"]
-
-    # 👇 on ajoute ces 2 champs calculés
     parent_id = serializers.IntegerField(source="parent.id", read_only=True)
     parent_nom = serializers.CharField(source="parent.nom", read_only=True)
-    children = serializers.SerializerMethodField()  # 
+    children = serializers.SerializerMethodField()
+
     class Meta:
         model = Categories
         fields = (
@@ -212,16 +209,19 @@ class CategoryDashboardSerializer(serializers.ModelSerializer):
             "est_actif",
             "image_url",
             "position",
-            "parent",      # FK brute
-            "parent_id",   # id du parent (pour le front)
-            "parent_nom",  # nom du parent (optionnel mais pratique)
-             "children",
+            "parent",
+            "parent_id",
+            "parent_nom",
+            "children",
         )
+
     def get_children(self, obj):
-            return [
-                {"id": child.id, "nom": child.nom, "slug": child.slug}
-                for child in obj.children.all()
-            ]
+        # 👉 On récupère les sous-catégories par requête
+        qs = Categories.objects.filter(parent=obj).order_by("position", "nom")
+        return [
+            {"id": c.id, "nom": c.nom, "slug": c.slug}
+            for c in qs
+        ]
 
 
 class CatalogCategorySerializer(I18nTranslateMixin, serializers.ModelSerializer):
