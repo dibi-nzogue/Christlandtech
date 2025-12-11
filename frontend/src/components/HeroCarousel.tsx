@@ -117,7 +117,7 @@ const HeroCarousel: React.FC = () => {
           aria-live="polite"
         >
           {slides.map((slide, index) => {
-            const isActive = index === currentSlide;
+           
             const isFirst = index === 0;
 
             return (
