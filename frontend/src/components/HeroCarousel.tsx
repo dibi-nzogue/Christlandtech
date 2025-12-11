@@ -122,13 +122,13 @@ const HeroCarousel: React.FC = () => {
 
             return (
               <div
-                key={index}
-                className="keen-slider__slide relative px-2"
-                role="group"
-                aria-roledescription="slide"
-                aria-label={`${index + 1} / ${slides.length}`}
-                aria-hidden={isActive ? "false" : "true"}
-              >
+  key={index}
+  className="keen-slider__slide relative px-2"
+  role="group"
+  aria-roledescription="slide"
+  aria-label={`${index + 1} / ${slides.length}`}
+>
+
                 <img
                   src={slide.image}
                   alt={t(slide.title)}
