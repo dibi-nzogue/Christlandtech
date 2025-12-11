@@ -3080,6 +3080,13 @@ from django.db.models import Q
 from rest_framework import status
 from rest_framework.response import Response
 
+from django.db import transaction, IntegrityError
+from django.utils import timezone
+from django.utils.text import slugify
+from django.db.models import Q
+from rest_framework import status
+from rest_framework.response import Response
+
 class DashboardCategoryListCreateView(generics.ListCreateAPIView):
     """
     GET  /christland/api/dashboard/categories/manage/
@@ -3090,105 +3097,86 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    # ... ton def get(...) NE BOUGE PAS ...
+    # ton def get(...) reste comme tu l’avais
 
-    @transaction.atomic
-    def post(self, request, *args, **kwargs):
-        nom = (request.data.get("nom") or "").strip()
-        description = (request.data.get("description") or "").strip()
-        est_actif = bool(request.data.get("est_actif", False))
-        position = request.data.get("position")  # peut être null / vide
+@transaction.atomic
+def post(self, request, *args, **kwargs):
+    nom = (request.data.get("nom") or "").strip()
+    description = (request.data.get("description") or "").strip()
+    est_actif = bool(request.data.get("est_actif", False))
+    position = request.data.get("position")  # peut être null / vide
 
-        # 🔹 parent: on accepte "parent" ou "parent_id"
-        parent_id = request.data.get("parent") or request.data.get("parent_id")
-        parent = None
-        if parent_id:
-            try:
-                parent = Categories.objects.get(pk=int(parent_id))
-            except (Categories.DoesNotExist, ValueError, TypeError):
-                return Response(
-                    {"field": "parent", "error": "Catégorie parente invalide."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        # 🔹 nom obligatoire
-        if not nom:
-            return Response(
-                {"field": "nom", "error": "Le nom de la catégorie est requis."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # 🔹 slug automatique à partir du nom
-        slug_val = slugify(nom)
-
-        # 🔹 vérifier unicité du slug AVANT insert (tout ou rien)
-        if Categories.objects.filter(slug=slug_val).exists():
-            return Response(
-                {
-                    "field": "nom",
-                    "error": (
-                        f"Une catégorie avec ce nom existe déjà (« {nom} »). "
-                        "Veuillez choisir un autre nom."
-                    ),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # 🔹 IMAGE
-        # on lit ce qui vient du front
-        raw_image = request.data.get("image_url")
-        # on normalise proprement
-        image_val = _normalize_category_image(raw_image)
-
-        # 🔹 image OBLIGATOIRE pour les sous-catégories
-        if parent is not None and not image_val:
-            # 👉 ICI on bloque AVANT toute insertion en base
-            return Response(
-                {
-                    "field": "image_url",
-                    "error": "Veuillez renseigner une image pour cette sous-catégorie.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+    parent_id = request.data.get("parent") or request.data.get("parent_id")
+    parent = None
+    if parent_id:
         try:
-            # 🔒 tout ce qui est en dessous est dans une transaction
-            cat = Categories.objects.create(
-                nom=nom,
-                slug=slug_val,
-                description=description,
-                est_actif=est_actif,
-                parent=parent,
-                position=position,
-                cree_le=timezone.now(),
-                image_url=image_val,  # peut être None uniquement pour une catégorie parent
-            )
-        except IntegrityError:
-            # sécurité au cas où un doublon passe quand même
+            parent = Categories.objects.get(pk=int(parent_id))
+        except (Categories.DoesNotExist, ValueError, TypeError):
             return Response(
-                {
-                    "field": "nom",
-                    "error": (
-                        f"Une catégorie avec ce nom existe déjà (« {nom} »). "
-                        "Veuillez choisir un autre nom."
-                    ),
-                },
+                {"field": "parent", "error": "Catégorie parente invalide."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+    if not nom:
+        return Response(
+            {"field": "nom", "error": "Le nom de la catégorie est requis."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # ✅ on génère quand même un slug, mais on NE vérifie PLUS son unicité ici
+    slug_val = slugify(nom)
+
+    # IMAGE
+    raw_image = request.data.get("image_url")
+    image_val = _normalize_category_image(raw_image)
+
+    # image OBLIGATOIRE pour les sous-catégories
+    if parent is not None and not image_val:
         return Response(
             {
-                "id": cat.id,
-                "nom": cat.nom,
-                "slug": cat.slug or "",
-                "description": cat.description,
-                "est_actif": cat.est_actif,
-                "parent_id": cat.parent_id,
-                "parent_nom": cat.parent.nom if cat.parent_id else "",
-                "position": cat.position,
+                "field": "image_url",
+                "error": "Veuillez renseigner une image pour cette sous-catégorie.",
             },
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_400_BAD_REQUEST,
         )
+
+    try:
+        cat = Categories.objects.create(
+            nom=nom,
+            slug=slug_val,  # 👈 juste rempli, mais plus de contrôle dessus
+            description=description,
+            est_actif=est_actif,
+            parent=parent,
+            position=position,
+            cree_le=timezone.now(),
+            image_url=image_val,
+        )
+    except IntegrityError:
+        # ⚠️ si tu as encore unique=True sur slug, ça continuera à tomber ici !
+        return Response(
+            {
+                "error": (
+                    "Erreur lors de l’enregistrement de la catégorie. "
+                    "Veuillez réessayer ou contacter l’administrateur."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    return Response(
+        {
+            "id": cat.id,
+            "nom": cat.nom,
+            "slug": cat.slug or "",
+            "description": cat.description,
+            "est_actif": cat.est_actif,
+            "parent_id": cat.parent_id,
+            "parent_nom": cat.parent.nom if cat.parent_id else "",
+            "position": cat.position,
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
         
 class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     """

@@ -216,12 +216,13 @@ class CategoryDashboardSerializer(serializers.ModelSerializer):
         )
 
     def get_children(self, obj):
-        # 👉 On récupère les sous-catégories par requête
-        qs = Categories.objects.filter(parent=obj).order_by("position", "nom")
+        # 👉 on va chercher les enfants avec un simple filter
+        enfants = Categories.objects.filter(parent=obj).order_by("position", "cree_le", "id")
         return [
-            {"id": c.id, "nom": c.nom, "slug": c.slug}
-            for c in qs
+            {"id": child.id, "nom": child.nom, "slug": child.slug or ""}
+            for child in enfants
         ]
+
 
 
 class CatalogCategorySerializer(I18nTranslateMixin, serializers.ModelSerializer):

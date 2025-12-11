@@ -1,5 +1,5 @@
 // src/components/CategoriesCarousel.tsx
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useKeenSlider } from "keen-slider/react";
 import "keen-slider/keen-slider.min.css";
 import { motion, useInView } from "framer-motion";
@@ -32,6 +32,21 @@ const FALLBACK_SVG =
 const CategoriesCarousel: React.FC = () => {
   const { t } = useTranslation();
 
+  // 👉 On détecte un petit écran pour charger 2 images en priorité
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => {
+      if (typeof window !== "undefined") {
+        setIsMobile(window.innerWidth < 640); // < 640px ⇒ mobile
+      }
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  
   const { data: cats, loading, error } = useTopCategories1();
   const items: ApiCategory[] = cats ?? [];
 
@@ -129,8 +144,12 @@ const CategoriesCarousel: React.FC = () => {
               aria-roledescription="carrousel de catégories"
             >
               {items.map((cat, i) => {
-                const rawImage = cat.image_url || (cat as any).image || "";
-                const imgSrc = rawImage ? media(rawImage) : FALLBACK_SVG;
+  const rawImage = cat.image_url || (cat as any).image || "";
+  const imgSrc = rawImage ? media(rawImage) : FALLBACK_SVG;
+
+  // 👉 combien d’images on charge en priorité
+  const eagerLimit = isMobile ? 2 : 1;
+  const shouldEagerLoad = i < eagerLimit;
 
                 return (
                   <div
@@ -148,25 +167,26 @@ const CategoriesCarousel: React.FC = () => {
                     >
                       <div className="relative aspect-square w-24 md:w-28 lg:w-32 overflow-hidden rounded-lg ring-1 ring-gray-200 bg-white/70">
                         <motion.img
-                          src={imgSrc}
-                          alt={cat.nom}
-                          className="absolute inset-0 h-full w-full object-cover"
-                          initial={{ scale: 0.94, opacity: 0 }}
-                          animate={
-                            isInView ? { scale: 1, opacity: 1 } : undefined
-                          }
-                          transition={{ duration: 0.45, delay: i * 0.06 }}
-                          loading="lazy"
-                          width={300}
-                          height={300}
-                          decoding="async"
-                          onError={(e) => {
-                            const img = e.currentTarget as HTMLImageElement;
-                            if (img.src !== FALLBACK_SVG) {
-                              img.src = FALLBACK_SVG;
-                            }
-                          }}
-                        />
+  src={imgSrc}
+  alt={cat.nom}
+  className="absolute inset-0 h-full w-full object-cover"
+  initial={{ scale: 0.94, opacity: 0 }}
+  animate={isInView ? { scale: 1, opacity: 1 } : undefined}
+  transition={{ duration: 0.45, delay: i * 0.06 }}
+  // ⚡ priorité de chargement
+  loading={shouldEagerLoad ? "eager" : "lazy"}
+  fetchPriority={shouldEagerLoad ? "high" : "auto"}
+  width={300}
+  height={300}
+  decoding="async"
+  onError={(e) => {
+    const img = e.currentTarget as HTMLImageElement;
+    if (img.src !== FALLBACK_SVG) {
+      img.src = FALLBACK_SVG;
+    }
+  }}
+/>
+
                       </div>
 
                       <div className="mt-3 w-full flex items-center justify-center h-[48px]">
