@@ -4,8 +4,8 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ScrollToTopButton from "../components/ScrollToTopButton";
 import Presentation from "../components/Presentation";
-import AchatProduit from "../components/AchatProduit";
 import ContactSection from "../components/ContactSection";
+import AchatProduitModal from "../components/AchatProduitModal";
 
 export type ProduitMini = {
   id: number;
@@ -18,21 +18,22 @@ export type ProduitMini = {
 const Produits: React.FC = () => {
   const [selectedProduct, setSelectedProduct] =
     React.useState<ProduitMini | null>(null);
-  const achatRef = React.useRef<HTMLDivElement | null>(null);
+
+  const [showOrderModal, setShowOrderModal] = React.useState(false);
 
   const handleOrder = (p: ProduitMini) => {
     setSelectedProduct(p);
-    requestAnimationFrame(() => {
-      achatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    setShowOrderModal(true);
   };
 
-  // 🔹 SEO sans Helmet (compatible prod)
+  const handleCloseOrderModal = () => {
+    setShowOrderModal(false);
+    setSelectedProduct(null);
+  };
+
   React.useEffect(() => {
-    // 🧠 1) Title
     document.title = "Tous nos produits – Christland Tech";
 
-    // 🧠 2) Meta description
     const descContent =
       "Parcourez tous les produits Christland Tech : ordinateurs, téléphones, gaming, électroménager, réseau, accessoires et plus encore. Toutes les catégories réunies sur une seule page.";
 
@@ -47,7 +48,6 @@ const Produits: React.FC = () => {
     }
     descTag.content = descContent;
 
-    // 🧠 3) Meta keywords (optionnel mais OK)
     const keywordsContent =
       "christland, christland tech, boutique high-tech, ordinateurs, téléphones, gaming, électroménager, réseau, accessoires, cameroun";
 
@@ -62,7 +62,6 @@ const Produits: React.FC = () => {
     }
     keywordsTag.content = keywordsContent;
 
-    // 🧠 4) Canonical pour /produits
     const canonicalHref = "https://christland.tech/produits";
     let canonicalLink = document.querySelector(
       'link[rel="canonical"]'
@@ -81,7 +80,16 @@ const Produits: React.FC = () => {
       <Navbar />
       <main className="pt-1 md:pt-10">
         <Presentation onOrder={handleOrder} />
-        <AchatProduit produit={selectedProduct} refEl={achatRef} />
+
+        {/* ✅ UN SEUL MODAL */}
+        {selectedProduct && (
+          <AchatProduitModal
+            open={showOrderModal}
+            produit={selectedProduct}
+            onClose={handleCloseOrderModal}
+          />
+        )}
+
         <ContactSection id="contact" />
         <ScrollToTopButton />
         <Footer />

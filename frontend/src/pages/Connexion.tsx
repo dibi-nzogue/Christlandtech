@@ -48,97 +48,118 @@ const Connexion: React.FC = () => {
   };
 
   return (
-    <div className="bg-white w-[90%] sm:w-[400px] md:w-[500px] mx-auto mt-[8%] p-8 rounded-xl shadow-lg shadow-slate-500 border border-gray-200">
-      <form onSubmit={handleSubmit} className="flex flex-col items-center space-y-5" noValidate>
-        <Link to="/" className="flex items-center min-w-0 p-5" aria-label="Retour à l'accueil">
-          <div className="h-10 md:h-20 w-10 md:w-20 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
-            <img
-              src={logo}
-              alt="CHRISTLAND TECH"
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
+    <main className="min-h-[100svh] grid place-items-center bg-[#f6fbff] px-4 py-6">
+      <div className="w-full max-w-[420px] rounded-2xl bg-white p-8 shadow-xl shadow-slate-400/30 border border-gray-200">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col items-center space-y-5"
+          noValidate
+        >
+          <Link
+            to="/"
+            className="flex items-center min-w-0 p-2"
+            aria-label="Retour à l'accueil"
+          >
+            <div className="h-12 w-12 rounded-full bg-white ring-1 ring-gray-200 overflow-hidden">
+              <img
+                src={logo}
+                alt="CHRISTLAND TECH"
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+            </div>
+
+            <div className="leading-5 whitespace-nowrap ml-2">
+              <span className="font-semibold tracking-wide text-[14px] sm:text-[15px]">
+                CHRISTLAND
+              </span>{" "}
+              <span className="font-extrabold text-[#00A8E8] text-[14px] sm:text-[15px]">
+                TECH
+              </span>
+            </div>
+          </Link>
+
+          {errMsg && (
+            <div
+              role="alert"
+              className="w-full text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2"
+            >
+              {errMsg}
+            </div>
+          )}
+
+          <div className="w-full">
+            <label className="block mb-1 text-gray-700" htmlFor="email">
+              {t("email.input")}{" "}
+              <span className="text-red-500 font-bold">*</span>
+            </label>
+            <input
+              id="email"
+              required
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              autoComplete="email"
+              inputMode="email"
+              className="w-full bg-[#00A9DC] bg-opacity-[8%] rounded-full px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#00A9DC]"
+              placeholder="ex: admin@exemple.com"
             />
           </div>
-          <div className="leading-5 whitespace-nowrap ml-2">
-            <span className="font-semibold tracking-wide text-[13px] sm:text-sm md:text-lg">CHRISTLAND</span>{" "}
-            <span className="font-extrabold text-[#00A8E8] text-[13px] sm:text-sm md:text-lg">TECH</span>
+
+          <div className="w-full relative pb-2">
+            <label className="block mb-1 text-gray-700" htmlFor="password">
+              {t("password.input")}{" "}
+              <span className="text-red-500 font-bold">*</span>
+            </label>
+
+            <input
+              id="password"
+              required
+              type={showPassword ? "text" : "password"}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              autoComplete="current-password"
+              className="w-full bg-[#00A9DC] bg-opacity-[8%] rounded-full px-4 py-2.5 pr-12 outline-none focus:ring-2 focus:ring-[#00A9DC]"
+              placeholder="********"
+            />
+
+            <button
+              type="button"
+              aria-label={
+                showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"
+              }
+              className="absolute right-4 top-[38px] text-gray-600"
+              onClick={() => setShowPassword((v) => !v)}
+              disabled={submitting}
+            >
+              <img src={showPassword ? eyes : eye} alt="" className="h-5 w-5" />
+            </button>
           </div>
-        </Link>
 
-        {errMsg && (
-          <div
-            role="alert"
-            className="w-full text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2"
-          >
-            {errMsg}
-          </div>
-        )}
-
-        <div className="w-full">
-          <label className="block mb-1 text-gray-700" htmlFor="email">
-            {t("email.input")} <span className="text-red-500 font-bold">*</span>
-          </label>
-          <input
-            id="email"
-            required
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            autoComplete="email"
-            inputMode="email"
-            className="w-full bg-[#00A9DC] bg-opacity-[8%] rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-[#00A9DC]"
-            placeholder="ex: admin@exemple.com"
-          />
-        </div>
-
-        <div className="w-full relative pb-5 md:pb-10">
-          <label className="block mb-1 text-gray-700" htmlFor="password">
-            {t("password.input")} <span className="text-red-500 font-bold">*</span>
-          </label>
-          <input
-            id="password"
-            required
-            type={showPassword ? "text" : "password"}
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            autoComplete="current-password"
-            className="w-full bg-[#00A9DC] bg-opacity-[8%] rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-[#00A9DC]"
-            placeholder="********"
-          />
           <button
-            type="button"
-            aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-            className="absolute right-4 top-9 text-gray-600"
-            onClick={() => setShowPassword((v) => !v)}
+            type="submit"
             disabled={submitting}
+            className="bg-[#00A9DC] text-white font-semibold w-full rounded-full py-2.5 hover:bg-sky-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <img src={showPassword ? eyes : eye} alt="" className="h-5 w-5" />
+            {submitting ? "Connexion..." : t("form.button2")}
           </button>
-        </div>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="bg-[#00A9DC] text-white font-semibold w-full rounded-full py-2 hover:bg-sky-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {submitting ? "Connexion..." : t("form.button2")}
-        </button>
-
-        <p className="text-sm pt-2 md:pt-5">
-          {t("compte.desc2")}{" "}
-          <Link
-            to="/dashboard/inscription"
-            className="text-[#00A9DC] font-semibold underline-offset-2 hover:underline"
-          >
-            {t("compte.desc3")}
-          </Link>
-        </p>
-      </form>
-    </div>
+          <p className="text-sm pt-2">
+            {t("compte.desc2")}{" "}
+            <Link
+              to="/dashboard/inscription"
+              className="text-[#00A9DC] font-semibold underline-offset-2 hover:underline"
+            >
+              {t("compte.desc3")}
+            </Link>
+          </p>
+        </form>
+      </div>
+    </main>
   );
 };
 

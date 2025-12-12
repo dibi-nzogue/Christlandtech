@@ -16,6 +16,11 @@ import { auth } from "../auth";
 const GA_URL =
   "https://analytics.google.com/analytics/web/?authuser=0#/p377242813";
 
+const GOS_URL =
+  "https://search.google.com/search-console?resource_id=sc-domain%3Achristland.tech";
+
+
+
 const Sidebar: React.FC = () => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
@@ -77,11 +82,10 @@ const Sidebar: React.FC = () => {
           type="button"
           title="Paramètres"
           aria-label="Paramètres"
-          aria-current={
-            pathname.startsWith("/dashboard/settings") ? "page" : undefined
+           onClick={() =>
+            window.open(GOS_URL, "_blank", "noopener,noreferrer")
           }
-          onClick={() => go("/dashboard")}
-          className={itemCls(pathname.startsWith("/dashboard/settings"))}
+          className={itemCls(false)}
         >
           <Settings size={22} aria-hidden="true" />
         </button>
