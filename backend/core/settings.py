@@ -1,4 +1,5 @@
 
+
 """
 Django settings for core project.
 
@@ -109,13 +110,7 @@ CONTENT_SECURITY_POLICY = {
         "script-src": ("'self'", "'unsafe-inline'"),
         "style-src": ("'self'", "https://fonts.googleapis.com", "'unsafe-inline'"),
         "img-src": ("'self'", "data:", "https://res.cloudinary.com"),
-        "connect-src": (
-            "'self'",
-            "https://christlandtech.onrender.com",
-            "https://christlandtech-frontend.onrender.com",
-            "https://api.cloudinary.com",
-            "https://res.cloudinary.com",
-        ),
+        "connect-src": ("'self'",),
         "font-src": ("'self'", "https://fonts.gstatic.com"),
     }
 }
@@ -131,16 +126,6 @@ CLOUDINARY_STORAGE = {
     "API_KEY": os.getenv("CLOUDINARY_API_KEY"),
     "API_SECRET": os.getenv("CLOUDINARY_API_SECRET"),
 }
-
-USE_CLOUDINARY = os.getenv("USE_CLOUDINARY", "False") == "True"
-
-if USE_CLOUDINARY:
-    DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
-    MEDIA_URL = f"https://res.cloudinary.com/{os.getenv('CLOUDINARY_CLOUD_NAME')}/"
-else:
-    MEDIA_URL = "/media/"
-    MEDIA_ROOT = BASE_DIR / "media"
-
 
 DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 

@@ -153,27 +153,6 @@ def _to_bool(raw, default=False):
 
     return default
 
-def _img_url(request, value):
-    if not value:
-        return None
-
-    if hasattr(value, "url"):
-        try:
-            return value.url
-        except Exception:
-            pass
-
-    p = str(value).strip()
-    if not p:
-        return None
-    if p.lower().startswith(("http://", "https://", "data:")):
-        return p
-
-    media_url = (getattr(settings, "MEDIA_URL", "/media/") or "/media/").strip()
-    base = request.build_absolute_uri(media_url)
-    return f"{base.rstrip('/')}/{p.lstrip('/')}"
-
-
 
 
 def _as_int(val):
@@ -201,8 +180,7 @@ def _descendants_ids(cat: Categories) -> list[int]:
 
 def _product_main_image_url(request, prod: Produits) -> str | None:
     img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
-    return _img_url(request, img.url if img else None)
-
+    return _abs_media(request, img.url if img else None)
 
 
 
@@ -217,8 +195,6 @@ def _image_accessor_name() -> str:
                 return f.get_accessor_name()
     # fallback le plus courant
     return "images"
-
-
 
 
 def _apply_faceted_filters(qs, params, cate_ids: Iterable[int]):
@@ -703,13 +679,11 @@ class CategoryListBase(APIView):
             p = str(path).strip()
             if p.lower().startswith(("http://", "https://", "data:")):
                 return p
-            media_url = (getattr(settings, "MEDIA_URL", "/media/") or "/media/").strip()
-            base = request.build_absolute_uri(media_url)
+            base = request.build_absolute_uri(settings.MEDIA_URL)
             return f"{base.rstrip('/')}/{p.lstrip('/')}"
 
-
         for item, c in zip(data, qs):
-            item["image_url"] = _img_url(request, getattr(c, "image_url", None))
+            item["image_url"] = abs_media(getattr(c, "image_url", None))
             item["position"] = getattr(c, "position", None)
             item["parent_id"] = c.parent_id 
 
@@ -767,7 +741,7 @@ class CategoryListPublic(APIView):
 
         # ------ 2️⃣ On enrichit chaque item ------
         for c, item in pairs:
-            item["image_url"] = _img_url(request, getattr(c, "image_url", None))
+            item["image_url"] = abs_media(getattr(c, "image_url", None))
             item["position"] = getattr(c, "position", None)
             item["parent_id"] = c.parent_id
             item["children"] = []   # 👈 IMPORTANT ici !
@@ -867,8 +841,7 @@ class ProductMiniView(APIView):
 
         # Image principale
         img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
-        img_url = _img_url(request, img.url if img else None) or ""
-
+        img_url = _abs_media(request, img.url if img else None) or ""
 
         # Référence (SKU ou slug)
         sku = (prod.variantes
@@ -943,8 +916,7 @@ def _serialize_article(a: ArticlesBlog, request) -> dict:
         "title": title,
         "excerpt": excerpt,
         "content": content,
-        "image": _img_url(request, getattr(a, "image_couverture", None)),
-
+        "image": _abs_media(request, getattr(a, "image_couverture", None)),
     }
 
 
@@ -1405,8 +1377,7 @@ class BlogLatestView(APIView):
                 "slug": a.slug,   # pas traduit
                 "title": title,
                 "excerpt": excerpt,
-                "image": _img_url(request, getattr(a, "image_couverture", None)),
-
+                "image": _abs_media(request, getattr(a, "image_couverture", None)),
             })
 
         return Response(data, status=200)
@@ -1481,8 +1452,7 @@ class LatestProductsView(APIView):
 
             # ---------- Image principale ----------
             main_img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
-            obj["image"] = _img_url(request, main_img.url if main_img else None)
-
+            obj["image"] = _abs_media(request, main_img.url if main_img else None)
 
 
             # ---------- Prix min ----------
@@ -3043,7 +3013,7 @@ class AdminGlobalSearchView(APIView):
                 "id": a.id,
                 "title": a.titre or "",
                 "excerpt": (a.extrait or "")[:220],
-                "image": _img_url(request, getattr(a, "image_couverture", None)),
+                "image": _abs_media(request, getattr(a, "image_couverture", None)),
                 "url": f"/Dashboard/Articles/{a.id}/edit",
                 "created_at": getattr(a, "cree_le", None),
                 "updated_at": getattr(a, "modifie_le", None),
