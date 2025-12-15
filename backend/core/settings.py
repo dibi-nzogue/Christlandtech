@@ -1,14 +1,8 @@
-
 """
 Django settings for core project.
 
-- Utilise PostgreSQL via les variables d'environnement (.env)
-- Local :
-    DB_NAME = christland
-    DB_USER = postgres
-    DB_PASSWORD = Admin1234
-    DB_HOST = localhost
-    DB_PORT = 5432
+- PostgreSQL via variables d'environnement (.env)
+- Cloudinary optionnel (USE_CLOUDINARY=True/False)
 """
 
 import os
@@ -30,7 +24,7 @@ ALLOWED_HOSTS = os.getenv(
     "localhost,127.0.0.1,christlandtech.onrender.com",
 ).split(",")
 
-# === Base de données (local ou Render selon .env) ===
+# === Base de données ===
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -42,7 +36,7 @@ DATABASES = {
     }
 }
 
-# === Fichiers statiques & médias ===
+# === Static / Media (valeurs par défaut, potentiellement overridées plus bas) ===
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
@@ -58,12 +52,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "cloudinary",
-    "cloudinary_storage",
+
     # Tiers
     "rest_framework",
     "corsheaders",
     "csp",
+
+    # Cloudinary
+    "cloudinary",
+    "cloudinary_storage",
 
     # App principale
     "christland",
@@ -73,12 +70,14 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+
     "csp.middleware.CSPMiddleware",
 ]
 
@@ -102,30 +101,48 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "core.wsgi.application"
 
-# === Content Security Policy (CSP) ===
-CONTENT_SECURITY_POLICY = {
-    "DIRECTIVES": {
-        "default-src": ("'self'",),
-        "script-src": ("'self'", "'unsafe-inline'"),
-        "style-src": ("'self'", "https://fonts.googleapis.com", "'unsafe-inline'"),
-        "img-src": ("'self'", "data:", "https://res.cloudinary.com"),
-        "connect-src": (
-            "'self'",
-            "https://christlandtech.onrender.com",
-            "https://christlandtech-frontend.onrender.com",
-            "https://api.cloudinary.com",
-            "https://res.cloudinary.com",
-        ),
-        "font-src": ("'self'", "https://fonts.gstatic.com"),
-    }
-}
+# ======================
+# CSP (django-csp >= 4)
+# ======================
+CSP_DEFAULT_SRC = ("'self'",)
+
+CSP_SCRIPT_SRC = (
+    "'self'",
+    "'unsafe-inline'",
+)
+
+CSP_STYLE_SRC = (
+    "'self'",
+    "'unsafe-inline'",
+    "https://fonts.googleapis.com",
+)
+
+CSP_IMG_SRC = (
+    "'self'",
+    "data:",
+    "https://res.cloudinary.com",
+)
+
+CSP_FONT_SRC = (
+    "'self'",
+    "https://fonts.gstatic.com",
+)
+
+CSP_CONNECT_SRC = (
+    "'self'",
+    "https://christlandtech.onrender.com",
+    "https://christlandtech-frontend.onrender.com",
+    "https://api.cloudinary.com",
+    "https://res.cloudinary.com",
+)
 
 # === Traduction interne ===
 I18N_TARGET_LANGS = ["en"]
 AUTO_BUILD_TRANSLATIONS = True
 
-# === CORS / CSRF (LOCAL + PROD) ===
-
+# ======================
+# Cloudinary (OPTIONNEL)
+# ======================
 CLOUDINARY_STORAGE = {
     "CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME"),
     "API_KEY": os.getenv("CLOUDINARY_API_KEY"),
@@ -138,12 +155,14 @@ if USE_CLOUDINARY:
     DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
     MEDIA_URL = f"https://res.cloudinary.com/{os.getenv('CLOUDINARY_CLOUD_NAME')}/"
 else:
+    # On garde le stockage local
+    DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
     MEDIA_URL = "/media/"
     MEDIA_ROOT = BASE_DIR / "media"
 
-
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
-
+# ======================
+# CORS / CSRF
+# ======================
 CORS_ALLOW_HEADERS = [
     "accept",
     "accept-encoding",
@@ -159,40 +178,27 @@ CORS_ALLOW_HEADERS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
-    # "https://dibiyes.cluster024.hosting.ovh.net",
     "https://christlandtech.onrender.com",
     "https://christlandtech-frontend.onrender.com",
+    "https://christland.tech",
+    "https://www.christland.tech",
 ]
 
-
-# En local (DEBUG=True) : on ouvre pour éviter les blocages pendant le dev
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
 else:
-    # En prod : on limite aux origines connues
     CORS_ALLOWED_ORIGINS = [
-        "http://localhost:5173",                      # si tu gardes un front dev
-        # "https://dibiyes.cluster024.hosting.ovh.net", # OVH
         "https://christlandtech-frontend.onrender.com",
-        "https://christland.tech",                       # ton domaine principal
+        "https://christland.tech",
         "https://www.christland.tech",
     ]
 
-
-# === Validation mot de passe ===
+# === Password validation ===
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 # === Internationalisation ===
@@ -201,15 +207,9 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-
 # =========================
-#  CONTACT / EMAIL
+# CONTACT / EMAIL
 # =========================
-
-# settings.py
-
-# === Email / Contact ===
-
 CONTACT_INBOX = os.getenv("CONTACT_INBOX", "nzogue.dibiye@gmail.com")
 
 EMAIL_BACKEND = os.getenv(
@@ -227,14 +227,11 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "20"))
 
-# === Static (déjà défini plus haut, on garde) ===
-STATIC_URL = "static/"
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-
-
-# === DRF ===
+# ======================
+# DRF
+# ======================
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
@@ -250,9 +247,3 @@ CACHES = {
         "LOCATION": "christland-locmem-cache",
     }
 }
-
-# Si tu veux un jour :
-# LIBRETRANSLATE_URL = os.getenv("LIBRETRANSLATE_URL", "https://libretranslate.com")
-
-# Si tu veux réactiver plus tard :
-# LIBRETRANSLATE_URL = "https://libretranslate.com"
