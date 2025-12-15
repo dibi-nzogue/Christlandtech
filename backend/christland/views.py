@@ -860,17 +860,19 @@ class ProductMiniView(APIView):
         return Response(payload) 
     
 # --------- Helpers ----------
-def _abs_media(request, path: str | None) -> str | None:
-    """
-    Transforme un chemin relatif en URL absolue avec MEDIA_URL
-    """
-    if not path:
+def _abs_media(request, value):
+    if not value:
         return None
-    p = str(path).strip()
-    if p.lower().startswith(("http://", "https://", "data:")):
-        return p
-    base = request.build_absolute_uri(settings.MEDIA_URL)
-    return f"{base.rstrip('/')}/{p.lstrip('/')}"
+    v = str(value).strip()
+    if not v:
+        return None
+    if v.startswith("http://") or v.startswith("https://"):
+        return v
+    if not v.startswith("/"):
+        v = "/" + v
+    if v.startswith("/uploads/") or v.startswith("/images/"):
+        v = "/media" + v
+    return request.build_absolute_uri(v)
 
 # Nouvelle fonction propre – plus de _tr
 from christland.services.text_translate import translate_text
