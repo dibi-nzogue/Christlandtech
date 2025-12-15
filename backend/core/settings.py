@@ -109,7 +109,13 @@ CONTENT_SECURITY_POLICY = {
         "script-src": ("'self'", "'unsafe-inline'"),
         "style-src": ("'self'", "https://fonts.googleapis.com", "'unsafe-inline'"),
         "img-src": ("'self'", "data:", "https://res.cloudinary.com"),
-        "connect-src": ("'self'", "https://christlandtech.onrender.com", "https://christlandtech-frontend.onrender.com"),
+        "connect-src": (
+            "'self'",
+            "https://christlandtech.onrender.com",
+            "https://christlandtech-frontend.onrender.com",
+            "https://api.cloudinary.com",
+            "https://res.cloudinary.com",
+        ),
         "font-src": ("'self'", "https://fonts.gstatic.com"),
     }
 }
