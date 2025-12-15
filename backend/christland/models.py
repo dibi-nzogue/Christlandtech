@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from cloudinary.models import CloudinaryField
 
 # ===== Référentiels ===========================================================
 
@@ -51,13 +52,106 @@ class Traduction(models.Model):
         return f"{self.app_label}.{self.model}[{self.object_id}].{self.field}.{self.lang} ({self.status})"
 
 
+
+from django.db import models
+from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
+
+
+# ===== Utilisateurs / Favoris =================================================
+
+class Utilisateurs(models.Model):
+    email = models.CharField(max_length=255, blank=True)
+    telephone = models.CharField(max_length=255, blank=True)
+    mot_de_passe_hash = models.CharField(max_length=255, blank=True)
+    prenom = models.CharField(max_length=255, blank=True)
+    nom = models.CharField(max_length=255, blank=True)
+    actif = models.BooleanField(default=False)
+    role = models.CharField(max_length=100, blank=True)  # <= ajouté comme demandé
+    cree_le = models.DateTimeField(null=True, blank=True)
+    modifie_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'utilisateurs'
+
+    def __str__(self):
+        base = f'{self.prenom} {self.nom}'.strip()
+        return base or self.email or f'User#{self.id}'
+    @property
+    def is_authenticated(self) -> bool:
+        return True
+
+    @property
+    def is_anonymous(self) -> bool:
+        return False
+    
+
+class DashboardActionLog(models.Model):
+    ACTION_CREATE  = "CREATE"
+    ACTION_UPDATE  = "UPDATE"
+    ACTION_DELETE  = "DELETE"
+    ACTION_RESTORE = "RESTORE"
+    ACTION_CHOICES = [
+        (ACTION_CREATE, "Create"),
+        (ACTION_UPDATE, "Update"),
+        (ACTION_DELETE, "Delete"),
+        (ACTION_RESTORE, "Restore"),
+    ]
+
+    actor = models.ForeignKey(
+        Utilisateurs,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="dashboard_actions",
+    )
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+
+    # cible: produit/article/categorie...
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.CharField(max_length=64)
+    target = GenericForeignKey("content_type", "object_id")
+
+    # snapshots (facultatif mais très utile)
+    before = models.JSONField(null=True, blank=True)
+    after  = models.JSONField(null=True, blank=True)
+
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+
 class Categories(models.Model):
     nom = models.CharField(max_length=255, blank=True)
     slug = models.CharField(max_length=255, blank=True)
     description = models.CharField(max_length=255, blank=True)
-    image_url = models.CharField(max_length=255, blank=True, null=True)
+    image_url = CloudinaryField("categories", blank=True, null=True)
     est_actif = models.BooleanField(default=False)
     position = models.IntegerField(null=True, blank=True)
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        Utilisateurs,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="categories_deleted"
+    )
+
+    def soft_delete(self, user=None):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.deleted_by = user
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def restore(self):
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
     cree_le = models.DateTimeField(null=True, blank=True)
     # ✅ Auto-référence (catégorie parente)
     parent = models.ForeignKey(
@@ -106,33 +200,6 @@ class Couleurs(models.Model):
         return self.nom or f'Couleur#{self.id}'
 
 
-# ===== Utilisateurs / Favoris =================================================
-
-class Utilisateurs(models.Model):
-    email = models.CharField(max_length=255, blank=True)
-    telephone = models.CharField(max_length=255, blank=True)
-    mot_de_passe_hash = models.CharField(max_length=255, blank=True)
-    prenom = models.CharField(max_length=255, blank=True)
-    nom = models.CharField(max_length=255, blank=True)
-    actif = models.BooleanField(default=False)
-    role = models.CharField(max_length=100, blank=True)  # <= ajouté comme demandé
-    cree_le = models.DateTimeField(null=True, blank=True)
-    modifie_le = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        db_table = 'utilisateurs'
-
-    def __str__(self):
-        base = f'{self.prenom} {self.nom}'.strip()
-        return base or self.email or f'User#{self.id}'
-    @property
-    def is_authenticated(self) -> bool:
-        return True
-
-    @property
-    def is_anonymous(self) -> bool:
-        return False
-    
 
 class FavorisClasseur(models.Model):
     nom = models.CharField(max_length=255, blank=True)
@@ -178,6 +245,27 @@ class Produits(models.Model):
     dimensions = models.CharField(max_length=255, blank=True)
     ETATS = [("neuf", "Neuf"), ("occasion", "Occasion"), ("reconditionné", "Reconditionné")]
     etat = models.CharField(max_length=20, choices=ETATS, blank=True)
+    # ✅ Soft delete
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        Utilisateurs,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="produits_deleted"
+    )
+
+    def soft_delete(self, user=None):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.deleted_by = user
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def restore(self):
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
 
     # clés de rattachement usuelles (si présentes dans ton schéma relationnel)
     categorie = models.ForeignKey(Categories, on_delete=models.SET_NULL, null=True, blank=True, related_name='produits')
@@ -203,6 +291,28 @@ class VariantesProduits(models.Model):
     stock = models.IntegerField(null=True, blank=True)
     couleur = models.ForeignKey(Couleurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='variantes')
     poids_grammes = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        Utilisateurs,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="variantesproduits_deleted"
+    )
+
+    def soft_delete(self, user=None):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.deleted_by = user
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def restore(self):
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+
     cree_le = models.DateTimeField(null=True,auto_now_add=True)  # ou auto_now_add=True si tu veux l’auto
     prix_achat = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     est_actif = models.BooleanField(default=False)
@@ -247,10 +357,32 @@ class VariantesProduits(models.Model):
 
 class ImagesProduits(models.Model):
     produit = models.ForeignKey(Produits, on_delete=models.CASCADE, related_name='images', null=True, blank=True)
-    url = models.CharField(max_length=255, blank=True)
+    url = CloudinaryField("produits", blank=True, null=True)
     alt_text = models.CharField(max_length=255, blank=True)
     position = models.IntegerField(null=True, blank=True)
     principale = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        Utilisateurs,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="imagesproduits_deleted"
+    )
+
+    def soft_delete(self, user=None):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.deleted_by = user
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def restore(self):
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+
     class Meta:
         db_table = 'images_produits'
         ordering = ['position']
@@ -551,7 +683,7 @@ class CouponsUtilisations(models.Model):
 
 class BandeauxMarketing(models.Model):
     titre = models.CharField(max_length=255, blank=True)               # <- simplifié (ex: titre_ban → titre)
-    image_url = models.CharField(max_length=255, blank=True)           # <- image_url_ban → image_url
+    image_url = CloudinaryField("bandeaux", blank=True, null=True)       # <- image_url_ban → image_url
     lien_url = models.CharField(max_length=255, blank=True)            # <- lien_url_ban → lien_url
     position = models.IntegerField(null=True, blank=True)
     produit = models.ForeignKey(Produits, on_delete=models.SET_NULL, null=True, blank=True, related_name='bandeaux')
@@ -573,10 +705,31 @@ class ArticlesBlog(models.Model):
     slug = models.CharField(max_length=1000, blank=True, null=True)
     extrait = models.CharField(max_length=1000, blank=True, null=True)
     contenu = models.CharField(max_length=1000, blank=True, null=True)
-    image_couverture =  models.CharField(max_length=255, blank=True, null=True)
+    image_couverture = CloudinaryField("blog", blank=True, null=True)
     publie_le = models.DateTimeField(null=True, blank=True, default=timezone.now)
     cree_le = models.DateTimeField(null=True, blank=True)
     modifie_le = models.DateTimeField(null=True, blank=True)
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        Utilisateurs,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="articlesblog_deleted"
+    )
+
+    def soft_delete(self, user=None):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.deleted_by = user
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def restore(self):
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
     categorie = models.ForeignKey(Categories, on_delete=models.SET_NULL, null=True, blank=True, related_name='articles')
     auteur = models.ForeignKey(Utilisateurs, on_delete=models.SET_NULL, null=True, blank=True, related_name='articles')
 

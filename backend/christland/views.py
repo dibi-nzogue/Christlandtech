@@ -19,6 +19,7 @@ from django.core.cache import cache
 import logging
 logger = logging.getLogger(__name__)
 from decimal import Decimal, InvalidOperation
+from rest_framework.permissions import BasePermission
 # import requests
 from django.http import JsonResponse
 from django.core.cache import cache
@@ -29,9 +30,10 @@ from .models import (
     Categories, Produits, VariantesProduits, ImagesProduits,
     Marques, Couleurs, CategorieAttribut,
     Attribut, ValeurAttribut, SpecProduit, SpecVariante, ArticlesBlog, MessagesContact, Produits, VariantesProduits, Categories, Marques, 
-    Couleurs, ArticlesBlog,Utilisateurs,
+    Couleurs, ArticlesBlog,Utilisateurs,DashboardActionLog,
 
 )
+from django.contrib.contenttypes.models import ContentType
 from django.utils.cache import _generate_cache_key  # optionnel
 from django.views.decorators.vary import vary_on_headers
 from django.utils.decorators import method_decorator
@@ -151,6 +153,27 @@ def _to_bool(raw, default=False):
 
     return default
 
+def _img_url(request, value):
+    if not value:
+        return None
+
+    if hasattr(value, "url"):
+        try:
+            return value.url
+        except Exception:
+            pass
+
+    p = str(value).strip()
+    if not p:
+        return None
+    if p.lower().startswith(("http://", "https://", "data:")):
+        return p
+
+    media_url = (getattr(settings, "MEDIA_URL", "/media/") or "/media/").strip()
+    base = request.build_absolute_uri(media_url)
+    return f"{base.rstrip('/')}/{p.lstrip('/')}"
+
+
 
 
 def _as_int(val):
@@ -178,7 +201,8 @@ def _descendants_ids(cat: Categories) -> list[int]:
 
 def _product_main_image_url(request, prod: Produits) -> str | None:
     img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
-    return _abs_media(request, img.url if img else None)
+    return _img_url(request, img.url if img else None)
+
 
 
 
@@ -193,6 +217,8 @@ def _image_accessor_name() -> str:
                 return f.get_accessor_name()
     # fallback le plus courant
     return "images"
+
+
 
 
 def _apply_faceted_filters(qs, params, cate_ids: Iterable[int]):
@@ -298,6 +324,48 @@ def _apply_faceted_filters(qs, params, cate_ids: Iterable[int]):
 
 
 
+def _soft_delete(obj, user=None):
+    obj.is_deleted = True
+    obj.deleted_at = timezone.now()
+    if hasattr(obj, "deleted_by_id"):
+        obj.deleted_by = user
+    obj.save(update_fields=["is_deleted", "deleted_at", "deleted_by"] if hasattr(obj, "deleted_by_id") else ["is_deleted", "deleted_at"])
+
+def _soft_restore(obj):
+    obj.is_deleted = False
+    obj.deleted_at = None
+    if hasattr(obj, "deleted_by_id"):
+        obj.deleted_by = None
+    obj.save(update_fields=["is_deleted", "deleted_at", "deleted_by"] if hasattr(obj, "deleted_by_id") else ["is_deleted", "deleted_at"])
+
+def _get_client_ip(request):
+    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
+
+def log_dashboard_action(request, obj, action: str, before=None, after=None):
+    try:
+        ct = ContentType.objects.get_for_model(obj.__class__)
+
+        user = getattr(request, "user", None)
+        # ✅ compatible avec User Django OU ton modèle custom
+        actor = user if user and getattr(user, "id", None) else None
+
+        DashboardActionLog.objects.create(
+            actor=actor,
+            action=action,
+            content_type=ct,
+            object_id=str(obj.pk),
+            before=before,
+            after=after,
+            ip=_get_client_ip(request),
+            user_agent=(request.META.get("HTTP_USER_AGENT") or "")[:1000],
+        )
+    except Exception as e:
+        logger.exception("DashboardActionLog failed: %s", e)
+
+
 class SmallPagination(PageNumberPagination):
     page_size = 24
     page_size_query_param = "page_size"
@@ -326,12 +394,12 @@ class CategoryProductList(generics.ListAPIView):
             cat_ids = _descendants_ids(cat)
         else:
             cat_ids = list(
-                Categories.objects.filter(est_actif=True).values_list("id", flat=True)
+                Categories.objects.filter(est_actif=True, is_deleted=False).values_list("id", flat=True)
             )
 
         qs = (
             Produits.objects
-            .filter(est_actif=True, visible=1, categorie_id__in=cat_ids)
+            .filter(est_actif=True, visible=1, is_deleted=False, categorie_id__in=cat_ids)
             .select_related("categorie", "marque")
             .prefetch_related("images", "variantes")
             .distinct()
@@ -465,6 +533,7 @@ class CategoryFilters(APIView):
         base = Produits.objects.filter(
             est_actif=True,
             visible=1,
+            is_deleted=False,
             categorie_id__in=cat_ids,
         )
 
@@ -475,6 +544,7 @@ class CategoryFilters(APIView):
                 .values_list("etat", flat=True)
                 .distinct()
         )
+        
         states = []
         for v in states_qs:
             label = _etat_label(v, request=request)  # FR ou EN auto
@@ -614,7 +684,7 @@ class CategoryListBase(APIView):
     """
     def get(self, request):
         level = (request.query_params.get("level") or "1").strip()
-        qs = Categories.objects.filter(est_actif=True)
+        qs = Categories.objects.filter(est_actif=True, is_deleted=False)
         if str(level) == "1":
             qs = qs.filter(parent__isnull=True)
 
@@ -633,11 +703,13 @@ class CategoryListBase(APIView):
             p = str(path).strip()
             if p.lower().startswith(("http://", "https://", "data:")):
                 return p
-            base = request.build_absolute_uri(settings.MEDIA_URL)
+            media_url = (getattr(settings, "MEDIA_URL", "/media/") or "/media/").strip()
+            base = request.build_absolute_uri(media_url)
             return f"{base.rstrip('/')}/{p.lstrip('/')}"
 
+
         for item, c in zip(data, qs):
-            item["image_url"] = abs_media(getattr(c, "image_url", None))
+            item["image_url"] = _img_url(request, getattr(c, "image_url", None))
             item["position"] = getattr(c, "position", None)
             item["parent_id"] = c.parent_id 
 
@@ -695,7 +767,7 @@ class CategoryListPublic(APIView):
 
         # ------ 2️⃣ On enrichit chaque item ------
         for c, item in pairs:
-            item["image_url"] = abs_media(getattr(c, "image_url", None))
+            item["image_url"] = _img_url(request, getattr(c, "image_url", None))
             item["position"] = getattr(c, "position", None)
             item["parent_id"] = c.parent_id
             item["children"] = []   # 👈 IMPORTANT ici !
@@ -784,7 +856,7 @@ class ProductMiniView(APIView):
     Traduction gérée automatiquement par les serializers
     """
     def get(self, request, pk_or_slug: str):
-        qs = Produits.objects.filter(est_actif=True, visible=1)\
+        qs = Produits.objects.filter(est_actif=True, visible=1 , is_deleted=False)\
                              .select_related("categorie", "marque")\
                              .prefetch_related("images", "variantes")
 
@@ -795,7 +867,8 @@ class ProductMiniView(APIView):
 
         # Image principale
         img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
-        img_url = _abs_media(request, img.url if img else None) or ""
+        img_url = _img_url(request, img.url if img else None) or ""
+
 
         # Référence (SKU ou slug)
         sku = (prod.variantes
@@ -870,14 +943,15 @@ def _serialize_article(a: ArticlesBlog, request) -> dict:
         "title": title,
         "excerpt": excerpt,
         "content": content,
-        "image": _abs_media(request, getattr(a, "image_couverture", None)),
+        "image": _img_url(request, getattr(a, "image_couverture", None)),
+
     }
 
 
 
 class BlogHeroView(APIView):
     def get(self, request):
-        a = ArticlesBlog.objects.order_by("id").first()
+        a = ArticlesBlog.objects.filter(is_deleted=False).order_by("id").first()
         if not a:
             return Response({"title": "", "slug": ""})
 
@@ -923,7 +997,8 @@ class BlogPostsView(APIView):
         return ctx
     
     def get(self, request):
-        qs: QuerySet[ArticlesBlog] = ArticlesBlog.objects.all().order_by("id")
+        qs: QuerySet[ArticlesBlog] = ArticlesBlog.objects.filter(is_deleted=False).order_by("id")
+
         items = list(qs)
 
         if not items:
@@ -996,106 +1071,151 @@ class ProduitsListCreateView(generics.ListCreateAPIView):
     authentication_classes = [JWTAuthentication]
 
     def get_queryset(self):
+        include_deleted = str(self.request.query_params.get("include_deleted") or "").lower() in ("1","true","yes")
+
+        qs = Produits.objects.filter(est_actif=True)
+
+        if not include_deleted:
+            qs = qs.filter(is_deleted=False)
+
         qs = (
-            Produits.objects
-            .filter(est_actif=True)
-            .order_by('-cree_le', '-id')
-            .select_related('marque', 'categorie')
-            .prefetch_related('images', 'variantes')
-            .distinct()
+            qs.order_by("-cree_le", "-id")
+              .select_related("marque", "categorie")
+              .prefetch_related("images", "variantes")
+              .distinct()
         )
 
         q = (self.request.query_params.get("q") or "").strip()
         if q:
-            # Recherche simple et rapide en français uniquement (c’est le dashboard)
-            # Pas besoin de traduction ici → on cherche dans le nom original
             qs = qs.filter(nom__icontains=q)
 
         return qs
 
 
+class DashboardProductRestoreView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request, pk: int):
+        p = get_object_or_404(Produits.objects.all(), pk=pk)
+
+        before = {
+            "is_deleted": getattr(p, "is_deleted", None),
+            "deleted_at": getattr(p, "deleted_at", None),
+            "deleted_by_id": getattr(p, "deleted_by_id", None),
+        }
+
+        _soft_restore(p)
+        p.refresh_from_db()
+
+        after = {
+            "is_deleted": getattr(p, "is_deleted", None),
+            "deleted_at": getattr(p, "deleted_at", None),
+            "deleted_by_id": getattr(p, "deleted_by_id", None),
+        }
+
+        try:
+            log_dashboard_action(
+                request=request,
+                action=DashboardActionLog.ACTION_RESTORE,
+                target=p,
+                before=before,
+                after=after,
+            )
+        except Exception:
+            pass
+
+        return Response({"ok": True, "message": "Produit restauré."}, status=200)
+
+
+
+
 class ProduitsDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET/PUT/PATCH/DELETE /christland/api/dashboard/produits/<id>/
+
+    ✅ Soft delete:
+      - DELETE -> is_deleted=True, deleted_at, deleted_by
+      - Par défaut GET/PUT/PATCH refusent un produit soft-deleted
+      - Si tu veux accéder à un supprimé: ?include_deleted=1
+    """
     queryset = Produits.objects.all()
     serializer_class = ProduitsSerializer
-    permission_classes = [permissions.IsAuthenticated]          # ✅
-    authentication_classes = [JWTAuthentication]  
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
-        ctx["disable_i18n"] = True   # 🛑 ON BLOQUE TOUTE TRADUCTION ICI
+        ctx["disable_i18n"] = True
         return ctx
 
-# --- helpers pour image absolue et specs/prix ---
+    # ✅ On contrôle l'accès aux supprimés
+    def get_queryset(self):
+        include_deleted = str(self.request.query_params.get("include_deleted") or "").lower() in ("1", "true", "yes")
+        qs = Produits.objects.all()
+        if not include_deleted:
+            # si ton champ s'appelle différemment adapte ici
+            qs = qs.filter(is_deleted=False)
+        return qs
 
-from typing import Optional
+    def get_object(self):
+        # Utilise le queryset filtré ci-dessus (important)
+        qs = self.get_queryset()
+        return get_object_or_404(qs, pk=self.kwargs.get("pk"))
 
-# utils URL
-from urllib.parse import urljoin
-from django.conf import settings
+    # ✅ Soft delete à la place de delete()
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+
+        if getattr(obj, "is_deleted", False):
+            return Response({"ok": True, "message": "Produit déjà supprimé."}, status=200)
+
+        before = {"id": obj.pk, "nom": getattr(obj, "nom", None), "is_deleted": obj.is_deleted}
+
+        _soft_delete(obj, user=request.user)
+
+        after = {"id": obj.pk, "nom": getattr(obj, "nom", None), "is_deleted": obj.is_deleted}
+
+        log_dashboard_action(request, obj, DashboardActionLog.ACTION_DELETE, before=before, after=after)
+
+        return Response({"ok": True, "message": "Produit supprimé (soft delete)."}, status=200)
+
+    def perform_update(self, serializer):
+        obj = self.get_object()
+
+        before = {
+            "id": obj.pk,
+            "nom": getattr(obj, "nom", None),
+            "description_courte": getattr(obj, "description_courte", None),
+            "description_long": getattr(obj, "description_long", None),
+            "slug": getattr(obj, "slug", None),
+            "is_deleted": getattr(obj, "is_deleted", None),
+        }
+
+        updated = serializer.save()
+
+        after = {
+            "id": updated.pk,
+            "nom": getattr(updated, "nom", None),
+            "description_courte": getattr(updated, "description_courte", None),
+            "description_long": getattr(updated, "description_long", None),
+            "slug": getattr(updated, "slug", None),
+            "is_deleted": getattr(updated, "is_deleted", None),
+        }
+
+        log_dashboard_action(self.request, updated, DashboardActionLog.ACTION_UPDATE, before=before, after=after)
 
 
-def _product_main_image_url(request, prod: Produits) -> str | None:
-    img = (
-        prod.images.filter(principale=True).first()
-        or prod.images.order_by("position", "id").first()
-    )
-    return _abs_media(request, img.url if img else None)
+    # (Optionnel mais recommandé) -> message propre si on essaie de modifier un produit supprimé
+    def update(self, request, *args, **kwargs):
+        obj = self.get_object()
+        if getattr(obj, "is_deleted", False):
+            return Response(
+                {"detail": "Ce produit est supprimé. Veuillez le restaurer avant de le modifier."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().update(request, *args, **kwargs)
 
-
-def _product_min_price(prod: Produits) -> Optional[Decimal]:
-    prices: list[Decimal] = []
-    for v in prod.variantes.all():
-        if v.prix_promo is not None:
-            prices.append(Decimal(v.prix_promo))
-        elif v.prix is not None:
-            prices.append(Decimal(v.prix))
-    return min(prices) if prices else None
-
-def _product_specs_summary(prod: Produits, max_items: int = 5) -> str:
-    """
-    Construit un résumé texte court à partir des specs produit/variantes.
-    Ex: "i5 10e gen | 16 Go RAM | 256 Go SSD | 13.3'' FHD"
-    Adapte selon tes modèles si besoin.
-    """
-    lines: list[str] = []
-
-    # Specs au niveau produit
-    for sp in getattr(prod, "specs", []).all() if hasattr(prod, "specs") else []:
-        label = getattr(sp.attribut, "libelle", "") or getattr(sp.attribut, "code", "")
-        val = None
-        if getattr(sp, "valeur_text", None):
-            val = sp.valeur_text
-        elif getattr(sp, "valeur_choice", None):
-            val = sp.valeur_choice.valeur
-        elif getattr(sp, "valeur_int", None) is not None:
-            val = str(sp.valeur_int)
-        elif getattr(sp, "valeur_dec", None) is not None:
-            val = str(sp.valeur_dec)
-        if label and val:
-            lines.append(f"{val}")
-
-    # Si rien côté produit, essaie une variante pour enrichir
-    if not lines:
-        var = prod.variantes.first()
-        if var and hasattr(var, "specs"):
-            for sv in var.specs.all():
-                val = None
-                if getattr(sv, "valeur_text", None):
-                    val = sv.valeur_text
-                elif getattr(sv, "valeur_choice", None):
-                    val = sv.valeur_choice.valeur
-                elif getattr(sv, "valeur_int", None) is not None:
-                    val = str(sv.valeur_int)
-                elif getattr(sv, "valeur_dec", None) is not None:
-                    val = str(sv.valeur_dec)
-                if val:
-                    lines.append(f"{val}")
-
-    # Limite et joint
-    if not lines:
-        return ""
-    return " | ".join(lines[:max_items])
-
-# views.py
 class DashboardArticlesListCreateView(generics.ListCreateAPIView):
     serializer_class = ArticleDashboardSerializer
     pagination_class = SmallPagination
@@ -1118,13 +1238,24 @@ class DashboardArticlesListCreateView(generics.ListCreateAPIView):
         ctx["request"] = self.request
         return ctx
     
+    def perform_create(self, serializer):
+        obj = serializer.save()
+        log_dashboard_action(self.request, obj, DashboardActionLog.ACTION_CREATE, after={"id": obj.pk})
+
+    
     def get_queryset(self):
         q = (self.request.query_params.get("q") or "").strip()
+        include_deleted = str(self.request.query_params.get("include_deleted") or "").lower() in ("1","true","yes")
+
         qs = (
             ArticlesBlog.objects
             .select_related("categorie", "auteur")
-            .order_by("-cree_le", "-id")
         )
+        if not include_deleted:
+            qs = qs.filter(is_deleted=False)
+
+        qs = qs.order_by("-cree_le", "-id")
+
         if q:
             qs = qs.filter(
                 Q(titre__icontains=q) |
@@ -1132,7 +1263,6 @@ class DashboardArticlesListCreateView(generics.ListCreateAPIView):
                 Q(contenu__icontains=q)
             )
         return qs
-
 
 class DashboardArticleDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
@@ -1142,16 +1272,58 @@ class DashboardArticleDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ArticleDashboardSerializer
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx 
+
+    def get_object(self):
+        pk = self.kwargs.get("pk")
+        include_deleted = str(self.request.query_params.get("include_deleted") or "").lower() in ("1", "true", "yes")
+
+        qs = ArticlesBlog.objects.all()
+        if not include_deleted:
+            qs = qs.filter(is_deleted=False)
+
+        return get_object_or_404(qs, pk=pk)
+
+    def delete(self, request, *args, **kwargs):
+        a = self.get_object()
+
+        # déjà supprimé
+        if getattr(a, "is_deleted", False):
+            return Response({"ok": True, "message": "Article déjà supprimé."}, status=status.HTTP_200_OK)
+
+        # BEFORE log
+        before = {
+            "id": a.pk,
+            "titre": getattr(a, "titre", None),
+            "slug": getattr(a, "slug", None),
+            "is_deleted": getattr(a, "is_deleted", None),
+        }
+
+        # soft delete
+        _soft_delete(a, user=request.user)
+        a.refresh_from_db(fields=["is_deleted", "deleted_at", "deleted_by"])
+
+        # AFTER log
+        after = {
+            "id": a.pk,
+            "titre": getattr(a, "titre", None),
+            "slug": getattr(a, "slug", None),
+            "is_deleted": getattr(a, "is_deleted", None),
+            "deleted_at": str(getattr(a, "deleted_at", None)),
+            "deleted_by_id": getattr(a, "deleted_by_id", None),
+        }
+
+        # ✅ traçabilité
+        log_dashboard_action(request, a, DashboardActionLog.ACTION_DELETE, before=before, after=after)
+
+        return Response({"ok": True, "message": "Article supprimé (soft delete)."}, status=status.HTTP_200_OK)
+
+    
 class DashboardArticleEditView(generics.RetrieveAPIView):
     """
     ✅ GET /christland/api/dashboard/articles/<id>/edit/
     → ne renvoie que: id, titre, slug, extrait, contenu, image, publie_le
     """
-    queryset = ArticlesBlog.objects.all()
+    queryset = ArticlesBlog.objects.filter(is_deleted=False)
     serializer_class = ArticleEditSerializer
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -1159,6 +1331,48 @@ class DashboardArticleEditView(generics.RetrieveAPIView):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
+
+
+
+class DashboardArticleRestoreView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request, pk: int):
+        a = get_object_or_404(ArticlesBlog.objects.all(), pk=pk)
+
+        if not getattr(a, "is_deleted", False):
+            return Response({"ok": True, "message": "Article déjà actif."}, status=200)
+
+        before = {
+            "is_deleted": getattr(a, "is_deleted", None),
+            "deleted_at": getattr(a, "deleted_at", None),
+            "deleted_by_id": getattr(a, "deleted_by_id", None),
+        }
+
+        _soft_restore(a)
+        a.refresh_from_db()
+
+        after = {
+            "is_deleted": getattr(a, "is_deleted", None),
+            "deleted_at": getattr(a, "deleted_at", None),
+            "deleted_by_id": getattr(a, "deleted_by_id", None),
+        }
+
+        try:
+            log_dashboard_action(
+                request=request,
+                action=DashboardActionLog.ACTION_RESTORE,
+                target=a,
+                before=before,
+                after=after,
+            )
+        except Exception:
+            pass
+
+        return Response({"ok": True, "message": "Article restauré."}, status=200)
+
+
 
 # views.py
 class BlogLatestView(APIView):
@@ -1170,7 +1384,7 @@ class BlogLatestView(APIView):
         except ValueError:
             limit = 2
 
-        qs = ArticlesBlog.objects.all().order_by("-cree_le", "-id")[:max(1, limit)]
+        qs = ArticlesBlog.objects.filter(is_deleted=False).order_by("-cree_le", "-id")[:max(1, limit)]
 
         lang = get_request_lang(request) or "fr"
         lang = (lang or "fr").split(",")[0].split("-")[0].lower()
@@ -1191,7 +1405,8 @@ class BlogLatestView(APIView):
                 "slug": a.slug,   # pas traduit
                 "title": title,
                 "excerpt": excerpt,
-                "image": _abs_media(request, getattr(a, "image_couverture", None)),
+                "image": _img_url(request, getattr(a, "image_couverture", None)),
+
             })
 
         return Response(data, status=200)
@@ -1215,7 +1430,7 @@ class LatestProductsView(APIView):
         # on récupère les 10 derniers produits actifs & visibles
         qs = (
             Produits.objects
-            .filter(est_actif=True, visible=1)
+            .filter(est_actif=True, visible=1, is_deleted=False)
             .select_related("marque", "categorie", "categorie__parent")  # 🔹 + parent
             .prefetch_related(
                 "images",
@@ -1266,7 +1481,8 @@ class LatestProductsView(APIView):
 
             # ---------- Image principale ----------
             main_img = prod.images.filter(principale=True).first() or prod.images.order_by("position", "id").first()
-            obj["image"] = _abs_media(request, main_img.url if main_img else None)
+            obj["image"] = _img_url(request, main_img.url if main_img else None)
+
 
 
             # ---------- Prix min ----------
@@ -1454,35 +1670,14 @@ from rest_framework.permissions import IsAuthenticated  # si besoin
 
 
 class DashboardProductEditDataView(APIView):
-    """
-    GET  /christland/api/dashboard/produits/<id>/edit/
-         -> renvoie uniquement les champs REMPLIS pour faciliter l’édition :
-            - product: champs simples + marque + catégorie + images
-            - variant: 1ère variante (si présente)
-            - product_attributes: specs produit **remplies**
-            - variant_attributes: specs variante **remplies**
-
-    PUT  /christland/api/dashboard/produits/<id>/edit/
-         payload "flat" (comme ton formulaire) :
-         - champs produit simples
-         - champs de la 1ère variante (variante_*)
-         - images: [{url, alt_text?, position?, principale?}]
-         - product_attributes: [{code,type,libelle?,unite?,value}]
-         - variant_attributes: [{code,type,libelle?,unite?,value}]
-    
-    
-    """
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-    
-    # permission_classes = [IsAuthenticated]
 
-    # ---------- READ (rempli uniquement) ----------
-    
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
+
     def get(self, request, pk: int):
         qs = (
             Produits.objects
@@ -1506,7 +1701,7 @@ class DashboardProductEditDataView(APIView):
 
         all_vars = list(prod.variantes.all().order_by("id"))
 
-        cat = prod.categorie  # raccourci
+        cat = prod.categorie
         parent_cat = cat.parent if cat and cat.parent_id else None
 
         payload = {
@@ -1525,7 +1720,6 @@ class DashboardProductEditDataView(APIView):
                 {"id": prod.marque.id, "slug": prod.marque.slug, "nom": prod.marque.nom}
                 if prod.marque_id else None
             ),
-            # 🔹 Catégorie = parent si existant, sinon catégorie elle-même
             "categorie": (
                 {
                     "id": parent_cat.id,
@@ -1541,21 +1735,14 @@ class DashboardProductEditDataView(APIView):
                     } if cat else None
                 )
             ),
-            # 🔹 Sous-catégorie = enfant uniquement si cat a un parent
             "sous_categorie": (
-                {
-                    "id": cat.id,
-                    "slug": cat.slug,
-                    "nom": cat.nom,
-                } if cat and cat.parent_id else None
+                {"id": cat.id, "slug": cat.slug, "nom": cat.nom}
+                if cat and cat.parent_id else None
             ),
-
             "images": images,
             "product_attributes": _specs_to_filled_list(prod.specs.all()) if hasattr(prod, "specs") else [],
         }
 
-
-        # 🔹 toutes les variantes
         variants_payload = []
         for v in all_vars:
             variants_payload.append({
@@ -1578,11 +1765,9 @@ class DashboardProductEditDataView(APIView):
                 ),
             })
 
-        # tableau complet (pour ton ProductEditForm)
         payload["variants"] = variants_payload
-        payload["variantes"] = variants_payload  # alias au cas où le front lit 'variantes'
+        payload["variantes"] = variants_payload
 
-        # compat : on garde aussi "variant" = 1ère variante + ses attributes
         if all_vars:
             first = all_vars[0]
             payload["variant"] = variants_payload[0]
@@ -1591,11 +1776,58 @@ class DashboardProductEditDataView(APIView):
             payload["variant"] = None
             payload["variant_attributes"] = []
 
-
         return Response(payload, status=status.HTTP_200_OK)
-    # ---------- UPDATE (deep) ----------
+
+    # -------- UPDATE --------
     @transaction.atomic
     def put(self, request, pk: int):
+        def _snapshot_product(prod: Produits):
+            prod.refresh_from_db()
+            prod = (
+                Produits.objects
+                .select_related("marque", "categorie")
+                .prefetch_related("images", "variantes", "variantes__couleur")
+                .get(pk=prod.pk)
+            )
+            return {
+                "id": prod.id,
+                "nom": prod.nom,
+                "slug": prod.slug,
+                "description_courte": prod.description_courte,
+                "description_long": prod.description_long,
+                "etat": prod.etat,
+                "est_actif": bool(prod.est_actif),
+                "visible": prod.visible,
+                "garantie_mois": getattr(prod, "garantie_mois", None),
+                "poids_grammes": str(prod.poids_grammes) if prod.poids_grammes is not None else None,
+                "dimensions": prod.dimensions,
+                "marque_id": prod.marque_id,
+                "categorie_id": prod.categorie_id,
+                "images": [
+                    {"url": im.url, "alt_text": im.alt_text, "position": im.position, "principale": bool(im.principale)}
+                    for im in prod.images.all().order_by("position", "id")
+                ],
+                "variants": [
+                    {
+                        "id": v.id,
+                        "nom": v.nom,
+                        "sku": v.sku,
+                        "code_barres": v.code_barres,
+                        "prix": str(v.prix) if v.prix is not None else None,
+                        "prix_promo": str(v.prix_promo) if v.prix_promo is not None else None,
+                        "promo_active": bool(v.promo_active),
+                        "promo_debut": v.promo_debut.isoformat() if v.promo_debut else None,
+                        "promo_fin": v.promo_fin.isoformat() if v.promo_fin else None,
+                        "stock": v.stock,
+                        "prix_achat": str(getattr(v, "prix_achat", None)) if getattr(v, "prix_achat", None) is not None else None,
+                        "poids_grammes": str(getattr(v, "poids_grammes", None)) if getattr(v, "poids_grammes", None) is not None else None,
+                        "est_actif": bool(getattr(v, "est_actif", True)),
+                        "couleur_id": v.couleur_id,
+                    }
+                    for v in prod.variantes.all().order_by("id")
+                ],
+            }
+
         try:
             prod = get_object_or_404(
                 Produits.objects.select_related("marque", "categorie").prefetch_related(
@@ -1603,6 +1835,9 @@ class DashboardProductEditDataView(APIView):
                 ),
                 pk=pk
             )
+
+            before = _snapshot_product(prod)
+
             data = request.data
 
             # ---- Produit : champs simples ----
@@ -1615,8 +1850,6 @@ class DashboardProductEditDataView(APIView):
 
             # ---- Catégorie / Sous-catégorie (optionnelles) ----
             cat_obj = None
-
-            # 🔹 Priorité à la sous_categorie si fournie
             if "sous_categorie" in data and data["sous_categorie"]:
                 cat_obj = Categories.objects.filter(id=_as_int(data["sous_categorie"])).first()
             elif "categorie" in data and data["categorie"]:
@@ -1625,7 +1858,7 @@ class DashboardProductEditDataView(APIView):
             if cat_obj:
                 prod.categorie = cat_obj
 
-            # ---- Marque (optionnelle en update) ----
+            # ---- Marque ----
             if "marque" in data and data["marque"]:
                 m, _note = _resolve_marque_verbose(data["marque"])
                 if m:
@@ -1633,7 +1866,7 @@ class DashboardProductEditDataView(APIView):
 
             prod.save()
 
-            # ---- VARIANTS (nouvelle gestion complète) ----
+            # ---- VARIANTS ----
             variants_payload = data.get("variants") or []
 
             def _set_if_present(obj, key, source, transform=lambda x: x):
@@ -1641,7 +1874,6 @@ class DashboardProductEditDataView(APIView):
                     setattr(obj, key, transform(source.get(key)))
 
             if variants_payload:
-                # On a reçu un tableau complet de variantes -> on synchronise
                 existing_vars = {v.id: v for v in prod.variantes.all()}
                 keep_ids: list[int] = []
 
@@ -1652,29 +1884,22 @@ class DashboardProductEditDataView(APIView):
                     else:
                         var = VariantesProduits(produit=prod)
 
-                    # Champs simples
                     _set_if_present(var, "nom",         v_data, lambda v: v or prod.nom or "")
                     _set_if_present(var, "sku",         v_data, lambda v: v or "")
                     _set_if_present(var, "code_barres", v_data, lambda v: v or "")
-                    # prix normal et prix promo
-                    _set_if_present(var, "prix",       v_data)
-                    _set_if_present(var, "prix_promo", v_data)
+                    _set_if_present(var, "prix",        v_data)
+                    _set_if_present(var, "prix_promo",  v_data)
 
-                    # ✅ Toujours écraser l'état de la promo
                     var.promo_active = _to_bool(v_data.get("promo_active"), default=False)
-
-                    # ✅ Toujours recalculer les dates (ou None si vide)
-                    var.promo_debut = _parse_dt_local(v_data.get("promo_debut"))
-                    var.promo_fin   = _parse_dt_local(v_data.get("promo_fin"))
+                    var.promo_debut  = _parse_dt_local(v_data.get("promo_debut"))
+                    var.promo_fin    = _parse_dt_local(v_data.get("promo_fin"))
 
                     _set_if_present(var, "stock",      v_data, lambda v: v or 0)
                     _set_if_present(var, "prix_achat", v_data)
 
-                    # poids
                     if "variante_poids_grammes" in v_data:
                         var.poids_grammes = v_data.get("variante_poids_grammes")
 
-                    # ✅ Toujours écraser l'état actif/inactif de la variante
                     var.est_actif = _to_bool(v_data.get("variante_est_actif"), default=False)
 
                     if "couleur" in v_data:
@@ -1683,45 +1908,32 @@ class DashboardProductEditDataView(APIView):
                     var.save()
                     keep_ids.append(var.id)
 
-                    # ---------- ATTRIBUTS VARIANTE pour CETTE variante ----------
+                    # attrs par variante
                     for item in v_data.get("attributes") or []:
                         code = (item.get("code") or "").strip().lower()
                         if not code:
                             continue
                         if code == "couleur" and var.couleur_id:
-                            # pas de doublon "couleur"
                             continue
 
-                        type_hint = item.get("type")
-                        libelle   = item.get("libelle")
-                        unite     = item.get("unite")
-                        value     = item.get("value")
-
-                        attr = _get_or_create_attr(code, type_hint, libelle, unite)
+                        attr = _get_or_create_attr(code, item.get("type"), item.get("libelle"), item.get("unite"))
                         if not attr or not attr.actif:
                             continue
-                        _write_spec_variante(var, attr, value)
+                        _write_spec_variante(var, attr, item.get("value"))
 
-                    # ---------- Miroir attribut "couleur" ----------
                     if var.couleur_id:
                         attr_c = _get_or_create_attr("couleur", Attribut.CHOIX, "Couleur")
                         va_c   = _upsert_valeur_choice(attr_c, var.couleur.nom)
                         SpecVariante.objects.update_or_create(
                             variante=var, attribut=attr_c,
-                            defaults={
-                                "valeur_choice": va_c,
-                                "valeur_text": None,
-                                "valeur_int": None,
-                                "valeur_dec": None,
-                            },
+                            defaults={"valeur_choice": va_c, "valeur_text": None, "valeur_int": None, "valeur_dec": None},
                         )
 
-                # Supprimer les variantes qui ne sont plus dans le payload
                 if keep_ids:
                     VariantesProduits.objects.filter(produit=prod).exclude(id__in=keep_ids).delete()
 
+                var = prod.variantes.order_by("id").first()
             else:
-                # Fallback : ancien comportement (une seule variante à partir des champs plats)
                 var = prod.variantes.order_by("id").first()
                 if not var:
                     var = VariantesProduits.objects.create(produit=prod, nom=prod.nom or "", prix=0)
@@ -1732,7 +1944,6 @@ class DashboardProductEditDataView(APIView):
                 _set_if_present(var, "prix",        data)
                 _set_if_present(var, "prix_promo",  data)
 
-                # ✅ même logique : on force la valeur
                 var.promo_active = _to_bool(data.get("promo_active"), default=False)
                 var.promo_debut  = _parse_dt_local(data.get("promo_debut"))
                 var.promo_fin    = _parse_dt_local(data.get("promo_fin"))
@@ -1743,7 +1954,6 @@ class DashboardProductEditDataView(APIView):
                 if "variante_poids_grammes" in data:
                     var.poids_grammes = data.get("variante_poids_grammes")
 
-                # ✅ même logique pour l'activation de la variante
                 var.est_actif = _to_bool(data.get("variante_est_actif"), default=False)
 
                 if "couleur" in data:
@@ -1756,15 +1966,10 @@ class DashboardProductEditDataView(APIView):
                     va_c   = _upsert_valeur_choice(attr_c, var.couleur.nom)
                     SpecVariante.objects.update_or_create(
                         variante=var, attribut=attr_c,
-                        defaults={
-                            "valeur_choice": va_c,
-                            "valeur_text": None,
-                            "valeur_int": None,
-                            "valeur_dec": None,
-                        },
+                        defaults={"valeur_choice": va_c, "valeur_text": None, "valeur_int": None, "valeur_dec": None},
                     )
 
-            # ---- Images (remplacement par la liste reçue) ----
+            # ---- Images ----
             if "images" in data:
                 imgs = _clean_images_payload(data.get("images"))
                 prod.images.all().delete()
@@ -1782,54 +1987,52 @@ class DashboardProductEditDataView(APIView):
                 code = (it.get("code") or "").strip().lower()
                 if not code:
                     continue
-
                 raw_value = it.get("value", None)
-
-                # 🔒 Si aucune vraie valeur envoyée → on NE TOUCHE PAS à la spec existante
                 if raw_value in (None, "", [], {}):
                     continue
-
-                attr = _get_or_create_attr(
-                    code,
-                    it.get("type"),
-                    it.get("libelle"),
-                    it.get("unite"),
-                )
+                attr = _get_or_create_attr(code, it.get("type"), it.get("libelle"), it.get("unite"))
                 if not attr or not attr.actif:
                     continue
-
                 _write_spec_produit(prod, attr, raw_value)
 
-            # ---- Attributs Variante (sur la variante "principale" var) ----
+            # ---- Attributs Variante ----
             for it in data.get("variant_attributes", []) or []:
                 code = (it.get("code") or "").strip().lower()
                 if not code:
                     continue
-                if code == "couleur" and var.couleur_id:
-                    # ne pas dupliquer "couleur" si déjà gérée via FK
+                if code == "couleur" and var and var.couleur_id:
                     continue
                 attr = _get_or_create_attr(code, it.get("type"), it.get("libelle"), it.get("unite"))
                 if not attr or not attr.actif:
                     continue
                 _write_spec_variante(var, attr, it.get("value"))
 
-            # ✅ RETURN ICI, en dehors des boucles
+            # ✅ LOG UPDATE
+            after = _snapshot_product(prod)
+            try:
+                log_dashboard_action(
+                    request=request,
+                    action=DashboardActionLog.ACTION_UPDATE,
+                    target=prod,
+                    before=before,
+                    after=after,
+                )
+            except Exception:
+                pass
+
             return Response(
                 {"ok": True, "message": "Produit mis à jour.", "id": prod.id},
                 status=status.HTTP_200_OK,
             )
 
         except IntegrityError as ie:
-            # ✅ On passe par notre helper pour avoir un message humain
             field, human = _integrity_to_field_error(ie)
-            payload_err = {
-                "error": "Erreur de données",
-                "detail": human or str(ie),
-            }
+            payload_err = {"error": "Erreur de données", "detail": human or str(ie)}
             if field:
                 payload_err["field"] = field
                 payload_err.setdefault("field_errors", {})[field] = human
             return Response(payload_err, status=status.HTTP_400_BAD_REQUEST)
+
 
 class MarquesListView(APIView):
     """
@@ -2550,6 +2753,12 @@ class AddProductWithVariantView(APIView):
                     visible=(visible if visible in (0, 1) else 1),
                     etat=etat_value,
                 )
+                log_dashboard_action(
+                    request,
+                    produit,
+                    DashboardActionLog.ACTION_CREATE,
+                    after={"id": produit.pk, "nom": produit.nom, "slug": produit.slug}
+                )
 
                 variants_payload = payload.get("variants") or []
 
@@ -2741,7 +2950,7 @@ class MostDemandedProductsView(APIView):
     
     def get(self, request):
         limit = int(request.query_params.get("limit", 2))
-        qs = Produits.objects.filter(est_actif=True, visible=1)\
+        qs = Produits.objects.filter(est_actif=True, visible=1 , is_deleted=False)\
                              .select_related("marque", "categorie")\
                              .prefetch_related("images", "variantes")\
                              .order_by("-commande_count", "-id")[:limit]
@@ -2834,7 +3043,7 @@ class AdminGlobalSearchView(APIView):
                 "id": a.id,
                 "title": a.titre or "",
                 "excerpt": (a.extrait or "")[:220],
-                "image": _abs_media(request, getattr(a, "image_couverture", None)),
+                "image": _img_url(request, getattr(a, "image_couverture", None)),
                 "url": f"/Dashboard/Articles/{a.id}/edit",
                 "created_at": getattr(a, "cree_le", None),
                 "updated_at": getattr(a, "modifie_le", None),
@@ -2916,16 +3125,9 @@ class DashboardStatsView(APIView):
 # Permissions
 # --------------------------------------------------------------------
 class IsAdmin(permissions.BasePermission):
-    permission_classes = [permissions.IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx["request"] = self.request
-        return ctx
-    
     def has_permission(self, request, view):
         u = getattr(request, "user", None)
-        return bool(u and getattr(u, "role", "") == "admin")
+        return bool(u and u.is_authenticated and getattr(u, "role", "") == "admin")
 
 
 # --------------------------------------------------------------------
@@ -3093,7 +3295,12 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
     def get(self, request, *args, **kwargs):
         q = (request.query_params.get("q") or "").strip()
 
-        qs = Categories.objects.all().order_by("position", "cree_le", "id")
+        include_deleted = str(request.query_params.get("include_deleted") or "").lower() in ("1","true","yes")
+        qs = Categories.objects.all()
+        if not include_deleted:
+            qs = qs.filter(is_deleted=False)
+
+        qs = qs.order_by("position", "cree_le", "id")
 
         if q:
             qs = qs.filter(
@@ -3159,11 +3366,19 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
 
         # 🔹 Normaliser l'image (optionnelle pour parent ET sous-catégorie)
         raw_image = request.data.get("image_url")
-        image_val = _normalize_category_image(raw_image)
-        
-        # 🔹 On ne veut AUCUNE erreur : si rien → chaîne vide
+        image_val = normalize_image_url(raw_image)
+
+        # ✅ Image obligatoire si c'est une catégorie PARENTE (pas de parent)
+        if parent is None and not image_val:
+            return Response(
+                {"field": "image_url", "error": "Veuillez renseigner une image pour cette catégorie."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # (optionnel) si tu veux stocker "" quand vide (si autorisé par le modèle)
         if not image_val:
-            image_val = ""   # ou None si tu as mis null=True dans le modèle
+            image_val = ""
+
         # Ici plus besoin d'IntegrityError pour l'unicité du slug/nom
         cat = Categories.objects.create(
             nom=nom,
@@ -3175,9 +3390,15 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
             cree_le=timezone.now(),
             image_url=image_val,
         )
+        log_dashboard_action(
+            request,
+            cat,
+            DashboardActionLog.ACTION_CREATE,
+            after={"id": cat.pk, "nom": cat.nom, "slug": cat.slug, "parent_id": cat.parent_id}
+        )
 
         return Response(
-            {
+            {   
                 "id": cat.id,
                 "nom": cat.nom,
                 "slug": cat.slug or "",
@@ -3203,7 +3424,11 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_object(self):
         pk = self.kwargs.get("pk")
-        return get_object_or_404(Categories, pk=pk)
+        include_deleted = str(self.request.query_params.get("include_deleted") or "").lower() in ("1", "true", "yes")
+        qs = Categories.objects.all()
+        if not include_deleted:
+            qs = qs.filter(is_deleted=False)
+        return get_object_or_404(qs, pk=pk)
 
     def patch(self, request, pk: int):
         return self.put(request, pk)
@@ -3220,11 +3445,59 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
                 "parent_id": c.parent_id,
                 "parent_nom": c.parent.nom if c.parent_id else "",
                 "position": c.position,
+                "image_url": getattr(c, "image_url", "") or "",
             }
         )
 
+    def perform_update(self, serializer):
+        """
+        ✅ Correction : on utilise obj (pas updated) dans before,
+        puis on save, puis on log.
+        """
+        obj = self.get_object()
+
+        before = {
+            "id": obj.pk,
+            "nom": getattr(obj, "nom", None),
+            "description": getattr(obj, "description", None),
+            "slug": getattr(obj, "slug", None),
+            "parent_id": getattr(obj, "parent_id", None),
+            "position": getattr(obj, "position", None),
+            "image_url": getattr(obj, "image_url", None),
+            "is_deleted": getattr(obj, "is_deleted", None),
+        }
+
+        updated = serializer.save()
+
+        after = {
+            "id": updated.pk,
+            "nom": getattr(updated, "nom", None),
+            "description": getattr(updated, "description", None),
+            "slug": getattr(updated, "slug", None),
+            "parent_id": getattr(updated, "parent_id", None),
+            "position": getattr(updated, "position", None),
+            "image_url": getattr(updated, "image_url", None),
+            "is_deleted": getattr(updated, "is_deleted", None),
+        }
+
+        # ✅ Log update
+        log_dashboard_action(self.request, updated, DashboardActionLog.ACTION_UPDATE, before=before, after=after)
+
     def put(self, request, pk: int):
         c = self.get_object()
+
+        # ---------- BEFORE (log) ----------
+        before = {
+            "id": c.pk,
+            "nom": c.nom,
+            "slug": c.slug,
+            "description": c.description,
+            "parent_id": c.parent_id,
+            "position": c.position,
+            "image_url": getattr(c, "image_url", None),
+            "is_deleted": c.is_deleted,
+        }
+
         nom = (request.data.get("nom") or "").strip()
         description = (request.data.get("description") or "").strip()
         est_actif = bool(request.data.get("est_actif", False))
@@ -3242,9 +3515,10 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
         else:
             c.position = None
 
+        # parent
         parent_id = request.data.get("parent") or request.data.get("parent_id")
         parent = None
-        if parent_id:
+        if parent_id not in (None, ""):
             try:
                 parent = Categories.objects.get(pk=int(parent_id))
             except (Categories.DoesNotExist, ValueError, TypeError):
@@ -3255,10 +3529,7 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
 
             if parent.id == c.id:
                 return Response(
-                    {
-                        "field": "parent",
-                        "error": "Une catégorie ne peut pas être son propre parent.",
-                    },
+                    {"field": "parent", "error": "Une catégorie ne peut pas être son propre parent."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -3268,7 +3539,7 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 🔹 vérification slug unique (en excluant la catégorie elle-même)
+        # slug unique
         slug_val = slugify(nom)
         if Categories.objects.filter(slug=slug_val).exclude(pk=c.pk).exists():
             return Response(
@@ -3282,17 +3553,32 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 🔹 image obligatoire si on est (ou devient) une sous-catégorie
+        # image reçue ?
         raw_image = request.data.get("image_url", None)
-        if parent is not None and not (raw_image or c.image_url):
-            return Response(
-                {
-                    "field": "image_url",
-                    "error": "Veuillez renseigner une image pour cette sous-catégorie.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        new_image = None
+        if raw_image is not None:
+            new_image = normalize_image_url(raw_image)
 
+        # ✅ Image obligatoire si catégorie PARENTE (parent=None)
+        # (donc si elle est parent actuellement OU si elle devient parent)
+        will_be_parent = (parent is None)
+        current_image = getattr(c, "image_url", None)
+
+        if will_be_parent:
+            if not (new_image or current_image):
+                return Response(
+                    {"field": "image_url", "error": "Veuillez renseigner une image pour cette catégorie parente."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            # ✅ Image obligatoire si SOUS-CATEGORIE
+            if not (new_image or current_image):
+                return Response(
+                    {"field": "image_url", "error": "Veuillez renseigner une image pour cette sous-catégorie."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # apply
         c.nom = nom
         c.description = description
         c.est_actif = est_actif
@@ -3300,11 +3586,27 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
         c.slug = slug_val or c.slug
 
         if raw_image is not None:
-            new_image = normalize_image_url(raw_image)
+            # si user a envoyé vide => on garde l'ancienne (ne pas effacer)
             if new_image:
                 c.image_url = new_image
 
         c.save()
+
+        # ---------- AFTER (log) ----------
+        c.refresh_from_db()
+        after = {
+            "id": c.pk,
+            "nom": c.nom,
+            "slug": c.slug,
+            "description": c.description,
+            "parent_id": c.parent_id,
+            "position": c.position,
+            "image_url": getattr(c, "image_url", None),
+            "is_deleted": c.is_deleted,
+        }
+
+        # ✅ Log update (PUT)
+        log_dashboard_action(request, c, DashboardActionLog.ACTION_UPDATE, before=before, after=after)
 
         return Response(
             {
@@ -3316,6 +3618,7 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
                 "parent_id": c.parent_id,
                 "parent_nom": c.parent.nom if c.parent_id else "",
                 "position": c.position,
+                "image_url": getattr(c, "image_url", "") or "",
             },
             status=status.HTTP_200_OK,
         )
@@ -3333,7 +3636,7 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
         cat_ids = collect_ids(c)
 
         # 1️⃣ Produits dans la catégorie OU dans une sous-catégorie
-        if Produits.objects.filter(categorie_id__in=cat_ids).exists():
+        if Produits.objects.filter(categorie_id__in=cat_ids, is_deleted=False).exists():
             return Response(
                 {
                     "error": (
@@ -3345,19 +3648,73 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
             )
 
         # 2️⃣ Sous-catégories restantes
-        if Categories.objects.filter(parent=c).exists():
+        if Categories.objects.filter(parent=c, is_deleted=False).exists():
             return Response(
-                {
-                    "error": (
-                        "Impossible de supprimer une catégorie qui possède des sous-catégories."
-                    )
-                },
+                {"error": "Impossible de supprimer une catégorie qui possède des sous-catégories."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 3️⃣ OK, suppression
-        c.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        # ---------- BEFORE (log) ----------
+        before = {
+            "id": c.pk,
+            "nom": c.nom,
+            "slug": c.slug,
+            "is_deleted": c.is_deleted,
+        }
+
+        # 3️⃣ OK -> soft delete
+        _soft_delete(c, user=request.user)
+        c.refresh_from_db(fields=["is_deleted", "deleted_at", "deleted_by"])
+
+        # ---------- AFTER (log) ----------
+        after = {
+            "id": c.pk,
+            "nom": c.nom,
+            "slug": c.slug,
+            "is_deleted": c.is_deleted,
+            "deleted_at": str(getattr(c, "deleted_at", None)),
+            "deleted_by_id": getattr(c, "deleted_by_id", None),
+        }
+
+        # ✅ Log delete
+        log_dashboard_action(request, c, DashboardActionLog.ACTION_DELETE, before=before, after=after)
+
+        return Response({"ok": True, "message": "Catégorie supprimée (soft delete)."}, status=status.HTTP_200_OK)
+
+class DashboardCategoryRestoreView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request, pk: int):
+        c = get_object_or_404(Categories.objects.all(), pk=pk)
+
+        before = {
+            "is_deleted": getattr(c, "is_deleted", None),
+            "deleted_at": getattr(c, "deleted_at", None),
+            "deleted_by_id": getattr(c, "deleted_by_id", None),
+        }
+
+        _soft_restore(c)
+        c.refresh_from_db()
+
+        after = {
+            "is_deleted": getattr(c, "is_deleted", None),
+            "deleted_at": getattr(c, "deleted_at", None),
+            "deleted_by_id": getattr(c, "deleted_by_id", None),
+        }
+
+        try:
+            log_dashboard_action(
+                request=request,
+                action=DashboardActionLog.ACTION_RESTORE,
+                target=c,
+                before=before,
+                after=after,
+            )
+        except Exception:
+            pass
+
+        return Response({"ok": True, "message": "Catégorie restaurée."}, status=200)
 
 
 
@@ -3397,28 +3754,15 @@ class DashboardCategoriesSelectView(APIView):
 class DashboardCategoriesTreeView(APIView):
     """
     GET /christland/api/dashboard/categories/tree/
-    -> [
-         {
-           "id": 1,
-           "nom": "Informatique",
-           "slug": "informatique",
-           "parent_id": null,
-           "children": [
-             { "id": 2, "nom": "Ordinateurs portables", "slug": "ordinateurs-portables", "parent_id": 1 },
-             ...
-           ]
-         },
-         ...
-       ]
-    ⚠️ Toujours en FR brut, pas de traduction.
+    -> arbre de catégories (FR brut)
     """
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
     def get(self, request):
-        qs = Categories.objects.all().order_by("nom")
+        qs = Categories.objects.filter(is_deleted=False).order_by("nom")
 
-        # 1) on prépare un dict {id: item_dict}
+        # 1) dict {id: item}
         by_id: dict[int, dict] = {}
         for c in qs:
             by_id[c.id] = {
@@ -3429,18 +3773,25 @@ class DashboardCategoriesTreeView(APIView):
                 "children": [],
             }
 
-        # 2) on attache chaque catégorie à son parent si parent_id existe
+        # 2) attacher chaque catégorie à son parent
         roots: list[dict] = []
         for c in qs:
             item = by_id[c.id]
+
             if c.parent_id:
                 parent_item = by_id.get(c.parent_id)
                 if parent_item:
                     parent_item["children"].append(item)
                 else:
-                    # parent manquant (au cas où) -> on le traite comme racine
                     roots.append(item)
             else:
                 roots.append(item)
 
-        return Response(roots)
+        return Response(roots, status=status.HTTP_200_OK)
+
+
+
+class IsSuperAdmin(BasePermission):
+    def has_permission(self, request, view):
+        u = getattr(request, "user", None)
+        return bool(u and u.is_authenticated and getattr(u, "role", "") == "super_admin")

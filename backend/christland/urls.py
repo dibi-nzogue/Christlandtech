@@ -9,6 +9,7 @@ from .views import (
     MostDemandedProductsView, DashboardArticlesListCreateView, DashboardArticleDetailView,
     DashboardArticleEditView, BlogLatestView, AdminGlobalSearchView,
     DashboardStatsView, LoginView, MeView, RegisterView,DashboardCategoryListCreateView,DashboardCategoryDetailView,CategoryListTop, DashboardCategoriesSelectView, DashboardCategoriesTreeView,
+    DashboardCategoryRestoreView,DashboardProductRestoreView, DashboardArticleRestoreView,
 )
 
 app_name = "christland"
@@ -26,7 +27,6 @@ urlpatterns = [
     path("api/catalog/products/most-demanded/", MostDemandedProductsView.as_view(), name="products-most-demanded"),
     path("api/catalog/products/latest/", LatestProductsView.as_view(), name="latest-products"),
     
-
     # Blog
     path("api/blog/hero/", BlogHeroView.as_view(), name="api_blog_hero"),
     path("api/blog/posts/", BlogPostsView.as_view(), name="api_blog_posts"),
@@ -57,9 +57,11 @@ urlpatterns = [
     path( "api/dashboard/categories/manage/", DashboardCategoryListCreateView.as_view(),name="dashboard-categories-manage",),
     path("api/dashboard/categories/manage/<int:pk>/", DashboardCategoryDetailView.as_view(),name="dashboard-category-detail", ),
     # Création produit simplifiée
+    path("dashboard/categories/manage/<int:pk>/restore/", DashboardCategoryRestoreView.as_view()),
     path("api/produits/ajouter/", AddProductWithVariantView.as_view(), name="add_product_with_variant"),
+    path("dashboard/produits/<int:pk>/restore/", DashboardProductRestoreView.as_view()),
     path( "api/dashboard/categories/select/", DashboardCategoriesSelectView.as_view(), name="dashboard-categories-select", ),
     path( "api/dashboard/categories/tree/", DashboardCategoriesTreeView.as_view(), name="dashboard-categories-tree",),
-
+    path("dashboard/articles/<int:pk>/restore/", DashboardArticleRestoreView.as_view()),
     
 ]
