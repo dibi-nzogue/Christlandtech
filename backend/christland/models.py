@@ -1,6 +1,5 @@
 from django.db import models
 from django.utils import timezone
-from cloudinary.models import CloudinaryField
 
 # ===== Référentiels ===========================================================
 
@@ -129,7 +128,7 @@ class Categories(models.Model):
     nom = models.CharField(max_length=255, blank=True)
     slug = models.CharField(max_length=255, blank=True)
     description = models.CharField(max_length=255, blank=True)
-    image_url = CloudinaryField("categories", blank=True, null=True)
+    image_url = models.CharField(max_length=255, blank=True, null=True)
     est_actif = models.BooleanField(default=False)
     position = models.IntegerField(null=True, blank=True)
     is_deleted = models.BooleanField(default=False, db_index=True)
@@ -357,7 +356,7 @@ class VariantesProduits(models.Model):
 
 class ImagesProduits(models.Model):
     produit = models.ForeignKey(Produits, on_delete=models.CASCADE, related_name='images', null=True, blank=True)
-    url = CloudinaryField("produits", blank=True, null=True)
+    url = models.CharField(max_length=255, blank=True)
     alt_text = models.CharField(max_length=255, blank=True)
     position = models.IntegerField(null=True, blank=True)
     principale = models.BooleanField(default=False)
@@ -683,7 +682,7 @@ class CouponsUtilisations(models.Model):
 
 class BandeauxMarketing(models.Model):
     titre = models.CharField(max_length=255, blank=True)               # <- simplifié (ex: titre_ban → titre)
-    image_url = CloudinaryField("bandeaux", blank=True, null=True)       # <- image_url_ban → image_url
+    image_url = models.CharField(max_length=255, blank=True)           # <- image_url_ban → image_url
     lien_url = models.CharField(max_length=255, blank=True)            # <- lien_url_ban → lien_url
     position = models.IntegerField(null=True, blank=True)
     produit = models.ForeignKey(Produits, on_delete=models.SET_NULL, null=True, blank=True, related_name='bandeaux')
@@ -705,7 +704,7 @@ class ArticlesBlog(models.Model):
     slug = models.CharField(max_length=1000, blank=True, null=True)
     extrait = models.CharField(max_length=1000, blank=True, null=True)
     contenu = models.CharField(max_length=1000, blank=True, null=True)
-    image_couverture = CloudinaryField("blog", blank=True, null=True)
+    image_couverture =  models.CharField(max_length=255, blank=True, null=True)
     publie_le = models.DateTimeField(null=True, blank=True, default=timezone.now)
     cree_le = models.DateTimeField(null=True, blank=True)
     modifie_le = models.DateTimeField(null=True, blank=True)
