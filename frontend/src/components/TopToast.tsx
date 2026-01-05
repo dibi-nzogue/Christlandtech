@@ -1,4 +1,4 @@
-// src/components/TopToast.tsx
+
 import React, { useEffect, useRef, useState } from "react";
 
 type Props = {

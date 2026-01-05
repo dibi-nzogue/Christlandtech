@@ -1,4 +1,4 @@
-// src/components/AssistanceHero.tsx
+
 import React from "react";
 import imgMerci from "../assets/images/achat/𝕮𝖔𝖒𝖕𝖚𝖙𝖊𝖗𝕸𝖔𝖈𝖐.webp";
 import { useBlogHero } from "../hooks/useFetchQuery";

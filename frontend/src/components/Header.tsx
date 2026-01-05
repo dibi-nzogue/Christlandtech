@@ -1,4 +1,4 @@
-// src/components/Header.tsx
+
 import React from "react";
 import { Search, ShoppingCart, Bell } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";

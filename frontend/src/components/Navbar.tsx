@@ -1,4 +1,4 @@
-// src/components/Navbar.tsx
+
 import { useEffect, useRef, useState } from "react";
 import {
   Link,

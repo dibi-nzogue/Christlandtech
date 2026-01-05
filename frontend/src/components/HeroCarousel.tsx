@@ -1,4 +1,3 @@
-// src/components/HeroCarousel.tsx
 import React, { useRef, useEffect, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import { FaArrowLeft, FaArrowRight } from "react-icons/fa";
@@ -7,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useKeenSlider } from "keen-slider/react";
 import "keen-slider/keen-slider.min.css";
 
-import hero from "../assets/images/hero.webp";
+import hero from "../assets/images/Trouvez.webp";
 import hero1 from "../assets/images/hero1.webp";
 import hero2 from "../assets/images/hero2.webp";
 
@@ -23,9 +22,9 @@ const SLIDER_ID = "hero-main-carousel";
 
 const slides: SlideConfig[] = [
   {
-    title: "hero.title",
-    highlighted: "highlighted",
-    description: "hero.description",
+    title: "",
+    highlighted: "",
+    description: "",
     button: "hero.button",
     image: hero,
   },
@@ -122,18 +121,19 @@ const HeroCarousel: React.FC = () => {
 
             return (
               <div
-  key={index}
-  className="keen-slider__slide relative px-2"
-  role="group"
-  aria-roledescription="slide"
-  aria-label={`${index + 1} / ${slides.length}`}
->
+              key={index}
+              className="keen-slider__slide relative px-2"
+              role="group"
+              aria-roledescription="slide"
+              aria-label={`${index + 1} / ${slides.length}`}
+            >
 
                 <img
                   src={slide.image}
                   alt={t(slide.title)}
-                  width={300}
-                  height={300}
+                  width={1920}
+                  height={1080}
+
                   // ⚡ LCP : première image en eager + priorité haute
                   loading={isFirst ? "eager" : "lazy"}
                   fetchPriority={isFirst ? "high" : "auto"}

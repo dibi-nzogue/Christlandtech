@@ -10,7 +10,6 @@ from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import QuerySet
 from django.http import JsonResponse
-from django.conf import settings
 from django.core.mail import EmailMessage
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -25,6 +24,8 @@ from django.http import JsonResponse
 from django.core.cache import cache
 from datetime import datetime
 from django.utils import timezone
+from urllib.parse import urlparse
+from django.conf import settings
 from christland.models import TextTranslation
 from .models import (
     Categories, Produits, VariantesProduits, ImagesProduits,
@@ -72,62 +73,9 @@ from django.db import IntegrityError, transaction
 from django.db.models import F
 from rest_framework import status, permissions
 from django.contrib.auth.hashers import check_password, make_password
-from urllib.parse import urlparse
 
 
-def normalize_image_url(raw):
-    """
-    Normalise une URL d'image pour la stocker en base:
-    - http://127.0.0.1:8000/media/uploads/xxx.jpg -> 'uploads/xxx.jpg'
-    - /media/uploads/xxx.jpg                      -> 'uploads/xxx.jpg'
-    - images/achat/truc.jpg                       -> 'images/achat/truc.jpg'
-    - /images/achat/truc.jpg                      -> 'images/achat/truc.jpg'
-    """
-    if not raw:
-        return None
 
-    raw = str(raw).strip()
-    parsed = urlparse(raw)
-
-    # 1) on récupère un chemin "nu"
-    if parsed.scheme in ("http", "https"):
-        path = parsed.path or ""
-    else:
-        path = raw
-
-    path = path.strip()
-
-    # 2) on enlève le préfixe MEDIA_URL si présent (ex: "/media/")
-    media_prefix = getattr(settings, "MEDIA_URL", "/media/") or "/media/"
-    # s'assurer qu'il commence par "/" et sans "/" final
-    if not media_prefix.startswith("/"):
-        media_prefix = "/" + media_prefix
-    media_prefix = media_prefix.rstrip("/")
-
-    if path.startswith(media_prefix):
-        path = path[len(media_prefix):]
-
-    # 3) on enlève les "/" de début restants
-    path = path.lstrip("/")
-
-    return path or None
-def _normalize_category_image(raw):
-    """
-    Nettoie la valeur d'image envoyée depuis le front :
-    - "", None, "null", "undefined", "None" => None
-    - sinon on passe par normalize_image_url
-    """
-    if raw is None:
-        return None
-
-    s = str(raw).strip()
-    if not s:
-        return None
-
-    if s.lower() in ("null", "none", "undefined"):
-        return None
-
-    return normalize_image_url(s)
 
 
 def _to_bool(raw, default=False):
@@ -866,13 +814,41 @@ def _abs_media(request, value):
     v = str(value).strip()
     if not v:
         return None
-    if v.startswith("http://") or v.startswith("https://"):
+
+    # URL absolue -> inchangée
+    if v.lower().startswith(("http://", "https://", "data:")):
         return v
+
+    # normaliser en chemin
     if not v.startswith("/"):
         v = "/" + v
-    if v.startswith("/uploads/") or v.startswith("/images/"):
-        v = "/media" + v
-    return request.build_absolute_uri(v)
+
+    media_prefix = "/" + settings.MEDIA_URL.strip("/")  # ex: "/media"
+
+    # si déjà sous /media/... -> ne rien rajouter
+    if v.startswith(media_prefix + "/"):
+        path = v
+    else:
+        # sinon on colle MEDIA_URL devant
+        path = media_prefix + v
+
+    return request.build_absolute_uri(path) if request else path
+
+def _strip_media(url_or_path: str) -> str:
+    s = (url_or_path or "").strip()
+    if not s:
+        return ""
+
+    # URL absolue -> on garde seulement le path
+    if s.lower().startswith(("http://", "https://")):
+        s = urlparse(s).path or ""
+
+    # retire /media/ si présent
+    media_url = "/" + settings.MEDIA_URL.strip("/") + "/"  # "/media/"
+    if s.startswith(media_url):
+        s = s[len(media_url):]   # "uploads/..."
+    s = s.lstrip("/")
+    return s
 
 # Nouvelle fonction propre – plus de _tr
 from christland.services.text_translate import translate_text
@@ -1246,6 +1222,11 @@ class DashboardArticleDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ArticleDashboardSerializer
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
+    def get_serializer_class(self):
+        if self.request.method in ("PUT", "PATCH"):
+            return ArticleEditSerializer
+        return ArticleDashboardSerializer
 
     def get_object(self):
         pk = self.kwargs.get("pk")
@@ -2174,14 +2155,13 @@ def _resolve_couleur(val):
     except IntegrityError:
         return Couleurs.objects.filter(slug=slug).first()
 
-
 def _clean_images_payload(images):
     """
     Accepte:
       - ["https://...jpg", ...] OU
       - [{url, alt_text?, position?, principale?}, ...]
     -> Nettoie, force une seule 'principale', normalise position->int|None
-       et normalise aussi l'URL pour NE PAS stocker http://127.0.0.1:8000/...
+       et stocke l'URL en chemin relatif (uploads/...) pour éviter /media/media
     """
     out = []
     for it in (images or []):
@@ -2202,8 +2182,8 @@ def _clean_images_payload(images):
         else:
             continue
 
-        # ✅ ICI on normalise l'URL pour enlever http://127.0.0.1:8000 + /media/
-        url = normalize_image_url(url_raw)
+        # ✅ Remplacement ici : on stocke "uploads/..." (ou "" si vide)
+        url = _strip_media(url_raw)
         if not url:
             continue
 
@@ -2229,6 +2209,7 @@ def _clean_images_payload(images):
                 x["principale"] = False
 
     return out
+
 
 
 def _parse_dt_local(s: str | None):
@@ -3338,7 +3319,7 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
 
         # 🔹 Normaliser l'image (optionnelle pour parent ET sous-catégorie)
         raw_image = request.data.get("image_url")
-        image_val = normalize_image_url(raw_image)
+        image_val = _strip_media(raw_image)  # stocke "uploads/..."
 
         # ✅ Image obligatoire si c'est une catégorie PARENTE (pas de parent)
         if parent is None and not image_val:
@@ -3376,6 +3357,7 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
                 "slug": cat.slug or "",
                 "description": cat.description,
                 "est_actif": cat.est_actif,
+                "image_url": _abs_media(request, cat.image_url) or "",
                 "parent_id": cat.parent_id,
                 "parent_nom": cat.parent.nom if cat.parent_id else "",
                 "position": cat.position,
@@ -3393,7 +3375,7 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = CategoryDashboardSerializer
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-
+    
     def get_object(self):
         pk = self.kwargs.get("pk")
         include_deleted = str(self.request.query_params.get("include_deleted") or "").lower() in ("1", "true", "yes")
@@ -3417,7 +3399,8 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
                 "parent_id": c.parent_id,
                 "parent_nom": c.parent.nom if c.parent_id else "",
                 "position": c.position,
-                "image_url": getattr(c, "image_url", "") or "",
+                "image_url": _abs_media(request, getattr(c, "image_url", None)) or "",
+
             }
         )
 
@@ -3529,7 +3512,12 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
         raw_image = request.data.get("image_url", None)
         new_image = None
         if raw_image is not None:
-            new_image = normalize_image_url(raw_image)
+            new_image = _strip_media(raw_image)  # stocke "uploads/..." ou ""
+
+        if raw_image is not None:
+            # si user a envoyé vide => on garde l'ancienne (ne pas effacer)
+            if new_image:
+                c.image_url = new_image
 
         # ✅ Image obligatoire si catégorie PARENTE (parent=None)
         # (donc si elle est parent actuellement OU si elle devient parent)
@@ -3573,7 +3561,7 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
             "description": c.description,
             "parent_id": c.parent_id,
             "position": c.position,
-            "image_url": getattr(c, "image_url", None),
+            "image_url": _abs_media(request, getattr(c, "image_url", None)) or "",
             "is_deleted": c.is_deleted,
         }
 
@@ -3590,7 +3578,8 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
                 "parent_id": c.parent_id,
                 "parent_nom": c.parent.nom if c.parent_id else "",
                 "position": c.position,
-                "image_url": getattr(c, "image_url", "") or "",
+                "image_url": _abs_media(request, getattr(c, "image_url", None)) or "",
+
             },
             status=status.HTTP_200_OK,
         )

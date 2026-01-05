@@ -1,4 +1,4 @@
-// src/pages/AddCathegorie.tsx
+
 import React from "react";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";

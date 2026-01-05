@@ -1,4 +1,4 @@
-// src/components/Sponsor.tsx
+
 import React, { useRef } from "react";
 import { useKeenSlider } from "keen-slider/react";
 import type { KeenSliderPlugin } from "keen-slider/react";

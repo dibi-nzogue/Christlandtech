@@ -1,4 +1,4 @@
-// components/PrivateRoute.tsx
+
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { auth } from "../auth"; // adapte le chemin

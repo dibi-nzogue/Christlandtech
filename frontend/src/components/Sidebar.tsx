@@ -1,4 +1,4 @@
-// src/components/Sidebar.tsx
+
 import { useState } from "react";
 import {
   Home,

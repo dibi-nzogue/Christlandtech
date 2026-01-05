@@ -1,4 +1,4 @@
-// src/components/ProductForm.tsx
+
 import React, { useMemo, useState } from "react";
 import {
   createProductWithVariant,

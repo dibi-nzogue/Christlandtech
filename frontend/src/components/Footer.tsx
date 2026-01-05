@@ -76,7 +76,7 @@ const Footer: React.FC = () => {
             <FaLinkedinIn />
           </a>
           <a
-            href="#"
+            href="https://web.facebook.com/profile.php?id=61566481138265"
             aria-label="Christland Tech sur Facebook"
             className="hover:text-[#00A9DC] transition-colors cursor-pointer"
           >

@@ -54,10 +54,12 @@ const ProductTable = () => {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-const [deleteErrorMsg, setDeleteErrorMsg] = useState<string | null>(null);
+
+  const [deleteErrorMsg, setDeleteErrorMsg] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
   const navigate = useNavigate();
 
   // lecture du terme recherché depuis l'URL
@@ -74,6 +76,50 @@ const [deleteErrorMsg, setDeleteErrorMsg] = useState<string | null>(null);
     product?.images?.[0]?.url && product.images[0].url !== "null"
       ? product.images[0].url
       : "/Dispositivos.webp";
+
+  // ================================
+  // ✅ MODE SELECTION (Produits)
+  // ================================
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
+
+  // ✅ Mode suppression : "single" ou "bulk"
+  const [deleteMode, setDeleteMode] = useState<"single" | "bulk">("single");
+  const [bulkIds, setBulkIds] = useState<number[]>([]);
+
+  const isAllSelected =
+    activeTab === "produits" &&
+    selectMode &&
+    products.length > 0 &&
+    selectedProductIds.length === products.length;
+
+  const toggleSelectOne = (id: number) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (!selectMode) return;
+    if (isAllSelected) {
+      setSelectedProductIds([]);
+    } else {
+      setSelectedProductIds(products.map((p) => p.id));
+    }
+  };
+
+  // Reset sélection si on change d'onglet (ou on sort de produits)
+  useEffect(() => {
+    if (activeTab !== "produits") {
+      setSelectMode(false);
+      setSelectedProductIds([]);
+    }
+  }, [activeTab]);
+
+  // Reset sélection quand on change de page / search
+  useEffect(() => {
+    setSelectedProductIds([]);
+  }, [page, q]);
 
   // === Fetchers ===
   const fetchProducts = async () => {
@@ -112,33 +158,6 @@ const [deleteErrorMsg, setDeleteErrorMsg] = useState<string | null>(null);
     }
   };
 
-  const fetchCategories = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getDashboardCategories({
-        page: 1,
-        page_size: 500,
-        q,
-      });
-
-      const flatRows =
-        (data as any).results ??
-        (data as any).items ??
-        (Array.isArray(data) ? data : []) ??
-        [];
-
-      const treeRows = buildTree(flatRows);
-
-      setCategories(treeRows);
-      setCount(flatRows.length ?? 0);
-    } catch (e: any) {
-      setError(e.message || "Erreur de chargement");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const [openParents, setOpenParents] = useState<number[]>([]);
 
   const toggleParent = (id: number) => {
@@ -166,6 +185,33 @@ const [deleteErrorMsg, setDeleteErrorMsg] = useState<string | null>(null);
     });
 
     return tree;
+  };
+
+  const fetchCategories = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getDashboardCategories({
+        page: 1,
+        page_size: 500,
+        q,
+      });
+
+      const flatRows =
+        (data as any).results ??
+        (data as any).items ??
+        (Array.isArray(data) ? data : []) ??
+        [];
+
+      const treeRows = buildTree(flatRows);
+
+      setCategories(treeRows);
+      setCount(flatRows.length ?? 0);
+    } catch (e: any) {
+      setError(e.message || "Erreur de chargement");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Sync onglet avec URL
@@ -235,64 +281,92 @@ const [deleteErrorMsg, setDeleteErrorMsg] = useState<string | null>(null);
     setPage(1);
   }, [q]);
 
- 
-// Suppression
-const requestDelete = (id: number) => {
-  setDeleteErrorMsg(null);   // 👈 on reset le message d’erreur
-  setConfirmId(id);          // 👈 on ouvre le modal pour cet id
-};
+  // =========================
+  // ✅ Suppression (single/bulk)
+  // =========================
+  const requestDelete = (id: number) => {
+    setDeleteErrorMsg(null);
+    setDeleteMode("single");
+    setBulkIds([]);
+    setConfirmId(id);
+  };
 
+  const requestBulkDelete = () => {
+    if (selectedProductIds.length === 0) return;
+    setDeleteErrorMsg(null);
+    setDeleteMode("bulk");
+    setBulkIds([...selectedProductIds]);
+    setConfirmId(-1); // just to open modal
+  };
 
-const handleDeleteConfirmed = async () => {
-  if (confirmId == null) return;
-  setConfirmLoading(true);
-  setDeleteErrorMsg(null); // on reset l’erreur à chaque tentative
+  const handleDeleteConfirmed = async () => {
+    if (confirmId == null) return;
+    setConfirmLoading(true);
+    setDeleteErrorMsg(null);
 
-  try {
-    if (activeTab === "produits") {
-      await deleteDashboardProduct(confirmId);
-      setProducts((prev) => prev.filter((p) => p.id !== confirmId));
-      setSuccessMsg("Produit supprimé avec succès !");
-    } else if (activeTab === "articles") {
-      await deleteDashboardArticle(confirmId);
-      setArticles((prev) => prev.filter((a) => a.id !== confirmId));
-      setSuccessMsg("Article supprimé avec succès !");
-    } else {
-      await deleteDashboardCategory(confirmId);
-      setCategories((prev) => removeCategoryFromTree(prev, confirmId));
-      setSuccessMsg("Catégorie supprimée avec succès !");
-    }
+    try {
+      // ------ PRODUITS ------
+      if (activeTab === "produits") {
+        if (deleteMode === "bulk") {
+          const idsToDelete = [...bulkIds];
+          const dec = idsToDelete.length;
 
-    // ✅ si on arrive ici, la suppression a réussi → on ferme le modal
-    setConfirmId(null);
+          for (const id of idsToDelete) {
+            await deleteDashboardProduct(id);
+          }
 
-    setCount((prev) => {
-      const next = Math.max(0, prev - 1);
+          setProducts((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
+          setSelectedProductIds([]);
+          setSuccessMsg(`${dec} produit(s) supprimé(s) avec succès !`);
 
-      const itemsLeftOnPage =
-        activeTab === "produits"
-          ? products.length - 1
-          : activeTab === "articles"
-          ? articles.length - 1
-          : categories.length - 1;
+          // pagination fallback (simple)
+          const itemsLeftOnPage = products.length - dec;
+          if (itemsLeftOnPage <= 0 && page > 1) setPage(page - 1);
 
-      if (itemsLeftOnPage === 0 && page > 1 && activeTab !== "categories") {
-        setPage(page - 1);
+          setCount((prev) => Math.max(0, prev - dec));
+        } else {
+          await deleteDashboardProduct(confirmId);
+
+          setProducts((prev) => prev.filter((p) => p.id !== confirmId));
+          setSuccessMsg("Produit supprimé avec succès !");
+
+          const itemsLeftOnPage = products.length - 1;
+          if (itemsLeftOnPage <= 0 && page > 1) setPage(page - 1);
+
+          setCount((prev) => Math.max(0, prev - 1));
+        }
       }
-      return next;
-    });
 
-    setTimeout(() => setSuccessMsg(null), 7000);
-  } catch (e: any) {
-    // ❌ erreur backend (sous-catégories, produits rattachés, etc.)
-    const msg = e?.message ?? "Erreur lors de la suppression.";
-    setDeleteErrorMsg(msg);
-    // on NE ferme PAS le modal, l’utilisateur verra le message dedans
-  } finally {
-    setConfirmLoading(false);
-  }
-};
+      // ------ ARTICLES ------
+      else if (activeTab === "articles") {
+        await deleteDashboardArticle(confirmId);
+        setArticles((prev) => prev.filter((a) => a.id !== confirmId));
+        setSuccessMsg("Article supprimé avec succès !");
 
+        const itemsLeftOnPage = articles.length - 1;
+        if (itemsLeftOnPage <= 0 && page > 1) setPage(page - 1);
+
+        setCount((prev) => Math.max(0, prev - 1));
+      }
+
+      // ------ CATEGORIES ------
+      else {
+        await deleteDashboardCategory(confirmId);
+        setCategories((prev) => removeCategoryFromTree(prev, confirmId));
+        setSuccessMsg("Catégorie supprimée avec succès !");
+        setCount((prev) => Math.max(0, prev - 1));
+      }
+
+      setConfirmId(null);
+      setTimeout(() => setSuccessMsg(null), 7000);
+    } catch (e: any) {
+      const msg = e?.message ?? "Erreur lors de la suppression.";
+      setDeleteErrorMsg(msg);
+      // on ne ferme pas le modal
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
 
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
@@ -364,6 +438,56 @@ const handleDeleteConfirmed = async () => {
         </button>
       </div>
 
+      {/* ✅ Bouton Sélectionner (produits uniquement) */}
+      {activeTab === "produits" && (
+        <div className="mb-3 flex items-center justify-end gap-2">
+          {!selectMode ? (
+            <button
+              className="px-3 py-1.5 rounded-lg border text-gray-700 hover:bg-gray-50"
+              onClick={() => setSelectMode(true)}
+            >
+              Sélectionner
+            </button>
+          ) : (
+            <button
+              className="px-3 py-1.5 rounded-lg border text-gray-700 hover:bg-gray-50"
+              onClick={() => {
+                setSelectMode(false);
+                setSelectedProductIds([]);
+              }}
+            >
+              Quitter la sélection
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ✅ Barre d’action sticky (produits uniquement) */}
+      {activeTab === "produits" && selectMode && selectedProductIds.length > 0 && (
+        <div className="sticky top-0 z-10 mb-3 bg-white/90 backdrop-blur border rounded-xl px-3 py-2 flex items-center justify-between">
+          <div className="text-sm text-gray-700">
+            <b>{selectedProductIds.length}</b> sélectionné(s)
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              className="px-3 py-1.5 rounded-lg border text-gray-700 hover:bg-gray-50"
+              onClick={() => setSelectedProductIds([])}
+            >
+              Tout désélectionner
+            </button>
+
+            <button
+              className="px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center gap-2"
+              onClick={requestBulkDelete}
+            >
+              <Trash2 size={16} />
+              Supprimer
+            </button>
+          </div>
+        </div>
+      )}
+
       {loading && <div className="text-center py-6">Chargement...</div>}
       {error && <div className="text-red-500 text-center py-6">{error}</div>}
 
@@ -373,6 +497,16 @@ const handleDeleteConfirmed = async () => {
             <thead className="text-gray-500 border-b">
               {activeTab === "produits" && (
                 <tr>
+                  {selectMode && (
+                    <th className="py-1.5 md:py-2 px-2 md:px-4 w-10">
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 accent-[#00A9DC] cursor-pointer"
+                      />
+                    </th>
+                  )}
                   <th className="py-1.5 md:py-2 px-2 md:px-4">Image</th>
                   <th className="py-1.5 md:py-2 px-2 md:px-4">Nom</th>
                   <th className="py-1.5 md:py-2 px-2 md:px-4">Prix</th>
@@ -408,6 +542,17 @@ const handleDeleteConfirmed = async () => {
                 (products.length ? (
                   products.map((p) => (
                     <tr key={p.id} className="border-b hover:bg-gray-50">
+                      {selectMode && (
+                        <td className="py-1.5 md:py-2 px-2 md:px-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedProductIds.includes(p.id)}
+                            onChange={() => toggleSelectOne(p.id)}
+                            className="h-4 w-4 accent-[#00A9DC] cursor-pointer"
+                          />
+                        </td>
+                      )}
+
                       <td className="py-1.5 md:py-2 px-2 md:px-4">
                         <img
                           width={300}
@@ -427,24 +572,17 @@ const handleDeleteConfirmed = async () => {
                       </td>
                       <td className="py-1.5 md:py-2 px-2 md:px-4 text-gray-700">
                         {p.prix_from != null
-                          ? `${Number(p.prix_from as any).toLocaleString(
-                              "fr-FR"
-                            )} FCFA`
+                          ? `${Number(p.prix_from as any).toLocaleString("fr-FR")} FCFA`
                           : "—"}
                       </td>
                       <td className="py-1.5 md:py-2 px-2 md:px-4">
-                        {p.variants_stock?.[0] ??
-                          p.stock_total ??
-                          p.quantite ??
-                          "—"}
+                        {p.variants_stock?.[0] ?? p.stock_total ?? p.quantite ?? "—"}
                       </td>
                       <td className="py-1.5 md:py-2 px-2 md:px-4">
                         <Plus
                           className="text-[#00A9DC] cursor-pointer"
                           size={18}
-                          onClick={() =>
-                            navigate(`/dashboard/modifier/${p.id}`)
-                          }
+                          onClick={() => navigate(`/dashboard/modifier/${p.id}`)}
                         />
                       </td>
                       <td className="py-1.5 md:py-2 px-2 md:px-4">
@@ -458,10 +596,7 @@ const handleDeleteConfirmed = async () => {
                   ))
                 ) : (
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="text-center py-6 text-gray-500"
-                    >
+                    <td colSpan={selectMode ? 7 : 6} className="text-center py-6 text-gray-500">
                       Aucun produit trouvé.
                     </td>
                   </tr>
@@ -493,9 +628,7 @@ const handleDeleteConfirmed = async () => {
                         <Plus
                           className="text-[#00A9DC] cursor-pointer"
                           size={18}
-                          onClick={() =>
-                            navigate(`/dashboard/Articles/${a.id}/edit`)
-                          }
+                          onClick={() => navigate(`/dashboard/Articles/${a.id}/edit`)}
                         />
                       </td>
                       <td className="py-1.5 md:py-2 px-2 md:px-4">
@@ -509,10 +642,7 @@ const handleDeleteConfirmed = async () => {
                   ))
                 ) : (
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="text-center py-6 text-gray-500"
-                    >
+                    <td colSpan={5} className="text-center py-6 text-gray-500">
                       Aucun article.
                     </td>
                   </tr>
@@ -558,11 +688,7 @@ const handleDeleteConfirmed = async () => {
                           <Plus
                             className="text-[#00A9DC] cursor-pointer"
                             size={18}
-                            onClick={() =>
-                              navigate(
-                                `/dashboard/Categories/${parent.id}/edit`
-                              )
-                            }
+                            onClick={() => navigate(`/dashboard/Categories/${parent.id}/edit`)}
                           />
                         </td>
 
@@ -602,11 +728,7 @@ const handleDeleteConfirmed = async () => {
                               <Plus
                                 className="text-[#00A9DC] cursor-pointer"
                                 size={18}
-                                onClick={() =>
-                                  navigate(
-                                    `/dashboard/Categories/${child.id}/edit`
-                                  )
-                                }
+                                onClick={() => navigate(`/dashboard/Categories/${child.id}/edit`)}
                               />
                             </td>
 
@@ -623,10 +745,7 @@ const handleDeleteConfirmed = async () => {
                   ))
                 ) : (
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="text-center py-6 text-gray-500"
-                    >
+                    <td colSpan={5} className="text-center py-6 text-gray-500">
                       Aucune catégorie.
                     </td>
                   </tr>
@@ -645,9 +764,7 @@ const handleDeleteConfirmed = async () => {
                 key={n}
                 onClick={() => setPage(n)}
                 className={`px-3 py-1 border rounded-full text-sm ${
-                  n === page
-                    ? "bg-[#00A9DC] text-white"
-                    : "bg-white hover:bg-blue-100"
+                  n === page ? "bg-[#00A9DC] text-white" : "bg-white hover:bg-blue-100"
                 }`}
               >
                 {n}
@@ -658,92 +775,108 @@ const handleDeleteConfirmed = async () => {
       )}
 
       {/* Modal confirmation */}
-   {confirmId !== null && (
-  <div
-    className="fixed inset-0 flex items-center justify-center bg-black/40 z-50"
-    onClick={() => (confirmLoading ? null : setConfirmId(null))}
-  >
-    <div
-      className="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-md relative"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <h3 className="text-lg font-semibold text-gray-900">
-        {deleteErrorMsg ? "Suppression impossible" : "Confirmation"}
-      </h3>
+      {confirmId !== null && (
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black/40 z-50"
+          onClick={() => (confirmLoading ? null : setConfirmId(null))}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-md relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900">
+              {deleteErrorMsg ? "Suppression impossible" : "Confirmation"}
+            </h3>
 
-      {/* 👉 Cas ERREUR : seulement le message + bouton OK */}
-      {deleteErrorMsg ? (
-        <>
-          <p className="mt-4 text-sm text-red-600 whitespace-pre-line">
-            {deleteErrorMsg}
-          </p>
-
-          <div className="mt-6 flex justify-end">
-            <button
-              className="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
-              onClick={() => {
-                setDeleteErrorMsg(null);
-                setConfirmId(null);
-              }}
-            >
-              OK
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          {/* 👉 Cas NORMAL : confirmation avant suppression */}
-          <p className="mt-2 text-sm text-gray-600">
-            Voulez-vous vraiment supprimer ce{" "}
-            {activeTab === "produits"
-              ? "produit"
-              : activeTab === "articles"
-              ? "article"
-              : "catégorie"}
-            ?
-            {activeTab === "produits" && (
+            {/* 👉 Cas ERREUR */}
+            {deleteErrorMsg ? (
               <>
-                <br />
-                <span className="text-red-600 font-semibold">
-                  Cette action supprimera aussi les variantes, images et
-                  spécifications liées.
-                </span>
+                <p className="mt-4 text-sm text-red-600 whitespace-pre-line">
+                  {deleteErrorMsg}
+                </p>
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    className="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
+                    onClick={() => {
+                      setDeleteErrorMsg(null);
+                      setConfirmId(null);
+                    }}
+                  >
+                    OK
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* 👉 Cas NORMAL */}
+                <p className="mt-2 text-sm text-gray-600">
+                  {deleteMode === "bulk" && activeTab === "produits" ? (
+                    <>
+                      Voulez-vous vraiment supprimer{" "}
+                      <b>{bulkIds.length}</b> produit(s) sélectionné(s) ?
+                      <br />
+                      <span className="text-red-600 font-semibold">
+                        Cette action supprimera aussi les variantes, images et
+                        spécifications liées.
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      Voulez-vous vraiment supprimer ce{" "}
+                      {activeTab === "produits"
+                        ? "produit"
+                        : activeTab === "articles"
+                        ? "article"
+                        : "catégorie"}
+                      ?
+                      {activeTab === "produits" && (
+                        <>
+                          <br />
+                          <span className="text-red-600 font-semibold">
+                            Cette action supprimera aussi les variantes, images et
+                            spécifications liées.
+                          </span>
+                        </>
+                      )}
+                      {activeTab === "categories" && (
+                        <>
+                          <br />
+                          <span className="text-red-600 font-semibold">
+                            Cette action est définitive. La suppression sera refusée si la
+                            catégorie possède des sous-catégories ou des produits rattachés.
+                          </span>
+                        </>
+                      )}
+                    </>
+                  )}
+                </p>
+
+                <div className="mt-6 flex justify-end gap-2">
+                  <button
+                    className="px-4 py-2 rounded-xl border text-gray-700 hover:bg-gray-100"
+                    onClick={() => setConfirmId(null)}
+                    disabled={confirmLoading}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    className="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                    onClick={handleDeleteConfirmed}
+                    disabled={confirmLoading}
+                  >
+                    {confirmLoading
+                      ? "Suppression..."
+                      : deleteMode === "bulk" && activeTab === "produits"
+                      ? `Oui, supprimer (${bulkIds.length})`
+                      : "Oui, supprimer"}
+                  </button>
+                </div>
               </>
             )}
-            {activeTab === "categories" && (
-              <>
-                <br />
-                <span className="text-red-600 font-semibold">
-                  Cette action est définitive. La suppression sera refusée si la
-                  catégorie possède des sous-catégories ou des produits
-                  rattachés.
-                </span>
-              </>
-            )}
-          </p>
-
-          <div className="mt-6 flex justify-end gap-2">
-            <button
-              className="px-4 py-2 rounded-xl border text-gray-700 hover:bg-gray-100"
-              onClick={() => setConfirmId(null)}
-              disabled={confirmLoading}
-            >
-              Annuler
-            </button>
-            <button
-              className="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-              onClick={handleDeleteConfirmed}
-              disabled={confirmLoading}
-            >
-              {confirmLoading ? "Suppression..." : "Oui, supprimer"}
-            </button>
           </div>
-        </>
+        </div>
       )}
-    </div>
-  </div>
-)}
-
     </div>
   );
 };
