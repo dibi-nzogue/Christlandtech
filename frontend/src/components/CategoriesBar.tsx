@@ -1,4 +1,4 @@
-// src/components/CategoriesBar.tsx
+
 import React from "react";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 

@@ -1,4 +1,4 @@
-// src/components/ContactSection.tsx
+
 import React, { useState } from "react";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { useTranslation } from "react-i18next";

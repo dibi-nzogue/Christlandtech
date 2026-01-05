@@ -9,9 +9,91 @@ from .models import (
 from django.utils import timezone
 
 from .serializers_i18n import I18nTranslateMixin
+from urllib.parse import urlparse
+from django.conf import settings
+
+# -------------------------
+# Helpers (même logique que Produits)
+# -------------------------
+
+def _abs_media(request, value: str | None) -> str | None:
+    """
+    Transforme une valeur stockée (idéalement "uploads/..." ou "images/...")
+    en URL absolue. Tolère aussi:
+    - URL absolue http(s)
+    - "/media/..."
+    - "media/..."
+    """
+    if not value:
+        return None
+
+    s = str(value).strip()
+    if not s:
+        return None
+
+    # URL absolue -> on laisse
+    if s.lower().startswith(("http://", "https://", "data:")):
+        return s
+
+    # Normalise en path
+    # ex: "media/uploads/x.png" -> "/media/uploads/x.png"
+    if not s.startswith("/"):
+        s = "/" + s
+
+    media_prefix = "/" + settings.MEDIA_URL.strip("/")  # ex "/media"
+
+    # Si ça commence par "/media/media/..." -> on corrige (anciens mauvais stocks)
+    double = media_prefix + media_prefix + "/"
+    if s.startswith(double):
+        s = s[len(media_prefix):]  # retire 1 fois "/media"
+
+    # Si déjà sous /media/... ok
+    if s.startswith(media_prefix + "/"):
+        path = s
+    else:
+        # Sinon, on préfixe MEDIA_URL
+        path = media_prefix + s  # ex "/media" + "/uploads/x.png"
+
+    return request.build_absolute_uri(path) if request else path
 
 
-# helpers i18n simples pour les champs "choices" comme etat
+def _strip_media(url_or_path: str | None) -> str:
+    """
+    Convertit une URL ou un path en chemin relatif à MEDIA_ROOT.
+    Exemples:
+    - "http://127.0.0.1:8000/media/uploads/a.png" -> "uploads/a.png"
+    - "/media/uploads/a.png" -> "uploads/a.png"
+    - "media/uploads/a.png" -> "uploads/a.png"
+    - "uploads/a.png" -> "uploads/a.png"
+    - ""/None -> ""
+    """
+    s = (url_or_path or "").strip()
+    if not s:
+        return ""
+
+    # URL absolue -> path
+    if s.lower().startswith(("http://", "https://")):
+        s = urlparse(s).path or ""
+
+    # normalise
+    if not s.startswith("/"):
+        s = "/" + s
+
+    media_prefix = "/" + settings.MEDIA_URL.strip("/") + "/"  # "/media/"
+
+    # retire "/media/"
+    if s.startswith(media_prefix):
+        s = s[len(media_prefix):]  # "uploads/a.png"
+    else:
+        s = s.lstrip("/")  # "uploads/a.png" ou "images/..."
+
+    # Nettoie un éventuel "media/" restant (cas "media/uploads/..")
+    if s.startswith("media/"):
+        s = s[len("media/"):]
+
+    return s
+
+
 
 def get_request_lang(request) -> str:
     """
@@ -222,7 +304,31 @@ class CategoryDashboardSerializer(serializers.ModelSerializer):
                 {"id": child.id, "nom": child.nom, "slug": child.slug}
                 for child in obj.children.all()
             ]
+class CategoryEditSerializer(serializers.ModelSerializer):
+    # champ côté front
+    image = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
+    class Meta:
+        model = Categories
+        fields = ("id", "nom", "slug", "description", "est_actif", "position", "parent", "image")
+
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        request = self.context.get("request")
+
+        # on lit l'image depuis le champ modèle "image_url"
+        data["image"] = _abs_media(request, getattr(obj, "image_url", None))
+
+        return data
+
+    def update(self, instance, validated_data):
+        img = validated_data.pop("image", None)
+
+        # si "image" est présent -> on met à jour le champ modèle "image_url"
+        if img is not None:
+            instance.image_url = _strip_media(img)  # ✅ stocke "uploads/..." / "images/..." / ""
+
+        return super().update(instance, validated_data)
 
 class CatalogCategorySerializer(I18nTranslateMixin, serializers.ModelSerializer):
     """
@@ -508,9 +614,15 @@ class ProduitsSerializer(I18nTranslateMixin, serializers.ModelSerializer):
         )
         return data
     
+
+# -------------------------
+# Serializers Articles (corrigés)
+# -------------------------
+
 class ArticleDashboardSerializer(serializers.ModelSerializer):
-    # + traduire les champs de texte du blog
-    # i18n_fields = ["titre", "slug", "extrait", "contenu"]
+    """
+    Serializer pour l’affichage dashboard (liste/detail)
+    """
     image = serializers.SerializerMethodField()
 
     class Meta:
@@ -521,120 +633,78 @@ class ArticleDashboardSerializer(serializers.ModelSerializer):
         )
 
     def get_image(self, obj):
-        """
-        image_couverture est un CharField → on renvoie une URL absolue.
-        """
-        val = (obj.image_couverture or "").strip() if obj.image_couverture else ""
-        if not val:
-            return None
-        if val.lower().startswith(("http://", "https://", "data:")):
-            return val
         request = self.context.get("request")
-        base = settings.MEDIA_URL.rstrip("/")
-        url = f"{base}/{val.lstrip('/')}"
-        return request.build_absolute_uri(url) if request else url
-    
-def _abs_media(request, path: str | None) -> str | None:
-    if not path:
-        return None
-
-    p = str(path).strip()
-    if not p:
-        return None
-
-    # 🔹 1) Enlever les anciens host locaux
-    LOCAL_PREFIXES = (
-        "http://127.0.0.1:8000",
-        "http://localhost:8000",
-        "http://0.0.0.0:8000",
-    )
-    for pref in LOCAL_PREFIXES:
-        if p.startswith(pref):
-            p = p[len(pref):] or ""
-            break
-
-    # 🔹 2) Si c’est déjà une URL absolue http(s)/data → on laisse
-    if p.lower().startswith(("http://", "https://", "data:")):
-        return p
-
-    # 🔹 3) Chemin relatif → on colle derrière MEDIA_URL
-    if request is not None:
-        base = request.build_absolute_uri(settings.MEDIA_URL)
-    else:
-        base = settings.MEDIA_URL
-
-    return f"{base.rstrip('/')}/{p.lstrip('/')}"
+        return _abs_media(request, obj.image_couverture)
 
 
-
-class ArticleEditSerializer( serializers.ModelSerializer):
-    # + traduire aussi en mode “edit” (lecture)
-    # i18n_fields = ["titre","slug", "extrait", "contenu"]
-    # on expose "image" en lisant image_couverture
-    image = serializers.SerializerMethodField()
+class ArticleEditSerializer(serializers.ModelSerializer):
+    """
+    Serializer utilisé pour:
+    - GET /articles/<id>/edit/
+    - PUT/PATCH /articles/<id>/
+    """
+    image = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     class Meta:
         model = ArticlesBlog
-        # ❌ pas de publie_le ici
         fields = ("id", "titre", "slug", "extrait", "contenu", "image")
 
-    def get_image(self, obj):
-        request = self.context.get("request")
-        return _abs_media(request, getattr(obj, "image_couverture", None))
-
     def to_representation(self, obj):
-        """
-        Ne renvoie QUE les champs qui ont une valeur (garde toujours 'id').
-        """
         data = super().to_representation(obj)
+        request = self.context.get("request")
+
+        # on renvoie l'URL absolue
+        data["image"] = _abs_media(request, obj.image_couverture)
+
+        # ne renvoie que les champs non vides (garde toujours id)
         clean = {"id": data.get("id")}
         for k in ("titre", "slug", "extrait", "contenu", "image"):
             v = data.get(k)
             if v not in (None, "", []):
                 clean[k] = v
         return clean
-    
+
+    def update(self, instance, validated_data):
+        img = validated_data.pop("image", None)
+
+        # si "image" est présent dans le payload, on met à jour
+        if img is not None:
+            instance.image_couverture = _strip_media(img)  # ✅ stocke "uploads/..." ou ""
+
+        return super().update(instance, validated_data)
+
+
 class ArticleCreateSerializer(serializers.ModelSerializer):
-    # + pour la réponse (to_representation) après création
-    # i18n_fields = ["titre", "slug", "extrait", "contenu"]
+    """
+    Serializer pour POST /articles/
+    """
     image = serializers.CharField(allow_blank=True, allow_null=True, required=False)
 
     class Meta:
         model = ArticlesBlog
         fields = ["id", "titre", "slug", "extrait", "contenu", "image"]
-        read_only_fields = ["id"]  # ⬅️ important : on n’accepte jamais un id en entrée
+        read_only_fields = ["id"]
 
     def create(self, validated_data):
-        # ne jamais laisser un id passer
         validated_data.pop("id", None)
 
         img = validated_data.pop("image", None)
         titre = (validated_data.get("titre") or "").strip()
 
         if not validated_data.get("slug"):
-            # si pas de titre -> slug "article"
             validated_data["slug"] = slugify(titre)[:140] or slugify("article")
 
-        # Si ton modèle a auto_now_add=True, enlève publie_le=...
         obj = ArticlesBlog.objects.create(publie_le=timezone.now(), **validated_data)
 
-        if img:
-            obj.image_couverture = img
+        # ✅ IMPORTANT: stocker proprement
+        if img is not None:
+            obj.image_couverture = _strip_media(img)
             obj.save(update_fields=["image_couverture"])
+
         return obj
 
     def to_representation(self, instance):
-        request = self.context.get("request")
         data = super().to_representation(instance)
-
-        def _abs_media(path):
-            if not path:
-                return None
-            p = str(path).strip()
-            if p.lower().startswith(("http://", "https://", "data:")):
-                return p
-            base = request.build_absolute_uri(settings.MEDIA_URL) if request else settings.MEDIA_URL
-            return f"{base.rstrip('/')}/{p.lstrip('/')}"
-
-        data["image"] = _abs_media(getattr(instance, "image_couverture", None))
+        request = self.context.get("request")
+        data["image"] = _abs_media(request, instance.image_couverture)
         return data

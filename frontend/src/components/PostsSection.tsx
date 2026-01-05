@@ -1,4 +1,4 @@
-// src/components/PostsSection.tsx
+
 import React from "react";
 import { useBlogPosts, media } from "../hooks/useFetchQuery";
 import { motion } from "framer-motion";

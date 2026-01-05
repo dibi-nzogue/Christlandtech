@@ -1,4 +1,4 @@
-// src/components/AchatProduit.tsx
+
 import * as React from "react";
 import { FiChevronRight, FiChevronDown } from "react-icons/fi";
 import { MdOutlineWhatsapp } from "react-icons/md";

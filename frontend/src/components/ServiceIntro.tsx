@@ -1,4 +1,4 @@
-// src/components/ServiceIntro.tsx
+
 import React, { useId } from "react";
 import banner from "../assets/images/achat/07b83e0c-2d5b.webp";
 import { useTranslation } from "react-i18next";

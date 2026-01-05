@@ -1,4 +1,4 @@
-// src/components/ServicesBloc.tsx
+
 import React, { useEffect, useLayoutEffect, useRef, useState, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, type Variants } from "framer-motion";
