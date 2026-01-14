@@ -14,7 +14,7 @@ const SEND_LANG_IN_QUERY = true;
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
   (isProd
-    ? window.location.origin       // backend en prod
+    ? "https://christland.tech"    // backend en prod
     : "http://127.0.0.1:8000");                    // backend en local
 
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? "";
@@ -29,7 +29,7 @@ export const api = (p: string) => `${API_BASE}${API_PREFIX}${p}`;
 const MEDIA_BASE =
   import.meta.env.VITE_MEDIA_BASE ||
   (isProd
-    ? window.location.origin        // prod
+    ? "https://christland.tech"      // prod
     : "http://127.0.0.1:8000");                    // local
 
 // ✅ version simplifiée : gère local + prod sans se compliquer
