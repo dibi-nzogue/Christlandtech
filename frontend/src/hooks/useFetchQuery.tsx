@@ -14,10 +14,11 @@ const SEND_LANG_IN_QUERY = true;
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
   (isProd
-    ? "https://christlandtech.onrender.com"        // backend en prod
+    ? window.location.origin       // backend en prod
     : "http://127.0.0.1:8000");                    // backend en local
 
-const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? "/christland";
+const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? "";
+
 
 export const api = (p: string) => `${API_BASE}${API_PREFIX}${p}`;
 
@@ -28,7 +29,7 @@ export const api = (p: string) => `${API_BASE}${API_PREFIX}${p}`;
 const MEDIA_BASE =
   import.meta.env.VITE_MEDIA_BASE ||
   (isProd
-    ? "https://christlandtech.onrender.com"        // prod
+    ? window.location.origin        // prod
     : "http://127.0.0.1:8000");                    // local
 
 // ✅ version simplifiée : gère local + prod sans se compliquer
@@ -56,9 +57,9 @@ export function media(src?: string | null): string {
       }
 
       // 🔹 Cas 2 : URL vers ton vrai backend -> on force https seulement si nécessaire
-      if (isProd && u.protocol === "http:" && u.hostname === "christlandtech.onrender.com") {
-        return `https://${u.host}${u.pathname}${u.search}${u.hash}`;
-      }
+   if (isProd && u.protocol === "http:") {
+  return `https://${u.host}${u.pathname}${u.search}${u.hash}`;
+}
 
       // 🔹 Cas 3 : autre domaine (CDN, image externe, etc.) -> on ne touche pas
       return s;
