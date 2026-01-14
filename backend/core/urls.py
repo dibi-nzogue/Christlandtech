@@ -4,6 +4,10 @@ from django.urls import path, include, re_path
 from django.conf import settings
 from django.views.static import serve
 
+
+admin.site.site_header = "christland Admin"
+admin.site.index_title = "Admin"
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("christland/", include("christland.urls")),

@@ -259,28 +259,28 @@ const ProductEditForm: React.FC = () => {
       etat: (opt?.id as ProduitFormState["etat"]) ?? "neuf",
     }));
 
-  const addImage = () =>
-    setImages((arr) => [
-      ...arr,
-      {
-        url: "",
-        alt_text: "",
-        position: (arr[arr.length - 1]?.position ?? arr.length) + 1,
-        principale: false,
-        _localFile: null,
-        _uploading: false,
-        _error: null,
-      },
-    ]);
+  // const addImage = () =>
+  //   setImages((arr) => [
+  //     ...arr,
+  //     {
+  //       url: "",
+  //       alt_text: "",
+  //       position: (arr[arr.length - 1]?.position ?? arr.length) + 1,
+  //       principale: false,
+  //       _localFile: null,
+  //       _uploading: false,
+  //       _error: null,
+  //     },
+  //   ]);
 
-  const removeImage = (idx: number) =>
-    setImages((arr) => (arr.length <= 1 ? arr : arr.filter((_, i) => i !== idx)));
+  // const removeImage = (idx: number) =>
+  //   setImages((arr) => (arr.length <= 1 ? arr : arr.filter((_, i) => i !== idx)));
 
   const updateImage = (idx: number, patch: Partial<ImgRow>) =>
     setImages((arr) => arr.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 
-  const setPrincipale = (idx: number) =>
-    setImages((arr) => arr.map((r, i) => ({ ...r, principale: i === idx })));
+  // const setPrincipale = (idx: number) =>
+  //   setImages((arr) => arr.map((r, i) => ({ ...r, principale: i === idx })));
 
   const onSelectFile = async (idx: number, file: File | null) => {
     if (!file) {
@@ -1140,7 +1140,7 @@ const ProductEditForm: React.FC = () => {
                 </div>
 
                 {/* Alt text */}
-                <div className="col-span-1 md:col-span-3">
+                {/* <div className="col-span-1 md:col-span-3">
                   <label
                     htmlFor={`image_alt_${idx}`}
                     className="sr-only"
@@ -1157,10 +1157,10 @@ const ProductEditForm: React.FC = () => {
                     }
                     className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
                   />
-                </div>
+                </div> */}
 
                 {/* Position */}
-                <div className="col-span-1 md:col-span-2">
+                {/* <div className="col-span-1 md:col-span-2">
                   <label
                     htmlFor={`image_position_${idx}`}
                     className="sr-only"
@@ -1180,10 +1180,10 @@ const ProductEditForm: React.FC = () => {
                     }
                     className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
                   />
-                </div>
+                </div> */}
 
                 {/* Radio principale */}
-                <div className="col-span-1 md:col-span-1 flex items-center">
+                {/* <div className="col-span-1 md:col-span-1 flex items-center">
                   <fieldset>
                     <legend className="sr-only">
                       Image principale
@@ -1202,10 +1202,10 @@ const ProductEditForm: React.FC = () => {
                       </span>
                     </label>
                   </fieldset>
-                </div>
+                </div> */}
 
                 {/* Bouton supprimer */}
-                <div className="col-span-1 md:col-span-1 flex justify-end">
+                {/* <div className="col-span-1 md:col-span-1 flex justify-end">
                   <button
                     type="button"
                     onClick={() => removeImage(idx)}
@@ -1220,7 +1220,7 @@ const ProductEditForm: React.FC = () => {
                   >
                     -
                   </button>
-                </div>
+                </div> */}
 
                 {/* Aperçu + messages */}
                 <div className="col-span-1 md:col-span-12 text-sm">
@@ -1251,7 +1251,7 @@ const ProductEditForm: React.FC = () => {
               </div>
             ))}
           </div>
-          <div className="mt-3">
+          {/* <div className="mt-3">
             <button
               type="button"
               onClick={addImage}
@@ -1259,7 +1259,7 @@ const ProductEditForm: React.FC = () => {
             >
               + Ajouter une image
             </button>
-          </div>
+          </div> */}
         </div>
 
         {/* ===== Variante (principale) ===== */}

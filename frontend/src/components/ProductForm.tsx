@@ -146,28 +146,28 @@ sous_categorie: "",
 // Attributs dynamiques saisis
 const [prodAttrs, setProdAttrs] = useState<Record<string, any>>({});
 const [varAttrs, setVarAttrs] = useState<Record<string, any>>({});
-  const addImage = () =>
-    setImages((arr) => [
-      ...arr,
-      {
-        url: "",
-        alt_text: "",
-        position: (arr[arr.length - 1]?.position ?? arr.length) + 1,
-        principale: false,
-        _localFile: null,
-        _uploading: false,
-        _error: null,
-      },
-    ]);
+  // const addImage = () =>
+  //   setImages((arr) => [
+  //     ...arr,
+  //     {
+  //       url: "",
+  //       alt_text: "",
+  //       position: (arr[arr.length - 1]?.position ?? arr.length) + 1,
+  //       principale: false,
+  //       _localFile: null,
+  //       _uploading: false,
+  //       _error: null,
+  //     },
+  //   ]);
 
-  const removeImage = (idx: number) =>
-    setImages((arr) => (arr.length <= 1 ? arr : arr.filter((_, i) => i !== idx)));
+  // const removeImage = (idx: number) =>
+  //   setImages((arr) => (arr.length <= 1 ? arr : arr.filter((_, i) => i !== idx)));
 
   const updateImage = (idx: number, patch: Partial<ImgRow>) =>
     setImages((arr) => arr.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 
-  const setPrincipale = (idx: number) =>
-    setImages((arr) => arr.map((r, i) => ({ ...r, principale: i === idx })));
+  // const setPrincipale = (idx: number) =>
+  //   setImages((arr) => arr.map((r, i) => ({ ...r, principale: i === idx })));
 
   // fichier -> upload -> url
   const onSelectFile = async (idx: number, file: File | null) => {
@@ -1183,7 +1183,7 @@ const renderAttrInput = (
         </div>
 
         {/* Alt text */}
-        <div className="md:col-span-3">
+        {/* <div className="md:col-span-3">
           <input
             type="text"
             placeholder="Alt text"
@@ -1194,10 +1194,10 @@ const renderAttrInput = (
             }
             className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
           />
-        </div>
+        </div> */}
 
         {/* Position */}
-        <div className="md:col-span-2">
+        {/* <div className="md:col-span-2">
           <input
             type="number"
             placeholder="Position"
@@ -1212,10 +1212,10 @@ const renderAttrInput = (
             }
             className="border rounded-lg p-2 bg-gray-100 w-full outline-[#00A9DC]"
           />
-        </div>
+        </div> */}
 
         {/* Principale */}
-                <div className="md:col-span-1">
+        {/* <div className="md:col-span-1">
           <label className="inline-flex items-center gap-2">
             <input
               type="radio"
@@ -1229,11 +1229,11 @@ const renderAttrInput = (
               Principale
             </span>
           </label>
-        </div>
+        </div> */}
 
 
         {/* Bouton supprimer */}
-        <div className="md:col-span-1 flex justify-end">
+        {/* <div className="md:col-span-1 flex justify-end">
           <button
             type="button"
             onClick={() => removeImage(idx)}
@@ -1247,7 +1247,7 @@ const renderAttrInput = (
           >
             -
           </button>
-        </div>
+        </div> */}
 
         {/* Aperçu + URL */}
         <div className="md:col-span-12 text-sm mt-1">
@@ -1279,7 +1279,7 @@ const renderAttrInput = (
     ))}
  </fieldset>
 
-  <div className="mt-3">
+  {/* <div className="mt-3">
     <button
       type="button"
       onClick={addImage}
@@ -1287,7 +1287,7 @@ const renderAttrInput = (
     >
       + Ajouter une image
     </button>
-  </div>
+  </div> */}
 </div>
 
         {/* ===== Variante ===== */}
