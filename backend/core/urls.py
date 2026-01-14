@@ -11,8 +11,6 @@ admin.site.index_title = "Admin"
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("christland.urls")),
-
-
     # ➜ sert les fichiers media même quand DEBUG = False
     re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
 ]
