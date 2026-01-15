@@ -1,21 +1,21 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
 
-# Virtualenv / venv
+# Virtualenv
 venv/
 .venv/
 backend/venv/
 backend/.venv/
 
-# Django static collected
-backend/staticfiles/
+# Django
+*.log
+db.sqlite3
 
-# Node
+# Node / frontend
 node_modules/
 
 # OS
 .DS_Store
-
+Thumbs.db
