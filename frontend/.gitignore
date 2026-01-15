@@ -25,9 +25,14 @@ dist-ssr
 
 frontend/.venv/
 .venv/
-__pycache__/
-*.pyc
 node_modules/
 dist/
 build/
 .env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+backend/venv/
+.venv/
+env/
