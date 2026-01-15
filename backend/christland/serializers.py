@@ -508,25 +508,12 @@ class ProduitCardSerializer(I18nTranslateMixin, serializers.ModelSerializer):
         if not img:
             return None
 
-        val = (getattr(img, "url", "") or "").strip()
+        val = (getattr(img, "url", None) or "").strip()
         if not val:
             return None
 
-        # déjà URL absolue
-        if val.lower().startswith(("http://", "https://", "data:")):
-            return val
+        return _abs_media(request, val)
 
-        # déjà /media/...
-        if val.startswith("/media/"):
-            return request.build_absolute_uri(val) if request else val
-
-        # si stocké "media/..." -> on retire "media/"
-        if val.startswith("media/"):
-            val = val[len("media/"):]
-
-        # sinon on FORCE /media/<val>
-        path = f"{settings.MEDIA_URL.rstrip('/')}/{val.lstrip('/')}"
-        return request.build_absolute_uri(path) if request else path
 
     def get_specs(self, obj):
         def extract(sp):
