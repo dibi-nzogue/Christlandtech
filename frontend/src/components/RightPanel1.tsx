@@ -1,5 +1,5 @@
 import React from "react";
-import {media, useLatestProducts } from "../hooks/useFetchQuery";
+import { useLatestProducts } from "../hooks/useFetchQuery";
 
 const FALLBACK = "/Dispositivos.webp";
 
@@ -33,7 +33,7 @@ const RightPanel1: React.FC = () => {
                 <img
                   width={300}
                   height={300}
-                  src={media(p.image) || FALLBACK}
+                  src={p.image || FALLBACK}
                   loading="lazy"
                   alt={p.nom}
                   className="absolute inset-0 h-full w-full object-contain rounded-xl transition-transform duration-300 ease-out"
