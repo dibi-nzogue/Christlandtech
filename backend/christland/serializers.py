@@ -11,7 +11,7 @@ from django.utils import timezone
 from .serializers_i18n import I18nTranslateMixin
 from urllib.parse import urlparse
 from django.conf import settings
-
+from django.db import transaction
 # -------------------------
 # Helpers (même logique que Produits)
 # -------------------------
@@ -157,10 +157,26 @@ class CouleurMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
 
 
 class ImageProduitSerializer(I18nTranslateMixin, serializers.ModelSerializer):
-    # + traduire l'alt_text (s’il existe)
     i18n_fields = ["alt_text"]
-    url = serializers.SerializerMethodField()
 
+    # ✅ writable
+    url = serializers.CharField()
+
+    class Meta:
+        model = ImagesProduits
+        fields = ("url", "alt_text", "position", "principale")
+
+    def validate_url(self, value: str):
+        # ✅ stocke proprement en BD: "uploads/..." au lieu de "http://127.0.0.1:8000/media/uploads/..."
+        return _strip_media(value)
+
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        request = self.context.get("request")
+
+        # ✅ renvoie toujours une URL absolue côté front
+        data["url"] = _abs_media(request, getattr(obj, "url", None))
+        return data
     class Meta:
         model = ImagesProduits
         fields = ("url", "alt_text", "position", "principale")  # slug inutile ici
@@ -362,11 +378,12 @@ class ProductEditSerializer(serializers.ModelSerializer):
     # i18n_fields = ["nom", "description_courte", "description_long"]
 
     # relations imbriquées
-    categorie = CategorieMiniSerializer(read_only=True)
-    sous_categorie = CategorieMiniSerializer(read_only=True)
-    marque = MarqueMiniSerializer(read_only=True)
-    variantes = VarianteSerializer(many=True, read_only=True)
-    images = ImageProduitSerializer(many=True, read_only=True)
+    categorie = CategorieMiniSerializer(read_only=True, required=False)
+    sous_categorie = CategorieMiniSerializer(read_only=True, required=False)
+    marque = MarqueMiniSerializer(read_only=True, required=False)
+    variantes = VarianteSerializer(many=True, required=False)
+    images = ImageProduitSerializer(many=True, required=False)
+
 
     class Meta:
         model = Produits
@@ -388,6 +405,34 @@ class ProductEditSerializer(serializers.ModelSerializer):
             "variantes",
             "images",
         )
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        images_data = validated_data.pop("images", None)
+
+        # update produit
+        instance = super().update(instance, validated_data)
+
+        # update images si fourni
+        if images_data is not None:
+            instance.images.all().delete()
+
+            for i, img in enumerate(images_data):
+                ImagesProduits.objects.create(
+                    produit=instance,
+                    url=_strip_media(img["url"]),
+                    alt_text=img.get("alt_text", ""),
+                    position=img.get("position", i + 1),
+                    principale=img.get("principale", False),
+                )
+
+            # garantir une principale
+            if instance.images.exists() and not instance.images.filter(principale=True).exists():
+                first = instance.images.order_by("position", "id").first()
+                first.principale = True
+                first.save(update_fields=["principale"])
+
+        return instance        
 
     def to_representation(self, instance):
         """
@@ -456,15 +501,32 @@ class ProduitCardSerializer(I18nTranslateMixin, serializers.ModelSerializer):
         prix = _product_min_price(obj)
         return str(prix) if prix is not None else None
 
+  
     def get_image(self, obj):
-        img = obj.images.filter(principale=True).first() or obj.images.order_by("position", "id").first()
         request = self.context.get("request")
-        if img and img.url:
-            url = str(img.url).strip()
-            if not url.lower().startswith(("http://", "https://", "data:")):
-                url = request.build_absolute_uri(url) if request else url
-            return url
-        return None
+        img = obj.images.filter(principale=True).first() or obj.images.order_by("position", "id").first()
+        if not img:
+            return None
+
+        val = (getattr(img, "url", "") or "").strip()
+        if not val:
+            return None
+
+        # déjà URL absolue
+        if val.lower().startswith(("http://", "https://", "data:")):
+            return val
+
+        # déjà /media/...
+        if val.startswith("/media/"):
+            return request.build_absolute_uri(val) if request else val
+
+        # si stocké "media/..." -> on retire "media/"
+        if val.startswith("media/"):
+            val = val[len("media/"):]
+
+        # sinon on FORCE /media/<val>
+        path = f"{settings.MEDIA_URL.rstrip('/')}/{val.lstrip('/')}"
+        return request.build_absolute_uri(path) if request else path
 
     def get_specs(self, obj):
         def extract(sp):
@@ -529,9 +591,6 @@ class ProduitCardSerializer(I18nTranslateMixin, serializers.ModelSerializer):
             ):
                 return True
         return False
-
-
-       
 
     def get_prix_from(self, obj):
         now = timezone.now()

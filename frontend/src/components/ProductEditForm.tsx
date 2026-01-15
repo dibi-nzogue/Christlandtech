@@ -276,35 +276,74 @@ const ProductEditForm: React.FC = () => {
   // const removeImage = (idx: number) =>
   //   setImages((arr) => (arr.length <= 1 ? arr : arr.filter((_, i) => i !== idx)));
 
-  const updateImage = (idx: number, patch: Partial<ImgRow>) =>
-    setImages((arr) => arr.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  // const updateImage = (idx: number, patch: Partial<ImgRow>) =>
+  //   setImages((arr) => arr.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
 
   // const setPrincipale = (idx: number) =>
   //   setImages((arr) => arr.map((r, i) => ({ ...r, principale: i === idx })));
 
-  const onSelectFile = async (idx: number, file: File | null) => {
-    if (!file) {
-      updateImage(idx, { _localFile: null, _error: null });
-      return;
-    }
-    updateImage(idx, { _localFile: file, _uploading: true, _error: null });
-    try {
-      const { url } = await uploadProductImage(file);
-      updateImage(idx, { url, _uploading: false, _error: null });
-      setImages((arr) => {
-        if (!arr.some((a) => a.principale)) {
-          return arr.map((a, i) => (i === idx ? { ...a, principale: true } : a));
-        }
-        return arr;
-      });
-    } catch (e: any) {
-      updateImage(idx, { _uploading: false, _error: e?.message || "Upload échoué" });
-      setToast({
-        kind: "error",
-        msg: e?.message || "Échec de l’upload de l’image.",
-      });
-    }
-  };
+  // const onSelectFile = async (idx: number, file: File | null) => {
+  //   if (!file) {
+  //     updateImage(idx, { _localFile: null, _error: null });
+  //     return;
+  //   }
+  //   updateImage(idx, { _localFile: file, _uploading: true, _error: null });
+  //   try {
+  //     const { url } = await uploadProductImage(file);
+  //     updateImage(idx, { url, _uploading: false, _error: null });
+  //     setImages((arr) => {
+  //       if (!arr.some((a) => a.principale)) {
+  //         return arr.map((a, i) => (i === idx ? { ...a, principale: true } : a));
+  //       }
+  //       return arr;
+  //     });
+  //   } catch (e: any) {
+  //     updateImage(idx, { _uploading: false, _error: e?.message || "Upload échoué" });
+  //     setToast({
+  //       kind: "error",
+  //       msg: e?.message || "Échec de l’upload de l’image.",
+  //     });
+  //   }
+  // };
+
+
+const onSelectFile = async (_idx: number, file: File | null) => {
+  if (!file) return;
+
+  setImages([{
+    url: images[0]?.url ?? "",
+    alt_text: images[0]?.alt_text ?? "",
+    position: 1,
+    principale: true,
+    _localFile: file,
+    _uploading: true,
+    _error: null,
+  }]);
+
+  try {
+    const { url } = await uploadProductImage(file);
+    setImages([{
+      url,
+      alt_text: images[0]?.alt_text ?? "",
+      position: 1,
+      principale: true,
+      _localFile: null,
+      _uploading: false,
+      _error: null,
+    }]);
+  } catch (e:any) {
+    setImages([{
+      url: images[0]?.url ?? "",
+      alt_text: images[0]?.alt_text ?? "",
+      position: 1,
+      principale: true,
+      _localFile: null,
+      _uploading: false,
+      _error: e?.message || "Upload échoué",
+    }]);
+  }
+};
+
 
   const numericKeys = new Set([
     "garantie_mois",
@@ -610,17 +649,26 @@ const ProductEditForm: React.FC = () => {
         ? formData.couleur_libre.trim() || null
         : formData.couleur || null;
 
-    const imagesPayload = images
-      .filter((i) => (i.url || "").trim() !== "")
-      .map((i) => ({
-        url: i.url.trim(),
-        alt_text: (i.alt_text || "").trim(),
-        position:
-          i.position == null || Number.isNaN(Number(i.position))
-            ? null
-            : Number(i.position),
-        principale: !!i.principale,
-      }));
+    // const imagesPayload = images
+    //   .filter((i) => (i.url || "").trim() !== "")
+    //   .map((i) => ({
+    //     url: i.url.trim(),
+    //     alt_text: (i.alt_text || "").trim(),
+    //     position:
+    //       i.position == null || Number.isNaN(Number(i.position))
+    //         ? null
+    //         : Number(i.position),
+    //     principale: !!i.principale,
+    //   }));
+const validImages = images.filter((i) => (i.url || "").trim() !== "");
+const imagesPayload = validImages.map((i, index) => ({
+  url: i.url.trim(),
+  alt_text: (i.alt_text || "").trim(),
+  position: index + 1,
+  principale: index === 0, // ✅ toujours la première en principale (mode 1 image)
+}));
+
+
 
     const toAttrArray = (map: Record<string, any>) =>
       Object.entries(map)

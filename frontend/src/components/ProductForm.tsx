@@ -170,26 +170,54 @@ const [varAttrs, setVarAttrs] = useState<Record<string, any>>({});
   //   setImages((arr) => arr.map((r, i) => ({ ...r, principale: i === idx })));
 
   // fichier -> upload -> url
-  const onSelectFile = async (idx: number, file: File | null) => {
-    if (!file) {
-      updateImage(idx, { _localFile: null, _error: null });
-      return;
-    }
-    updateImage(idx, { _localFile: file, _uploading: true, _error: null });
-    try {
-      const { url } = await uploadProductImage(file);
-      updateImage(idx, { url, _uploading: false, _error: null });
-      setImages((arr) => {
-        const hasMain = arr.some((a) => a.principale);
-        if (!hasMain) return arr.map((a, i) => (i === idx ? { ...a, principale: true } : a));
-        return arr;
-      });
-    } catch (e: any) {
-      updateImage(idx, { _uploading: false, _error: e?.message || "Upload échoué" });
-      setToast({ kind: "error", msg: e?.message || "Échec de l’upload de l’image." });
-    }
-  };
+  // const onSelectFile = async (idx: number, file: File | null) => {
+  //   if (!file) {
+  //     updateImage(idx, { _localFile: null, _error: null });
+  //     return;
+  //   }
+  //   updateImage(idx, { _localFile: file, _uploading: true, _error: null });
+  //   try {
+  //     const { url } = await uploadProductImage(file);
+  //     updateImage(idx, { url, _uploading: false, _error: null });
+  //     setImages((arr) => {
+  //       const hasMain = arr.some((a) => a.principale);
+  //       if (!hasMain) return arr.map((a, i) => (i === idx ? { ...a, principale: true } : a));
+  //       return arr;
+  //     });
+  //   } catch (e: any) {
+  //     updateImage(idx, { _uploading: false, _error: e?.message || "Upload échoué" });
+  //     setToast({ kind: "error", msg: e?.message || "Échec de l’upload de l’image." });
+  //   }
+  // };
 
+const onSelectFile = async (idx: number, file: File | null) => {
+  if (!file) {
+    setImages([{ url: "", alt_text: "", position: 1, principale: true } as any]);
+    return;
+  }
+
+  updateImage(idx, { _localFile: file, _uploading: true, _error: null });
+
+  try {
+    const { url } = await uploadProductImage(file);
+
+    // ✅ MODE 1 IMAGE : on écrase tout
+    setImages([
+      {
+        url,
+        alt_text: images[idx]?.alt_text || "",
+        position: 1,
+        principale: true,
+        _localFile: null,
+        _uploading: false,
+        _error: null,
+      },
+    ]);
+  } catch (e: any) {
+    updateImage(idx, { _uploading: false, _error: e?.message || "Upload échoué" });
+    setToast({ kind: "error", msg: e?.message || "Échec de l’upload de l’image." });
+  }
+};
 
   
   // options
@@ -482,17 +510,28 @@ const validateRequired = (): string | null => {
       ? formData.couleur_libre.trim() || null
       : formData.couleur || null;
 
-  const imagesPayload = images
-    .filter((i) => (i.url || "").trim() !== "")
-    .map((i) => ({
-      url: i.url.trim(),
-      alt_text: (i.alt_text || "").trim(),
-      position:
-        i.position == null || Number.isNaN(Number(i.position))
-          ? null
-          : Number(i.position),
-      principale: !!i.principale,
-    }));
+  // const imagesPayload = images
+  //   .filter((i) => (i.url || "").trim() !== "")
+  //   .map((i) => ({
+  //     url: i.url.trim(),
+  //     alt_text: (i.alt_text || "").trim(),
+  //     position:
+  //       i.position == null || Number.isNaN(Number(i.position))
+  //         ? null
+  //         : Number(i.position),
+  //     principale: !!i.principale,
+  //   }));
+
+
+const validImages = images.filter((i) => (i.url || "").trim() !== "");
+const imagesPayload = validImages.map((i, index) => ({
+  url: i.url.trim(),
+  alt_text: (i.alt_text || "").trim(),
+  position: index + 1,
+  principale: index === 0, // ✅ toujours la première en principale (mode 1 image)
+}));
+
+
 
   // 1) Construire les attributs dynamiques attendus par l’API
   const toAttrArray = (map: Record<string, any>) =>
