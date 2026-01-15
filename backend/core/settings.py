@@ -120,13 +120,26 @@ WSGI_APPLICATION = "core.wsgi.application"
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": ("'self'",),
-        "script-src": ("'self'", "'unsafe-inline'"),
+        "script-src": ("'self'", "'unsafe-inline'", "'unsafe-eval'"),
         "style-src": ("'self'", "https://fonts.googleapis.com", "'unsafe-inline'"),
-        "img-src": ("'self'", "data:",),
-        "connect-src": ("'self'",),
-        "font-src": ("'self'", "https://fonts.gstatic.com"),
+        "font-src": ("'self'", "https://fonts.gstatic.com", "data:"),
+        "img-src": (
+            "'self'",
+            "data:",
+            "blob:",
+            "https:",
+            "https://christland.tech",
+            "https://www.christland.tech",
+        ),
+        "connect-src": (
+            "'self'",
+            "https://christland.tech",
+            "https://www.christland.tech",
+        ),
+        "media-src": ("'self'", "blob:", "https:"),
     }
 }
+
 
 # === Traduction interne ===
 I18N_TARGET_LANGS = ["en"]
