@@ -33,48 +33,55 @@ const MEDIA_BASE =
     : "http://127.0.0.1:8000");                    // local
 
 // ✅ version simplifiée : gère local + prod sans se compliquer
+// ✅ version simplifiée : gère local + prod sans se compliquer
 export function media(src?: string | null): string {
   if (!src) return "";
 
   const s = src.trim();
   if (!s) return "";
 
-  // 👉 1) URL absolue (http/https)
+  // 1) URL absolue
   if (/^https?:\/\//i.test(s)) {
     try {
       const u = new URL(s);
       const LOCAL_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"];
 
-      // 🔹 Cas 1 : URL vers un host local
       if (LOCAL_HOSTS.includes(u.hostname)) {
         if (isProd) {
-          // On est en "prod" mais on a encore une URL locale -> on remappe vers MEDIA_BASE
           const base = new URL(MEDIA_BASE);
           return `${base.origin}${u.pathname}${u.search}${u.hash}`;
         }
-        // En dev, on ne touche PAS du tout : on garde http://127.0.0.1:8000...
         return s;
       }
 
-      // 🔹 Cas 2 : URL vers ton vrai backend -> on force https seulement si nécessaire
-   if (isProd && u.protocol === "http:") {
-  return `https://${u.host}${u.pathname}${u.search}${u.hash}`;
-}
+      if (isProd && u.protocol === "http:") {
+        return `https://${u.host}${u.pathname}${u.search}${u.hash}`;
+      }
 
-      // 🔹 Cas 3 : autre domaine (CDN, image externe, etc.) -> on ne touche pas
       return s;
     } catch {
-      // Si jamais le parsing échoue, on renvoie tel quel
       return s;
     }
   }
 
-  // 👉 2) Chemin relatif : "/media/..." ou "media/..."
+  // 2) Chemin relatif / path
   const base = MEDIA_BASE.replace(/\/+$/, "");
-  const path = s.startsWith("/") ? s : `/${s}`;
-  return `${base}${path}`;
-}
 
+  // normalise: remove leading slash
+  let p = s.replace(/^\/+/, "");
+
+  // si déjà "media/xxx" -> retire "media/"
+  if (p.startsWith("media/")) p = p.slice("media/".length);
+
+  // si déjà "media/..." ou "/media/..." dans p -> ok
+  if (p.startsWith("media/")) {
+    return `${base}/${p}`;
+  }
+
+  // si commence déjà par "uploads/" ou "images/" etc -> on FORCe /media/
+  // sauf si p commence déjà par "media/" (géré au-dessus)
+  return `${base}/media/${p}`;
+}
 
 
 
