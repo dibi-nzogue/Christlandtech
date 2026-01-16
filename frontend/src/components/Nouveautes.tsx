@@ -95,7 +95,9 @@ export default function Nouveautes() {
   const visibleSlides = useVisibleSlides();
   const count = filtered?.length ?? 0;
 
-  const slidesToShow = visibleSlides;
+  const isMobile = visibleSlides === 1;
+const slidesToShow = isMobile ? 1 : visibleSlides;
+
   const showArrows = visibleSlides >= 2 && count > slidesToShow;
   const autoPlayMobile = visibleSlides === 1 && count > 1;
 
