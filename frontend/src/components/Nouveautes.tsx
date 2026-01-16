@@ -95,11 +95,12 @@ export default function Nouveautes() {
   const visibleSlides = useVisibleSlides();
   const count = filtered?.length ?? 0;
 
-  const isMobile = visibleSlides === 1;
+const isMobile = visibleSlides === 1;
 const slidesToShow = isMobile ? 1 : visibleSlides;
 
-  const showArrows = visibleSlides >= 2 && count > slidesToShow;
-  const autoPlayMobile = visibleSlides === 1 && count > 1;
+const showArrows = slidesToShow >= 2 && count > slidesToShow;
+const autoPlayMobile = isMobile && count > 1;
+
 
   // === Keen Slider ===
   const [sliderRef, sliderInstanceRef] = useKeenSlider<HTMLDivElement>(
@@ -148,6 +149,12 @@ const slidesToShow = isMobile ? 1 : visibleSlides;
         ]
       : []
   );
+
+  useEffect(() => {
+  sliderInstanceRef.current?.update();
+}, [activeTab, slidesToShow, count, sliderInstanceRef]);
+
+
 
   const containerVariants: Variants = {
     hidden: { opacity: 0, y: 80 },
@@ -318,11 +325,14 @@ const slidesToShow = isMobile ? 1 : visibleSlides;
               </>
             )}
 
-            <div ref={sliderRef} className="keen-slider">
+            <div
+              ref={sliderRef}
+              className={`keen-slider ${isMobile ? "max-w-[520px] mx-auto" : ""}`}
+            >
               {filtered!.map((p) => (
                 <div
                   key={p.id}
-                  className="keen-slider__slide px-1 md:px-3 py-3"
+                  className={`keen-slider__slide ${isMobile ? "px-0 py-3" : "px-1 md:px-3 py-3"}`}
                 >
                   {renderCard(p)}
                 </div>
