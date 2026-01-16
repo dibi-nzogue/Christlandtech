@@ -99,7 +99,8 @@ const isMobile = visibleSlides === 1;
 const slidesToShow = isMobile ? 1 : visibleSlides;
 
 const showArrows = slidesToShow >= 2 && count > slidesToShow;
-const autoPlayMobile = isMobile && count > 1;
+const autoPlayMobile = isMobile && activeTab  && count > 1;
+
 
 
   // === Keen Slider ===
@@ -113,41 +114,54 @@ const autoPlayMobile = isMobile && count > 1;
       },
     },
     autoPlayMobile
-      ? [
-          (slider) => {
-            let timeout: ReturnType<typeof setTimeout>;
-            let mouseOver = false;
+  ? [
+      (slider) => {
+        let timeout: ReturnType<typeof setTimeout>;
+        let paused = false;
 
-            const clearNextTimeout = () => {
-              clearTimeout(timeout);
-            };
+        const clearNextTimeout = () => clearTimeout(timeout);
 
-            const nextTimeout = () => {
-              clearTimeout(timeout);
-              if (mouseOver) return;
-              timeout = setTimeout(() => {
-                slider.next();
-              }, 2500);
-            };
+        const nextTimeout = () => {
+          clearTimeout(timeout);
+          if (paused) return;
+          timeout = setTimeout(() => {
+            slider.next();
+          }, 2500);
+        };
 
-            slider.on("created", () => {
-              slider.container.addEventListener("mouseover", () => {
-                mouseOver = true;
-                clearNextTimeout();
-              });
-              slider.container.addEventListener("mouseout", () => {
-                mouseOver = false;
-                nextTimeout();
-              });
-              nextTimeout();
-            });
+        const pause = () => {
+          paused = true;
+          clearNextTimeout();
+        };
 
-            slider.on("dragStarted", clearNextTimeout);
-            slider.on("animationEnded", nextTimeout);
-            slider.on("updated", nextTimeout);
-          },
-        ]
-      : []
+        const resume = () => {
+          paused = false;
+          nextTimeout();
+        };
+
+        slider.on("created", () => {
+          // ✅ Mobile: pause quand on touche / swipe
+          slider.container.addEventListener("pointerdown", pause);
+          slider.container.addEventListener("pointerup", resume);
+          slider.container.addEventListener("touchstart", pause, { passive: true });
+          slider.container.addEventListener("touchend", resume);
+
+          // ✅ Pause si l’onglet devient invisible (bonne UX)
+          document.addEventListener("visibilitychange", () => {
+            if (document.hidden) pause();
+            else resume();
+          });
+
+          nextTimeout();
+        });
+
+        slider.on("dragStarted", pause);
+        slider.on("animationEnded", resume);
+        slider.on("updated", resume);
+      },
+    ]
+  : []
+
   );
 
   useEffect(() => {
