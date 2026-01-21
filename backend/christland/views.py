@@ -12,6 +12,7 @@ from django.db.models import QuerySet
 from django.http import JsonResponse
 from django.core.mail import EmailMessage
 from django.utils import timezone
+from datetime import datetime, time
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from django.core.cache import cache
@@ -34,11 +35,11 @@ from .models import (
     Couleurs, ArticlesBlog,Utilisateurs,DashboardActionLog,
 
 )
+from django.core.cache import cache
 from django.contrib.contenttypes.models import ContentType
 from django.utils.cache import _generate_cache_key  # optionnel
 from django.views.decorators.vary import vary_on_headers
 from django.utils.decorators import method_decorator
-from django.core.cache import cache
 from christland.services.i18n_translate import translate_field_for_instance
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .auth_jwt import JWTAuthentication, make_access_token, make_refresh_token, decode_jwt_raw
@@ -311,10 +312,10 @@ class CategoryProductList(generics.ListAPIView):
         sub_slug = (self.request.query_params.get("subcategory") or "").strip().lower()
 
         if sub_slug:
-            sub = get_object_or_404(Categories, slug=sub_slug, est_actif=True)
+            sub = get_object_or_404(Categories, slug=sub_slug, est_actif=True, is_deleted=False)
             cat_ids = [sub.id]
         elif cat_slug and cat_slug != "tous":
-            cat = get_object_or_404(Categories, slug=cat_slug, est_actif=True)
+            cat = get_object_or_404(Categories, slug=cat_slug, est_actif=True, is_deleted=False)
             cat_ids = _descendants_ids(cat)
         else:
             cat_ids = list(
@@ -450,7 +451,7 @@ class CategoryFilters(APIView):
             cat = None
             cat_ids = list(
                 Categories.objects
-                .filter(est_actif=True)
+                .filter(est_actif=True, is_deleted=False)
                 .values_list("id", flat=True)
             )
 
@@ -665,7 +666,7 @@ class CategoryListPublic(APIView):
         # -------------------------- #
         qs = (
             Categories.objects
-            .filter(est_actif=True)
+            .filter(est_actif=True, is_deleted=False)
             .order_by("nom")
         )
 
@@ -715,8 +716,6 @@ class CategoryListDashboard(CategoryListBase):
     permission_classes = [IsAuthenticated]          # ✅ protégé
     authentication_classes = [JWTAuthentication]
 
-   
-
 class CategoryListTop(APIView):
     """
     GET /christland/api/catalog/categories/top/
@@ -746,10 +745,9 @@ class CategoryListTop(APIView):
         # -------- LOGIQUE NORMALE --------
         qs = (
             Categories.objects
-            .filter(est_actif=True, parent__isnull=True)  # 🚀 uniquement top-level
+            .filter(est_actif=True, is_deleted=False, parent__isnull=True)
             .order_by("nom")
         )
-
         serializer = CategorieMiniSerializer(
             qs, many=True, context={"request": request}
         )
@@ -765,10 +763,6 @@ class CategoryListTop(APIView):
 
         return Response(data)
 
-
-
-
-    
 class ProductMiniView(APIView):
     """
     GET /christland/api/catalog/product/<pk_or_slug>/mini/
@@ -1706,8 +1700,8 @@ class DashboardProductEditDataView(APIView):
                 "prix": v.prix,
                 "prix_promo": v.prix_promo,
                 "promo_active": bool(v.promo_active),
-                "promo_debut": v.promo_debut,
-                "promo_fin": v.promo_fin,
+                "promo_debut": _dtlocal(v.promo_debut),
+                "promo_fin": _dtlocal(v.promo_fin),
                 "stock": v.stock,
                 "prix_achat": getattr(v, "prix_achat", None),
                 "variante_poids_grammes": getattr(v, "poids_grammes", None),
@@ -2215,20 +2209,42 @@ def _clean_images_payload(images):
 def _parse_dt_local(s: str | None):
     """
     Accepte:
-      - '2025-10-24T14:30' ou '2025-10-24T14:30:45' (datetime-local HTML)
-      - '24/10/2025 14:30' ou '24/10/2025 14:30:45' (affichage FR)
+      - '2025-10-24' (date seule)
+      - '2025-10-24T14:30' ou '2025-10-24T14:30:45'
+      - '24/10/2025 14:30' ou '24/10/2025 14:30:45'
     Retourne un datetime aware (TZ serveur) ou None.
     """
     if not s:
         return None
-    for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S",
-                "%d/%m/%Y %H:%M", "%d/%m/%Y %H:%M:%S"):
+
+    s = str(s).strip()
+
+    # ✅ 1) date seule YYYY-MM-DD
+    try:
+        d = datetime.strptime(s, "%Y-%m-%d").date()
+        dt = datetime.combine(d, time.min)  # 00:00
+        return timezone.make_aware(dt, timezone.get_current_timezone())
+    except ValueError:
+        pass
+
+    # ✅ 2) datetime formats
+    for fmt in (
+        "%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S",
+        "%d/%m/%Y %H:%M", "%d/%m/%Y %H:%M:%S"
+    ):
         try:
             dt = datetime.strptime(s, fmt)
             return timezone.make_aware(dt, timezone.get_current_timezone())
         except ValueError:
             continue
+
     return None
+
+def _dtlocal(dt):
+    if not dt:
+        return None
+    dt = timezone.localtime(dt)  # ✅ convertit en timezone locale
+    return dt.strftime("%Y-%m-%dT%H:%M")  # ✅ format datetime-local
 
 
 
@@ -3284,7 +3300,8 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
         description = (request.data.get("description") or "").strip()
         est_actif = bool(request.data.get("est_actif", False))
         position = request.data.get("position")  # peut être null / vide
-
+        image_val = None
+ 
         # parent: on accepte "parent" ou "parent_id"
         parent_id = request.data.get("parent") or request.data.get("parent_id")
         parent = None
@@ -3305,7 +3322,13 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
 
         # ✅ Vérifier si une catégorie avec ce NOM existe déjà
         # (insensible à la casse, à adapter si tu veux par parent)
-        if Categories.objects.filter(nom__iexact=nom).exists():
+# 1️⃣ catégorie ACTIVE déjà existante → bloquer
+        existing_active = Categories.objects.filter(
+            nom__iexact=nom,
+            is_deleted=False
+        ).first()
+
+        if existing_active:
             return Response(
                 {
                     "field": "nom",
@@ -3313,6 +3336,52 @@ class DashboardCategoryListCreateView(generics.ListCreateAPIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # 2️⃣ catégorie SUPPRIMÉE existante → on la RESTAURE
+        existing_deleted = Categories.objects.filter(
+            nom__iexact=nom,
+            is_deleted=True
+        ).first()
+
+        if existing_deleted:
+            slug_val = slugify(nom)
+
+            existing_deleted.nom = nom
+            existing_deleted.slug = slug_val
+            existing_deleted.description = description
+            existing_deleted.est_actif = est_actif
+            existing_deleted.parent = parent
+            existing_deleted.position = position
+            if image_val:
+                existing_deleted.image_url = image_val
+
+            existing_deleted.is_deleted = False
+            existing_deleted.deleted_at = None
+            existing_deleted.deleted_by = None
+            existing_deleted.save()
+
+            log_dashboard_action(
+                request,
+                existing_deleted,
+                DashboardActionLog.ACTION_RESTORE,
+                after={"id": existing_deleted.pk, "nom": existing_deleted.nom}
+            )
+
+            return Response(
+                {
+                    "id": existing_deleted.id,
+                    "nom": existing_deleted.nom,
+                    "slug": existing_deleted.slug or "",
+                    "description": existing_deleted.description,
+                    "est_actif": existing_deleted.est_actif,
+                    "image_url": _abs_media(request, existing_deleted.image_url) or "",
+                    "parent_id": existing_deleted.parent_id,
+                    "parent_nom": existing_deleted.parent.nom if existing_deleted.parent_id else "",
+                    "position": existing_deleted.position,
+                },
+                status=status.HTTP_200_OK,
+            )
+
 
         # ✅ slug automatique, mais SANS contrainte d'unicité
         slug_val = slugify(nom)
@@ -3639,7 +3708,8 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
 
         # ✅ Log delete
         log_dashboard_action(request, c, DashboardActionLog.ACTION_DELETE, before=before, after=after)
-
+         
+        cache.clear() 
         return Response({"ok": True, "message": "Catégorie supprimée (soft delete)."}, status=status.HTTP_200_OK)
 
 class DashboardCategoryRestoreView(APIView):
@@ -3695,7 +3765,8 @@ class DashboardCategoriesSelectView(APIView):
     def get(self, request):
         q = (request.query_params.get("q") or "").strip()
 
-        qs = Categories.objects.all().order_by("nom")
+        qs = Categories.objects.filter(is_deleted=False).order_by("nom")
+
         if q:
             qs = qs.filter(
                 Q(nom__icontains=q) |

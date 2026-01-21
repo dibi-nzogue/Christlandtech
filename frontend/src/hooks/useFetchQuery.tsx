@@ -583,7 +583,7 @@ export function useTopCategories(params: { level?: number } = {}) {
 
 export function useTopCategories1() {
   return useFetchQuery<ApiCategory[]>(api("/api/catalog/categories/top/"), {
-    keepPreviousData: true,
+    keepPreviousData: false,
     select: (raw: any) => (Array.isArray(raw) ? raw : []),
   });
 }

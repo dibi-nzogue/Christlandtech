@@ -7,6 +7,7 @@ from .models import (
     Attribut, ValeurAttribut, SpecProduit, SpecVariante
 )
 from django.utils import timezone
+from datetime import timezone as dt_timezone
 
 from .serializers_i18n import I18nTranslateMixin
 from urllib.parse import urlparse
@@ -256,14 +257,24 @@ class VarianteSerializer(I18nTranslateMixin, serializers.ModelSerializer):
         # ✅ respecte promo_active + fenêtre de dates, déjà géré par ton modèle
         return obj.prix_actuel()
 
+
+    def _to_aware_utc(self, dt):
+        if not dt:
+            return None
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt, timezone.get_current_timezone())
+        return dt.astimezone(dt_timezone.utc)
+
     def get_promo_now(self, obj):
-        from django.utils import timezone
-        now = timezone.now()
+        now_utc = timezone.now().astimezone(dt_timezone.utc)
+        debut_utc = self._to_aware_utc(obj.promo_debut)
+        fin_utc = self._to_aware_utc(obj.promo_fin)
+
         if not obj.promo_active or obj.prix_promo is None:
             return False
-        if obj.promo_debut and obj.promo_debut > now:
+        if debut_utc and debut_utc > now_utc:
             return False
-        if obj.promo_fin and now > obj.promo_fin:
+        if fin_utc and now_utc > fin_utc:
             return False
         return True
 
@@ -465,8 +476,7 @@ class ProductEditSerializer(serializers.ModelSerializer):
 
 class ProduitCardSerializer(I18nTranslateMixin, serializers.ModelSerializer):
     i18n_fields = ["nom", "description_courte"]
-  
-    # Champs imbriqués
+
     images = ImageProduitSerializer(many=True, read_only=True)
     variantes = VarianteSerializer(many=True, read_only=True)
     marque = MarqueMiniSerializer(read_only=True)
@@ -477,43 +487,114 @@ class ProduitCardSerializer(I18nTranslateMixin, serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     specs = serializers.SerializerMethodField()
     state = serializers.SerializerMethodField()
-        # Nouveaux champs pour le front (prix + promo)
+
+    # Promo (attendu par le front)
     prix_from = serializers.SerializerMethodField()
     old_price_from = serializers.SerializerMethodField()
     promo_now = serializers.SerializerMethodField()
     promo_fin = serializers.SerializerMethodField()
- 
+
     class Meta:
         model = Produits
         fields = (
             "id", "nom", "slug", "description_courte",
             "marque", "categorie", "images", "variantes",
-            "price",          # prix min actuel (avec promo appliquée)
-            "prix_from",      # alias pour le front
-            "old_price_from", # ancien prix min si promo
-            "promo_now",      # True/False
-            "promo_fin",      # date de fin de promo (si dispo)
+            "price",
+            "prix_from",
+            "old_price_from",
+            "promo_now",
+            "promo_fin",
             "image", "specs", "state",
         )
 
+    # -------------------------
+    # Helpers timezone SAFE
+    # -------------------------
+    def _to_aware_utc(self, dt):
+        """
+        Force dt en datetime aware en UTC.
+        - si dt est naive -> on l'interprète dans TIME_ZONE du serveur, puis on convertit UTC
+        - si dt est aware -> on convertit UTC
+        """
+        if not dt:
+            return None
 
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt, timezone.get_current_timezone())
+
+        return dt.astimezone(dt_timezone.utc)
+
+    def _is_variant_promo_valid(self, v, now_utc):
+        if not getattr(v, "promo_active", False):
+            return False
+        if getattr(v, "prix_promo", None) is None:
+            return False
+
+        debut_utc = self._to_aware_utc(getattr(v, "promo_debut", None))
+        fin_utc = self._to_aware_utc(getattr(v, "promo_fin", None))
+
+        if debut_utc and debut_utc > now_utc:
+            return False
+        if fin_utc and now_utc > fin_utc:
+            return False
+        return True
+
+    # -------------------------
+    # Prix / Promo
+    # -------------------------
     def get_price(self, obj):
-        prix = _product_min_price(obj)
-        return str(prix) if prix is not None else None
+        # alias du prix actuel min
+        return self.get_prix_from(obj)
 
-  
+    def get_prix_from(self, obj):
+        now_utc = timezone.now().astimezone(dt_timezone.utc)
+        prices = []
+
+        for v in obj.variantes.all():
+            if self._is_variant_promo_valid(v, now_utc):
+                prices.append(v.prix_promo)
+            elif v.prix is not None:
+                prices.append(v.prix)
+
+        return min(prices) if prices else None
+
+    def get_old_price_from(self, obj):
+        now_utc = timezone.now().astimezone(dt_timezone.utc)
+        old_prices = []
+
+        for v in obj.variantes.all():
+            if self._is_variant_promo_valid(v, now_utc) and v.prix is not None:
+                old_prices.append(v.prix)
+
+        return min(old_prices) if old_prices else None
+
+    def get_promo_now(self, obj):
+        now_utc = timezone.now().astimezone(dt_timezone.utc)
+        return any(self._is_variant_promo_valid(v, now_utc) for v in obj.variantes.all())
+
+    def get_promo_fin(self, obj):
+        now_utc = timezone.now().astimezone(dt_timezone.utc)
+        fins = []
+
+        for v in obj.variantes.all():
+            if self._is_variant_promo_valid(v, now_utc):
+                fin_utc = self._to_aware_utc(getattr(v, "promo_fin", None))
+                if fin_utc:
+                    # DRF renverra ISO8601 en UTC, le front peut l'afficher
+                    fins.append(fin_utc)
+
+        return max(fins) if fins else None
+
+    # -------------------------
+    # Autres champs
+    # -------------------------
     def get_image(self, obj):
         request = self.context.get("request")
         img = obj.images.filter(principale=True).first() or obj.images.order_by("position", "id").first()
         if not img:
             return None
-
         val = (getattr(img, "url", None) or "").strip()
-        if not val:
-            return None
-
-        return _abs_media(request, val)
-
+        return _abs_media(request, val) if val else None
 
     def get_specs(self, obj):
         def extract(sp):
@@ -527,13 +608,11 @@ class ProduitCardSerializer(I18nTranslateMixin, serializers.ModelSerializer):
                 return str(sp.valeur_dec)
             return ""
 
-        # Specs produit
         if obj.specs.exists():
             values = [extract(sp) for sp in obj.specs.all()[:5] if extract(sp)]
             if values:
                 return " | ".join(values)
 
-        # Specs première variante
         var = obj.variantes.first()
         if var and var.specs.exists():
             values = [extract(sp) for sp in var.specs.all()[:5] if extract(sp)]
@@ -545,91 +624,6 @@ class ProduitCardSerializer(I18nTranslateMixin, serializers.ModelSerializer):
     def get_state(self, obj):
         request = self.context.get("request")
         return _etat_label(obj.etat, request=request)
-    def get_prix_from(self, obj):
-        """
-        Même valeur que price, mais avec le nouveau nom attendu par le front.
-        """
-        prix = _product_min_price(obj)
-        return str(prix) if prix is not None else None
-
-    def get_old_price_from(self, obj):
-        now = timezone.now()
-        old_prices = []
-        for v in obj.variantes.all():
-            if (
-                v.promo_active
-                and v.prix_promo is not None
-                and v.prix is not None
-                and (not v.promo_debut or v.promo_debut <= now)
-                and (not v.promo_fin or now <= v.promo_fin)
-            ):
-                old_prices.append(v.prix)
-        return min(old_prices) if old_prices else None
-
-    # 👉 Remettre cette méthode AU BON NIVEAU (pas imbriquée !)
-    def get_promo_now(self, obj):
-        now = timezone.now()
-        for v in obj.variantes.all():
-            if (
-                v.promo_active
-                and v.prix_promo is not None
-                and (not v.promo_debut or v.promo_debut <= now)
-                and (not v.promo_fin or now <= v.promo_fin)
-            ):
-                return True
-        return False
-
-    def get_prix_from(self, obj):
-        now = timezone.now()
-        prix_list = []
-        for v in obj.variantes.all():
-            # si promo valide → on prend le prix_promo
-            if (
-                v.promo_active
-                and v.prix_promo is not None
-                and (not v.promo_debut or v.promo_debut <= now)
-                and (not v.promo_fin or now <= v.promo_fin)
-            ):
-                prix_list.append(v.prix_promo)
-            elif v.prix is not None:
-                prix_list.append(v.prix)
-        return min(prix_list) if prix_list else None
-
-    def get_old_price_from(self, obj):
-        now = timezone.now()
-        old_prices = []
-        for v in obj.variantes.all():
-            if (
-                v.promo_active
-                and v.prix_promo is not None
-                and v.prix is not None
-                and (not v.promo_debut or v.promo_debut <= now)
-                and (not v.promo_fin or now <= v.promo_fin)
-            ):
-                old_prices.append(v.prix)
-        return min(old_prices) if old_prices else None
-    def get_promo_fin(self, obj):
-        """
-        Date de fin de promo (on prend la plus tardive des variantes en promo).
-        Utilisée pour "Offre valable jusqu'au ...".
-        """
-        now = timezone.now()
-        dates = []
-
-        for v in obj.variantes.all():
-            if not v.promo_active or v.prix_promo is None:
-                continue
-            if v.promo_debut and v.promo_debut > now:
-                continue
-            if v.promo_fin:
-                dates.append(v.promo_fin)
-
-        if not dates:
-            return None
-        # DRF sérialisera le datetime en ISO8601 → new Date(...) côté front
-        return max(dates)
-
-
 class ProduitsSerializer(I18nTranslateMixin, serializers.ModelSerializer):
     # + traduire les champs textuels principaux
     i18n_fields = ["nom", "description_courte"]

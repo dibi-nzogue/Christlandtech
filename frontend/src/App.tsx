@@ -2,7 +2,7 @@
 import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-
+import ScrollToTop from "./components/ScrollToTop";
 import PrivateRoute from "./components/PrivateRoute";
 import GlobalLoader from "./components/GlobalLoader";
 import { useGlobalLoading } from "./hooks/useFetchQuery";
@@ -51,6 +51,7 @@ const App: React.FC = () => {
 
       {/* Loader affiché pendant le chargement des pages lazy (avant que le contenu arrive) */}
       <Suspense fallback={suspenseFallback}>
+        <ScrollToTop />
         <main className="relative min-h-screen">
           <Routes key={i18n.language}>
             {/* === PUBLIC (chemins canoniques) === */}
