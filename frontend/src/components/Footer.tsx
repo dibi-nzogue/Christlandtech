@@ -24,7 +24,7 @@ const Footer: React.FC = () => {
   ];
 
   return (
-    <footer className="bg-[#f5f5f5] text-gray-500 pt-10 pb-5 px-6 md:px-16">
+    <footer className="bg-[#090808] text-white pt-10 pb-5 px-6 md:px-16">
       {/* --- Haut du footer --- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
         <Link
@@ -47,7 +47,7 @@ const Footer: React.FC = () => {
             />
           </div>
           <div className="leading-5 whitespace-nowrap">
-            <span className="font-semibold tracking-wide text-[13px] sm:text-sm md:text-lg text-black">
+            <span className="font-semibold tracking-wide text-[13px] sm:text-sm md:text-lg text-white">
               CHRISTLAND
             </span>{" "}
             <span className="font-extrabold text-[#00A8E8] text-[13px] sm:text-sm md:text-lg">
@@ -58,7 +58,7 @@ const Footer: React.FC = () => {
 
         {/* Réseaux sociaux */}
         <nav
-          className="flex items-center gap-5 mt-5 md:mt-0 text-black text-lg"
+          className="flex items-center gap-5 mt-5 md:mt-0 text-white text-lg"
           aria-label="Réseaux sociaux Christland Tech"
         >
           <a
@@ -103,7 +103,7 @@ const Footer: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 mb-10 mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
         {/* Colonne 1 : Adresse */}
         <div>
-          <h2 className="font-semibold text-gray-600 text-lg mb-2">
+          <h2 className="font-semibold text-white text-lg mb-2">
             {t("siege")}
           </h2>
           <p className="text-sm">Cameroun, Yaoundé</p>
@@ -126,19 +126,19 @@ const Footer: React.FC = () => {
         {/* Colonne 3 : Contact */}
         <address className="space-y-3 text-sm not-italic">
           <div className="flex items-center gap-2">
-            <FaEnvelope className="text-gray-400" />
+            <FaEnvelope className="text-white" />
             <a href="mailto:info@christland.tech" className="hover:underline">
               info@christland.tech
             </a>
           </div>
           <div className="flex items-center gap-2">
-            <FaPhone className="text-gray-400" />
+            <FaPhone className="text-white" />
             <a href="tel:+237691554641" className="hover:underline">
               691 554 641
             </a>
           </div>
           <div className="flex items-center gap-2">
-            <FaPhone className="text-gray-400" />
+            <FaPhone className="text-white" />
             <a href="tel:+237676089671" className="hover:underline">
               676 089 671
             </a>
@@ -147,7 +147,7 @@ const Footer: React.FC = () => {
       </div>
 
       {/* --- Bas du footer --- */}
-      <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-200 pt-3 w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 mx-auto">
+      <div className="flex items-center justify-between text-xs text-white border-t border-gray-200 pt-3 w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 mx-auto">
         <p>© 2025, Christland Tech</p>
       </div>
     </footer>

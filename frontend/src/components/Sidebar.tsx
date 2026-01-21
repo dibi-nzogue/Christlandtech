@@ -68,7 +68,7 @@ const Sidebar: React.FC = () => {
 
         <button
           type="button"
-          title="Statistiques"
+          title="Google Analytics"
           aria-label="Statistiques Google Analytics"
           onClick={() =>
             window.open(GA_URL, "_blank", "noopener,noreferrer")
@@ -80,8 +80,8 @@ const Sidebar: React.FC = () => {
 
         <button
           type="button"
-          title="Paramètres"
-          aria-label="Paramètres"
+          title="Google Console"
+          aria-label="Google Console"
            onClick={() =>
             window.open(GOS_URL, "_blank", "noopener,noreferrer")
           }

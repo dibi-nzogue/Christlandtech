@@ -283,4 +283,4 @@ CACHES = {
 
 # Si tu veux réactiver plus tard :
 # LIBRETRANSLATE_URL = "https://libretranslate.com"
-print("CORS_ALLOW_HEADERS =", CORS_ALLOW_HEADERS)
+# print("CORS_ALLOW_HEADERS =", CORS_ALLOW_HEADERS)

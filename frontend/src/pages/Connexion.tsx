@@ -148,7 +148,7 @@ const Connexion: React.FC = () => {
             {submitting ? "Connexion..." : t("form.button2")}
           </button>
 
-          <p className="text-sm pt-2">
+          {/* <p className="text-sm pt-2">
             {t("compte.desc2")}{" "}
             <Link
               to="/dashboard/inscription"
@@ -156,7 +156,7 @@ const Connexion: React.FC = () => {
             >
               {t("compte.desc3")}
             </Link>
-          </p>
+          </p> */}
         </form>
       </div>
     </main>
