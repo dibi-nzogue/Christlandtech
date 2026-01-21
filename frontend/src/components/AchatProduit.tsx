@@ -17,7 +17,7 @@ import cana from "../assets/images/achat/0cbf9c9c-7cfd-4c3d-ae29-e2b2b0471cfe.jf
 
 const ACCENT = "bg-[#00A8E8] text-white border-[#00A8E8]";
 const ACCENT_HOVER = "hover:opacity-90";
-const WHATSAPP_DEFAULT_PHONE = "+237692548739";
+const WHATSAPP_DEFAULT_PHONE = "+237676089671";
 const TELEGRAM_USERNAME = "dibiye2"; // ton compte service client, sans @
 const SIGNAL_NUMBER = "+237699281882"; // si tu veux un numéro Signal fixe
 
