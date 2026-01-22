@@ -17,9 +17,9 @@ import cana from "../assets/images/achat/0cbf9c9c-7cfd-4c3d-ae29-e2b2b0471cfe.jf
 
 const ACCENT = "bg-[#00A8E8] text-white border-[#00A8E8]";
 const ACCENT_HOVER = "hover:opacity-90";
-const WHATSAPP_DEFAULT_PHONE = "+237676089671";
-const TELEGRAM_USERNAME = "dibiye2"; // ton compte service client, sans @
-const SIGNAL_NUMBER = "+237699281882"; // si tu veux un numéro Signal fixe
+const WHATSAPP_DEFAULT_PHONE = "+237691554641";
+const TELEGRAM_USERNAME = "valere"; // ton compte service client, sans @
+const SIGNAL_NUMBER = "+237691554641"; // si tu veux un numéro Signal fixe
 
 const FALLBACK_IMG =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect width='100%25' height='100%25' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='Arial' font-size='16'%3EImage indisponible%3C/text%3E%3C/svg%3E";
