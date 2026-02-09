@@ -6,8 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { useKeenSlider } from "keen-slider/react";
 import "keen-slider/keen-slider.min.css";
 
-import hero from "../assets/images/HeroSection3.jpg";
-import hero1 from "../assets/images/Herosection2.jpg";
+import hero from "../assets/images/Herosection3.jpg";
+import hero1 from "../assets/images/HeroSection2.jpg";
 import hero2 from "../assets/images/Herosection1.jpg";
 
 type SlideConfig = {
