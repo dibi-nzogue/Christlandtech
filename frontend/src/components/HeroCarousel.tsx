@@ -6,9 +6,9 @@ import { useNavigate } from "react-router-dom";
 import { useKeenSlider } from "keen-slider/react";
 import "keen-slider/keen-slider.min.css";
 
-import hero from "../assets/images/Trouvez.webp";
-import hero1 from "../assets/images/hero1.webp";
-import hero2 from "../assets/images/hero2.webp";
+import hero from "../assets/images/Hero Section 1.jpg";
+import hero1 from "../assets/images/Hero Section 2.jpg";
+import hero2 from "../assets/images/Hero Section 3.jpg";
 
 type SlideConfig = {
   title: string;
@@ -29,16 +29,16 @@ const slides: SlideConfig[] = [
     image: hero,
   },
   {
-    title: "hero.title",
-    highlighted: "highlighted",
-    description: "hero.description",
+    title: "",
+    highlighted: "",
+    description: "",
     button: "hero.button",
     image: hero1,
   },
   {
-    title: "hero.title",
-    highlighted: "highlighted",
-    description: "hero.description",
+    title: "",
+    highlighted: "",
+    description: "",
     button: "hero.button",
     image: hero2,
   },
