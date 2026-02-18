@@ -31,49 +31,7 @@ const Produits: React.FC = () => {
     setSelectedProduct(null);
   };
 
-  React.useEffect(() => {
-    document.title = "Tous nos produits – Christland Tech";
-
-    const descContent =
-      "Parcourez tous les produits Christland Tech : ordinateurs, téléphones, gaming, électroménager, réseau, accessoires et plus encore. Toutes les catégories réunies sur une seule page.";
-
-    let descTag = document.querySelector(
-      'meta[name="description"]'
-    ) as HTMLMetaElement | null;
-
-    if (!descTag) {
-      descTag = document.createElement("meta");
-      descTag.name = "description";
-      document.head.appendChild(descTag);
-    }
-    descTag.content = descContent;
-
-    const keywordsContent =
-      "christland, christland tech, boutique high-tech, ordinateurs, téléphones, gaming, électroménager, réseau, accessoires, cameroun";
-
-    let keywordsTag = document.querySelector(
-      'meta[name="keywords"]'
-    ) as HTMLMetaElement | null;
-
-    if (!keywordsTag) {
-      keywordsTag = document.createElement("meta");
-      keywordsTag.name = "keywords";
-      document.head.appendChild(keywordsTag);
-    }
-    keywordsTag.content = keywordsContent;
-
-    const canonicalHref = "https://christland.tech/produits";
-    let canonicalLink = document.querySelector(
-      'link[rel="canonical"]'
-    ) as HTMLLinkElement | null;
-
-    if (!canonicalLink) {
-      canonicalLink = document.createElement("link");
-      canonicalLink.rel = "canonical";
-      document.head.appendChild(canonicalLink);
-    }
-    canonicalLink.href = canonicalHref;
-  }, []);
+  
 
   return (
     <>
