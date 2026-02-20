@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import { useKeenSlider } from "keen-slider/react";
 import "keen-slider/keen-slider.min.css";
-
+import { useTranslation } from "react-i18next";
 // ✅ Images SANS texte
 import heroDesk from "../assets/images/Imagehero1.webp"; // bureau
 import heroIt from "../assets/images/Imagehero2.webp";   // services IT
@@ -30,48 +30,41 @@ const slides: SlideConfig[] = [
   {
     image: heroDesk,
     layout: "left",
-    title: "Des services IT pour booster votre performance",
-    description:
-      "Installation, maintenance, support informatique et solutions sur mesure...",
+    title: "hero.slides.it.title",
+    description: "hero.slides.it.desc",
     titleClass: "text-black",
     descClass: "text-black/70",
-
-    // ✅ (option 1) on garde cover, mais on remonte un peu le cadrage si besoin
     fit: "cover",
     position: "50% 35%",
   },
   {
     image: heroIt,
     layout: "center",
-    title: "Decouvrez l’univers de la technologie",
-    description:
-      "Produits, services et solutions technologiques pour les particuliers et les entreprises.",
+    title: "hero.slides.desk.title",
+    description: "hero.slides.desk.desc",
     titleClass: "text-white",
     descClass: "text-black/90",
-
-    // ✅ IMPORTANT: ici on remonte clairement pour ne pas couper la tête
-    // Tu peux tester 20%, 15%, 10% selon ton image
     fit: "cover",
     position: "50% 15%",
   },
   {
     image: heroTech,
     layout: "topCenter",
-    title: "Decouvrez l’univers de la Tehnologie",
-    description: "Retrouvez les meilleures marques au meilleur prix.",
+    title: "hero.slides.tech.title",
+    description: "hero.slides.tech.desc",
     titleClass: "text-black",
     descClass: "text-white",
-
     fit: "cover",
     position: "50% 25%",
   },
 ];
 
-const HeroCarousel: React.FC = () => {
-  const containerRef = useRef<HTMLElement | null>(null);
-  const isInView = useInView(containerRef, { once: true, margin: "-100px" });
-  const [currentSlide, setCurrentSlide] = useState(0);
 
+const HeroCarousel: React.FC = () => {
+const containerRef = useRef<HTMLElement | null>(null);
+const isInView = useInView(containerRef, { once: true, margin: "-100px" });
+const [currentSlide, setCurrentSlide] = useState(0);
+const { t } = useTranslation();
   const [sliderRef, instanceRef] = useKeenSlider<HTMLDivElement>({
     loop: true,
     slideChanged(s) {
@@ -177,7 +170,7 @@ const HeroCarousel: React.FC = () => {
                       slide.titleClass ?? "text-white"
                     }`}
                   >
-                    {slide.title}
+                  {t(slide.title)}
                   </motion.h2>
 
                   <motion.p
@@ -188,7 +181,7 @@ const HeroCarousel: React.FC = () => {
                       slide.descClass ?? "text-white/90"
                     }`}
                   >
-                    {slide.description}
+                    {t(slide.description)}
                   </motion.p>
 
                   {slide.layout === "left" && (

@@ -3,6 +3,18 @@ const resources = {
   en: {
     translation: {
       // Nav & basics
+// Hero Slides (Carousel)
+"hero.slides.it.title": "IT services to boost your performance",
+"hero.slides.it.desc":
+  "Installation, maintenance, IT support and tailor-made solutions…",
+
+"hero.slides.desk.title": "Discover the world of technology",
+"hero.slides.desk.desc":
+  "Products, services and technology solutions for individuals and businesses.",
+
+"hero.slides.tech.title": "Discover the world of technology",
+"hero.slides.tech.desc": "Find the best brands at the best price.",
+            
       "Accueil": "Home",
       "A propos": "About",
       "A_propos": "About",
@@ -91,7 +103,6 @@ const resources = {
       "contact.channel.telegram": "Telegram",
 
 
-
       // Account helpers
       "compte.desc": "Already have an account?",
       "compte.desc1": "Log In",
@@ -138,6 +149,25 @@ const resources = {
 
       "ser.ac3": "We work hard to know our clients, understand their needs, and place them at the heart of everything we do. We strive tirelessly to build long-term trust so they can rely on us in a complex and ever-changing world always supported by the unmatched value we deliver through our well-balanced portfolio of services.",
       
+// Contact Section
+"contact.badge": "Support 24/7",
+"contact.info.email": "Email",
+"contact.info.phone": "Phone",
+"contact.info.location": "Location",
+"contact.info.location.value": "Yaoundé, Cameroon",
+
+"contact.placeholder.name": "Your name",
+"contact.placeholder.email": "e.g. example@mail.com",
+"contact.placeholder.phone": "+237 ...",
+"contact.placeholder.subject": "Subject of your message",
+"contact.placeholder.message": "Tell us what you need…",
+
+"contact.validation.required": "Please fill in name, email, subject and message.",
+"contact.success": "Message sent successfully.",
+"contact.error": "Error sending the message.",
+
+"contact.fastReply": "Fast reply • Support 24/7",
+
       
       // --- ServicesExtra (Security + Network) ---
       "ex1.tit": "Security",
@@ -160,6 +190,25 @@ const resources = {
         "Pro Wi-Fi: site survey, centralized controller, captive portal, seamless roaming, PoE.",
         "Monitoring & SLAs: proactive alerts, performance dashboards, monthly reports."
       ],
+
+// Footer
+"footer.support.title": "Support",
+"footer.support.line1": "Available 24/7",
+"footer.support.line2": "Fast responses",
+"footer.support.line3": "Support & After-sales",
+
+"footer.questions.title": "Do you have questions? Contact us 24/7",
+"footer.whatsapp.join": "Join our group",
+
+"footer.legal.title": "Legal information",
+"footer.legal.privacy": "Privacy policy",
+"footer.legal.shipping": "Delivery / Warranty & After-sales",
+
+"footer.copyright": "Copyright © 2026 CHRISTLAND TECH. All rights reserved.",
+"footer.dev": "Developed by Basogol-Hive Tech",
+"footer.privacy.modalTitle": "Privacy policy",
+"footer.privacy.fullscreen": "Open fullscreen",
+"footer.privacy.close": "Close ✕",
 
       // Buttons
       "see.more": "See more",
@@ -186,6 +235,38 @@ const resources = {
 
   fr: {
     translation: {
+
+// Contact Section
+"contact.badge": "Support 24/7",
+"contact.info.email": "Email",
+"contact.info.phone": "Téléphone",
+"contact.info.location": "Localisation",
+"contact.info.location.value": "Yaoundé, Cameroun",
+
+"contact.placeholder.name": "Votre nom",
+"contact.placeholder.email": "ex: exemple@mail.com",
+"contact.placeholder.phone": "+237 ...",
+"contact.placeholder.subject": "Objet de votre message",
+"contact.placeholder.message": "Dites-nous ce dont vous avez besoin…",
+
+"contact.validation.required": "Veuillez remplir nom, email, sujet et message.",
+"contact.success": "Message envoyé avec succès.",
+"contact.error": "Erreur lors de l’envoi du message.",
+
+"contact.fastReply": "Réponse rapide • Support 24/7",
+
+// Hero Slides (Carousel)
+"hero.slides.it.title": "Des services IT pour booster votre performance",
+"hero.slides.it.desc":
+  "Installation, maintenance, support informatique et solutions sur mesure...",
+
+"hero.slides.desk.title": "Découvrez l’univers de la technologie",
+"hero.slides.desk.desc":
+  "Produits, services et solutions technologiques pour les particuliers et les entreprises.",
+
+"hero.slides.tech.title": "Découvrez l’univers de la technologie",
+"hero.slides.tech.desc": "Retrouvez les meilleures marques au meilleur prix.",
+
       // Nav & basics
       "Accueil": "Accueil",
       "A propos": "A propos",
@@ -344,23 +425,47 @@ const resources = {
           "Supervision & SLA : monitoring proactif, tableaux de bord, rapports mensuels."
         ],
 
+
+// Footer
+"footer.support.title": "Support",
+"footer.support.line1": "Disponible 24/7",
+"footer.support.line2": "Réponses rapides",
+"footer.support.line3": "Assistance & SAV",
+
+"footer.questions.title": "Avez-vous des questions ? Contactez-nous 24/7",
+"footer.whatsapp.join": "Rejoindre notre groupe",
+
+"footer.legal.title": "Informations légales",
+"footer.legal.privacy": "Politique de confidentialité",
+"footer.legal.shipping": "Livraison / Garantie & SAV",
+
+"footer.copyright": "Copyright © 2026 CHRISTLAND TECH. Tous droits réservés.",
+"footer.dev": "Développé par Basogol-Hive Tech",
+"footer.privacy.modalTitle": "Politique de confidentialité",
+"footer.privacy.fullscreen": "Ouvrir en plein écran",
+"footer.privacy.close": "Fermer ✕",
+
+        
         // Boutons
         "see.more": "Voir plus",
         "see.less": "Voir moins",
         "see.all": "Tous",
 
-"filters": {
-  "brand": "MARQUE",
-  "color": "COULEUR",
-  "state": "ÉTAT"
-},
+        "filters": {
+          "brand": "MARQUE",
+          "color": "COULEUR",
+          "state": "ÉTAT"
+        },
 
-"mobile": {
-  "categories": "Catégories",
-  "filters": "Filtres",
-  "openCategories": "Ouvrir les catégories",
-  "openFilters": "Ouvrir les filtres"
-}
+        "mobile": {
+          "categories": "Catégories",
+          "filters": "Filtres",
+          "openCategories": "Ouvrir les catégories",
+          "openFilters": "Ouvrir les filtres"
+        }
+
+
+        
 
 
 

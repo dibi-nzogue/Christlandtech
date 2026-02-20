@@ -1,5 +1,13 @@
 import React, { useMemo, useState } from "react";
-import { Mail, Phone, MapPin, User, AtSign, MessageSquare, PenLine } from "lucide-react";
+import {
+  Mail,
+  Phone,
+  MapPin,
+  User,
+  AtSign,
+  MessageSquare,
+  PenLine,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
@@ -18,7 +26,10 @@ type FieldProps = {
 const Field: React.FC<FieldProps> = ({ id, label, icon, children }) => {
   return (
     <div>
-      <label htmlFor={id} className="block text-[13px] font-medium text-slate-700 mb-1">
+      <label
+        htmlFor={id}
+        className="block text-[13px] font-medium text-slate-700 mb-1"
+      >
         {label}
       </label>
 
@@ -74,6 +85,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
         sujet: sujet.trim(),
         message: message.trim(),
       });
+
       setOk("Message envoyé avec succès.");
       setNom("");
       setEmail("");
@@ -245,7 +257,11 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
           )}
 
           <form className="space-y-4" onSubmit={onSubmit} noValidate>
-            <Field id={nameId} label={t("name.input") || "Nom"} icon={<User size={18} />}>
+            <Field
+              id={nameId}
+              label={t("name.input") || "Nom"}
+              icon={<User size={18} />}
+            >
               <input
                 id={nameId}
                 type="text"
@@ -257,7 +273,11 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
               />
             </Field>
 
-            <Field id={emailId} label={t("email.input") || "Email"} icon={<AtSign size={18} />}>
+            <Field
+              id={emailId}
+              label={t("email.input") || "Email"}
+              icon={<AtSign size={18} />}
+            >
               <input
                 id={emailId}
                 type="email"
@@ -285,7 +305,11 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
               />
             </Field>
 
-            <Field id={subjectId} label={t("subject.input") || "Sujet"} icon={<PenLine size={18} />}>
+            <Field
+              id={subjectId}
+              label={t("subject.input") || "Sujet"}
+              icon={<PenLine size={18} />}
+            >
               <input
                 id={subjectId}
                 type="text"
@@ -297,7 +321,10 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
             </Field>
 
             <div>
-              <label htmlFor={messageId} className="block text-[13px] font-medium text-slate-700 mb-1">
+              <label
+                htmlFor={messageId}
+                className="block text-[13px] font-medium text-slate-700 mb-1"
+              >
                 {t("message.input") || "Message"}
               </label>
 
@@ -335,7 +362,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
                   w-full sm:w-auto
                 "
               >
-                {submitting ? (t("form.button") || "Envoi…") : (t("form.button") || "Envoyer")}
+                {submitting ? t("form.sending") : t("form.button")}
               </button>
 
               <div className="hidden sm:block text-xs text-slate-500">

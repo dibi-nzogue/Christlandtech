@@ -28,10 +28,8 @@ const Footer: React.FC = () => {
   const whatsappLink =
     "https://chat.whatsapp.com/CiwjQaL7T7PfqZbgqAXD?mode=gi";
 
-  // ✅ PDF dans: public/docs/politique-confidentialite.pdf
   const privacyPdfHref = `${import.meta.env.BASE_URL}docs/Politique_confidentialité.pdf`;
 
-  // ✅ Optionnel: empêcher le scroll de la page derrière quand le modal est ouvert
   useEffect(() => {
     const prev = document.body.style.overflow;
     if (openPdf) document.body.style.overflow = "hidden";
@@ -49,7 +47,7 @@ const Footer: React.FC = () => {
             <Link
               to="/"
               className="flex items-center gap-4 min-w-0"
-              aria-label="Accueil Christland Tech"
+              aria-label={t("Accueil")}
             >
               <div className="h-10 md:h-14 w-10 md:w-14 rounded-full bg-white/10 ring-1 ring-white/10 overflow-hidden">
                 <img
@@ -78,7 +76,7 @@ const Footer: React.FC = () => {
 
             <nav
               className="flex items-center gap-5 text-white text-lg lg:text-xl mt-2"
-              aria-label="Réseaux sociaux"
+              aria-label={t("Réseaux sociaux") || "Social links"}
             >
               <a href="#" aria-label="X" className="hover:text-[#00A9DC] transition-colors">
                 <FaXTwitter />
@@ -125,10 +123,12 @@ const Footer: React.FC = () => {
             </nav>
 
             <div className="md:justify-self-end text-sm lg:text-base text-white/80">
-              <p className="font-semibold text-white mb-2 lg:text-lg">Support</p>
-              <p>Disponible 24/7</p>
-              <p>Réponses rapides</p>
-              <p>Assistance & SAV</p>
+              <p className="font-semibold text-white mb-2 lg:text-lg">
+                {t("footer.support.title")}
+              </p>
+              <p>{t("footer.support.line1")}</p>
+              <p>{t("footer.support.line2")}</p>
+              <p>{t("footer.support.line3")}</p>
             </div>
           </div>
 
@@ -137,7 +137,7 @@ const Footer: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="text-sm lg:text-base">
                 <p className="font-semibold text-white lg:text-lg">
-                  Avez-vous des questions ? Contactez-nous 24/7
+                  {t("footer.questions.title")}
                 </p>
 
                 <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-white/85">
@@ -169,50 +169,49 @@ const Footer: React.FC = () => {
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center justify-center gap-2 rounded-md bg-white/10 hover:bg-white/15 transition px-4 py-2 text-sm lg:text-base"
-                  aria-label="Rejoindre notre WhatsApp"
+                  aria-label="WhatsApp"
                 >
                   <FaWhatsapp className="text-[#25D366]" />
                   WhatsApp
                 </a>
                 <span className="text-xs lg:text-sm text-white/60">
-                  Rejoindre notre groupe
+                  {t("footer.whatsapp.join")}
                 </span>
               </div>
             </div>
           </div>
 
-        {/* Légal */}
-<div className="mt-5 border-t border-white/10 pt-4">
-  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm lg:text-base text-white/80">
-      <span>Informations légales</span>
+          {/* Légal */}
+          <div className="mt-5 border-t border-white/10 pt-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm lg:text-base text-white/80">
+                <span>{t("footer.legal.title")}</span>
 
-      <button
-        type="button"
-        onClick={() => setOpenPdf(true)}
-        className="hover:text-[#00A9DC] transition-colors underline underline-offset-4"
-      >
-        Politique de confidentialité
-      </button>
+                <button
+                  type="button"
+                  onClick={() => setOpenPdf(true)}
+                  className="hover:text-[#00A9DC] transition-colors underline underline-offset-4"
+                >
+                  {t("footer.legal.privacy")}
+                </button>
 
-      <span>Livraison / Garantie &amp; SAV</span>
-    </div>
+                <span>{t("footer.legal.shipping")}</span>
+              </div>
 
-    {/* ✅ Crédit propre */}
-    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 text-xs lg:text-sm text-white/65">
-      <span>Copyright © 2026 CHRISTLAND TECH. Tous droits réservés.</span>
-      <span className="hidden sm:inline text-white/30">|</span>
-      <a
-        href="https://basogol-hive.tech"
-        target="_blank"
-        rel="noreferrer"
-        className="hover:text-[#00A9DC] transition-colors underline underline-offset-4"
-      >
-        Développé par Basogol-Hive Tech
-      </a>
-    </div>
-  </div>
-</div>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 text-xs lg:text-sm text-white/65">
+                <span>{t("footer.copyright")}</span>
+                <span className="hidden sm:inline text-white/30">|</span>
+                <a
+                  href="https://basogol-hive.tech"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-[#00A9DC] transition-colors underline underline-offset-4"
+                >
+                  {t("footer.dev")}
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </footer>
 
@@ -230,7 +229,7 @@ const Footer: React.FC = () => {
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="text-sm sm:text-base font-semibold">
-                Politique de confidentialité
+                {t("footer.privacy.modalTitle")}
               </div>
 
               <div className="flex items-center gap-2">
@@ -238,17 +237,17 @@ const Footer: React.FC = () => {
                   href={privacyPdfHref}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-xs sm:text-sm px-3 py-1.5 rounded-md bg-white hover:bg-[#00A8E8]  transition"
+                  className="text-xs sm:text-sm px-3 py-1.5 rounded-md bg-white hover:bg-[#00A8E8] transition"
                 >
-                  Ouvrir en plein écran
+                  {t("footer.privacy.fullscreen")}
                 </a>
 
                 <button
                   type="button"
                   onClick={() => setOpenPdf(false)}
-                  className="text-sm px-3 py-1.5 rounded-md bg-white hover:bg-[#00A8E8]  transition"
+                  className="text-sm px-3 py-1.5 rounded-md bg-white hover:bg-[#00A8E8] transition"
                 >
-                  Fermer ✕
+                  {t("footer.privacy.close")}
                 </button>
               </div>
             </div>

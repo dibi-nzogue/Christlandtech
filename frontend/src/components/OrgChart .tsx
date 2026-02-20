@@ -221,10 +221,10 @@ const OrgChart: React.FC = () => {
           </div>
 
           {/* Small note */}
-          <p className="text-center text-xs text-[#5A5C62] mt-4">
+          {/* <p className="text-center text-xs text-[#5A5C62] mt-4">
             Les intitulés et noms peuvent être ajustés selon l’évolution de
             l’équipe.
-          </p>
+          </p> */}
         </div>
       </div>
     </motion.section>

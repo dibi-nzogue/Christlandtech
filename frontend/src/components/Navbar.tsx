@@ -22,12 +22,14 @@ const PhoneBadge: React.FC<{ compact?: boolean; className?: string }> = ({
   return (
     <a
       href="tel:+237691554641"
-      className={`
-        inline-flex items-center font-extrabold text-white/95 hover:text-white transition
-        whitespace-nowrap
-        ${compact ? "text-[11px] sm:text-[12px] md:text-[13px]" : "text-[18px] xl:text-[22px]"}
-        ${className}
-      `}
+      className={[
+        "inline-flex items-center font-extrabold text-white/95 hover:text-white transition",
+        "whitespace-nowrap truncate",
+        compact
+          ? "text-[11px] sm:text-[12px] md:text-[13px]"
+          : "text-[12px] lg:text-[14px] xl:text-[16px] 2xl:text-[18px]",
+        className,
+      ].join(" ")}
       aria-label="Appeler +237 691554641"
       title="+237 691554641 / 676089671"
     >
@@ -181,103 +183,111 @@ const Navbar: React.FC = () => {
               )}
             </Link>
 
-            {/* ✅ Desktop (>= lg) : Recherche + Téléphones + Contact + Langue */}
-            <div className="hidden lg:flex items-center gap-6 min-w-0">
-              {/* Recherche */}
-              <div className="min-w-0">
-                <div className="relative w-full max-w-[520px] xl:max-w-[620px]">
-                  <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="search"
-                    value={q}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setQ(value);
-                      if (pathname.startsWith("/produits") && value.trim() === "") {
-                        navigate("/produits", { replace: true });
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        submitSearch();
-                      }
-                    }}
-                    placeholder={t("Rechercher")}
-                    aria-label={t("Rechercher")}
-                    className="w-full rounded-full bg-white py-2.5 pl-11 pr-4 text-[15px] text-gray-900 placeholder-gray-500 shadow-[0_10px_28px_rgba(0,0,0,0.10)] focus:outline-none"
-                  />
-                </div>
-              </div>
+{/* ✅ Desktop (>= lg) : Recherche + Téléphones + Contact + Langue */}
+<div className="hidden lg:flex items-center gap-4 xl:gap-6 min-w-0 flex-1 justify-end">
+  {/* ✅ Recherche : largeur responsive contrôlée */}
+  <div className="flex-1 min-w-[220px] max-w-[340px] xl:max-w-[420px] 2xl:max-w-[520px]">
+    <div className="relative w-full">
+      <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+      <input
+        type="search"
+        value={q}
+        onChange={(e) => {
+          const value = e.target.value;
+          setQ(value);
+          if (pathname.startsWith("/produits") && value.trim() === "") {
+            navigate("/produits", { replace: true });
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submitSearch();
+          }
+        }}
+        placeholder={t("Rechercher")}
+        aria-label={t("Rechercher")}
+        className="
+          w-full rounded-full bg-white
+          py-2.5 xl:py-3
+          pl-11 pr-4
+          text-[13px] xl:text-[14px]
+          text-gray-900 placeholder-gray-500
+          shadow-[0_10px_28px_rgba(0,0,0,0.10)]
+          focus:outline-none focus:ring-2 focus:ring-[#00A9DC]/40
+        "
+      />
+    </div>
+  </div>
 
-              {/* Téléphones */}
-              <PhoneBadge className={phoneDrop ? "phone-drop" : ""} />
+  {/* ✅ Téléphones : limite sa largeur pour protéger le search */}
+  <PhoneBadge className={`max-w-[220px] xl:max-w-[280px] 2xl:max-w-[320px] ${phoneDrop ? "phone-drop" : ""}`} />
 
-              {/* Contact + Langue */}
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  className="relative text-[15px] cursor-pointer"
-                  onClick={() => {
-                    const contactSection = document.getElementById("contact");
-                    contactSection?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                >
-                  <span>{t("Contact")}</span>
-                  <span className="absolute left-0 -bottom-2 block h-[4px] w-full bg-[#00A9DC]" />
-                </button>
+  {/* Contact + Langue : ne rétrécit jamais */}
+  <div className="flex items-center gap-3 xl:gap-4 flex-shrink-0">
+    <button
+      type="button"
+      className="relative text-[13px] xl:text-[15px] cursor-pointer"
+      onClick={() => {
+        const contactSection = document.getElementById("contact");
+        contactSection?.scrollIntoView({ behavior: "smooth" });
+      }}
+    >
+      <span>{t("Contact")}</span>
+      <span className="absolute left-0 -bottom-2 block h-[3px] w-full bg-[#00A9DC]" />
+    </button>
 
-                <div className="bg-white/60 py-4 w-px" />
+    <div className="bg-white/60 py-4 w-px" />
 
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setLangOpen((v) => !v)}
-                    aria-haspopup="menu"
-                    aria-expanded={langOpen}
-                    aria-label={t("Changer de langue")}
-                    className="flex items-center gap-1 rounded-md px-2 py-1 text-white"
-                  >
-                    <FaGlobe className="h-5 w-5" />
-                    <FaChevronDown className="h-3 w-3" />
-                  </button>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setLangOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={langOpen}
+        aria-label={t("Changer de langue")}
+        className="flex items-center gap-1 rounded-md px-2 py-1 text-white"
+      >
+        <FaGlobe className="h-5 w-5" />
+        <FaChevronDown className="h-3 w-3" />
+      </button>
 
-                  {langOpen && (
-                    <div className="absolute right-0 mt-2 w-36 rounded-md bg-white text-gray-900 py-1 shadow-lg ring-1 ring-black/5">
-                      <button
-                        type="button"
-                        className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${
-                          currentLang === "fr" ? "font-semibold text-[#00A9DC]" : ""
-                        }`}
-                        onClick={() => {
-                          i18n.changeLanguage("fr");
-                          setUiLang("fr");
-                          setLangOpen(false);
-                          recomputeNameVisibility();
-                        }}
-                      >
-                        {t("Français")}
-                      </button>
-                      <button
-                        type="button"
-                        className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${
-                          currentLang === "en" ? "font-semibold text-[#00A9DC]" : ""
-                        }`}
-                        onClick={() => {
-                          i18n.changeLanguage("en");
-                          setUiLang("en");
-                          setLangOpen(false);
-                          recomputeNameVisibility();
-                        }}
-                      >
-                        {t("Anglais")}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+      {langOpen && (
+        <div className="absolute right-0 mt-2 w-36 rounded-md bg-white text-gray-900 py-1 shadow-lg ring-1 ring-black/5">
+          <button
+            type="button"
+            className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${
+              currentLang === "fr" ? "font-semibold text-[#00A9DC]" : ""
+            }`}
+            onClick={() => {
+              i18n.changeLanguage("fr");
+              setUiLang("fr");
+              setLangOpen(false);
+              recomputeNameVisibility();
+            }}
+          >
+            {t("Français")}
+          </button>
 
+          <button
+            type="button"
+            className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${
+              currentLang === "en" ? "font-semibold text-[#00A9DC]" : ""
+            }`}
+            onClick={() => {
+              i18n.changeLanguage("en");
+              setUiLang("en");
+              setLangOpen(false);
+              recomputeNameVisibility();
+            }}
+          >
+            {t("Anglais")}
+          </button>
+        </div>
+      )}
+    </div>
+  </div>
+</div>
             {/* ✅ Mobile/Tablet (< lg) : icônes seulement */}
             <div className="lg:hidden flex items-center gap-1 flex-shrink-0">
               <button
