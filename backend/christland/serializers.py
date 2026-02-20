@@ -304,33 +304,25 @@ class CategorieMiniSerializer(I18nTranslateMixin, serializers.ModelSerializer):
 
 
 class CategoryDashboardSerializer(serializers.ModelSerializer):
-    # on veut traduire nom + description
-    # i18n_fields = ["nom", "description"]
-
-    # 👇 on ajoute ces 2 champs calculés
     parent_id = serializers.IntegerField(source="parent.id", read_only=True)
     parent_nom = serializers.CharField(source="parent.nom", read_only=True)
-    children = serializers.SerializerMethodField()  # 
+    children = serializers.SerializerMethodField()
+
     class Meta:
         model = Categories
         fields = (
-            "id",
-            "nom",
-            "slug",
-            "description",
-            "est_actif",
-            "image_url",
-            "position",
-            "parent",      # FK brute
-            "parent_id",   # id du parent (pour le front)
-            "parent_nom",  # nom du parent (optionnel mais pratique)
-             "children",
+            "id", "nom", "slug", "description", "est_actif",
+            "image_url", "position",
+            "parent", "parent_id", "parent_nom",
+            "children",
         )
+
     def get_children(self, obj):
-            return [
-                {"id": child.id, "nom": child.nom, "slug": child.slug}
-                for child in obj.children.all()
-            ]
+        rel = getattr(obj, "enfants", None)
+        qs = rel.all() if rel is not None else Categories.objects.filter(parent=obj)
+
+        qs = qs.filter(is_deleted=False).order_by("position", "id")
+        return [{"id": c.id, "nom": c.nom, "slug": c.slug} for c in qs]
 class CategoryEditSerializer(serializers.ModelSerializer):
     # champ côté front
     image = serializers.CharField(required=False, allow_null=True, allow_blank=True)

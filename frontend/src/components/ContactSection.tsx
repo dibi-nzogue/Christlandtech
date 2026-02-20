@@ -1,6 +1,5 @@
-
-import React, { useState } from "react";
-import { Mail, Phone, MapPin } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { Mail, Phone, MapPin, User, AtSign, MessageSquare, PenLine } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
@@ -8,6 +7,31 @@ import { sendContactMessage } from "../hooks/useFetchQuery";
 import profil from "../assets/images/logo1.webp";
 
 type ContactSectionProps = { id?: string };
+
+type FieldProps = {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+};
+
+const Field: React.FC<FieldProps> = ({ id, label, icon, children }) => {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-[13px] font-medium text-slate-700 mb-1">
+        {label}
+      </label>
+
+      <div className="relative">
+        <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+          {icon}
+        </div>
+
+        {children}
+      </div>
+    </div>
+  );
+};
 
 const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
   const { t } = useTranslation();
@@ -24,7 +48,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
   const [ok, setOk] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  // IDs pour association label ↔ champ
+  // IDs
   const nameId = "contact-name";
   const emailId = "contact-email";
   const phoneId = "contact-phone";
@@ -63,73 +87,148 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
     }
   };
 
-  const containerVariants: Variants = {
-    hidden: { opacity: 0, y: 80 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" } },
-  };
+  const containerVariants: Variants = useMemo(
+    () => ({
+      hidden: { opacity: 0, y: 60 },
+      visible: {
+        opacity: 1,
+        y: 0,
+        transition: { duration: 0.7, ease: "easeOut" },
+      },
+    }),
+    []
+  );
+
+  const inputBase =
+    "w-full rounded-xl border border-slate-200 bg-white/90 pl-10 pr-3 py-3 text-[14px] text-slate-900 " +
+    "placeholder:text-slate-400 shadow-sm outline-none transition " +
+    "focus:border-sky-300 focus:ring-4 focus:ring-sky-200/60";
 
   return (
     <motion.section
       id={id}
-      className="bg-[#EAF4FB] py-10 px-6 md:px-10 lg:rounded-2xl shadow-md max-w-5xl mx-auto my-5 md:my-10"
       variants={containerVariants}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, amount: 0.6 }}
+      viewport={{ once: true, amount: 0.4 }}
       aria-labelledby="contact-section-title"
+      className="
+        relative
+        mx-auto my-8 md:my-12
+        w-full max-w-screen-xl 2xl:max-w-screen-2xl
+        px-4 sm:px-6 lg:px-10
+      "
     >
-      <div className="grid md:grid-cols-2 gap-10 items-center">
-        {/* gauche : infos */}
-        <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-6">
-          <p className="text-gray-700 leading-relaxed max-w-sm">
-            {t("com.con") || "Laissez-nous un message et nous vous répondrons rapidement."}
+      {/* Fond “premium” */}
+      <div
+        className="
+          absolute inset-0 -z-10
+          rounded-3xl
+          bg-gradient-to-br from-sky-50 via-white to-sky-100
+          ring-1 ring-slate-200/70
+          shadow-[0_25px_70px_rgba(2,132,199,0.10)]
+        "
+      />
+
+      <div className="grid md:grid-cols-2 gap-10 lg:gap-16 p-6 sm:p-8 lg:p-10">
+        {/* GAUCHE */}
+        <div className="flex flex-col items-center md:items-start text-center md:text-left">
+          <div className="inline-flex items-center gap-2 rounded-full bg-sky-100 text-sky-700 px-3 py-1 text-xs font-semibold">
+            <span className="h-2 w-2 rounded-full bg-sky-500" />
+            Support 24/7
+          </div>
+
+          <h2
+            id="contact-section-title"
+            className="mt-4 text-2xl sm:text-3xl font-extrabold text-slate-900"
+          >
+            {t("form.description") || "Laissez votre message"}
+          </h2>
+
+          <p className="mt-3 text-slate-600 leading-relaxed max-w-md">
+            {t("com.con") ||
+              "Laissez-nous un message et nous vous répondrons rapidement."}
           </p>
 
-          <img
-            src={profil}
-            width={300}
-            height={300}
-            alt="Profil"
-            loading="lazy"
-            className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
-          />
+          {/* Profil + halo */}
+          <div className="mt-6 relative">
+            <div className="absolute inset-0 -z-10 blur-2xl rounded-full bg-sky-200/60" />
+            <img
+              src={profil}
+              width={300}
+              height={300}
+              alt="Christland Tech"
+              loading="lazy"
+              className="w-24 h-24 rounded-2xl object-cover ring-4 ring-white shadow-lg"
+            />
+          </div>
 
-          <div className="space-y-3 text-gray-600">
-            <div className="flex items-center justify-center md:justify-start gap-3">
-              <Mail className="text-gray-400" size={18} />
-              <span className="text-sm">info@christland.tech</span>
-            </div>
+          {/* Infos */}
+          <div className="mt-6 w-full max-w-md space-y-3">
+            <a
+              href="mailto:info@christland.tech"
+              className="group flex items-center gap-3 rounded-2xl bg-white/70 border border-slate-200 px-4 py-3 hover:bg-white transition"
+            >
+              <span className="grid place-items-center h-9 w-9 rounded-xl bg-sky-50 text-sky-700 border border-sky-100">
+                <Mail size={18} />
+              </span>
+              <div className="min-w-0">
+                <div className="text-xs text-slate-500">Email</div>
+                <div className="text-sm font-semibold text-slate-900 group-hover:text-sky-700">
+                  info@christland.tech
+                </div>
+              </div>
+            </a>
 
-            <div className="flex items-center justify-center md:justify-start gap-3">
-              <Phone className="text-gray-400" size={18} />
-              <span className="text-sm">691 554 641</span>
-            </div>
+            <a
+              href="tel:+237691554641"
+              className="group flex items-center gap-3 rounded-2xl bg-white/70 border border-slate-200 px-4 py-3 hover:bg-white transition"
+            >
+              <span className="grid place-items-center h-9 w-9 rounded-xl bg-sky-50 text-sky-700 border border-sky-100">
+                <Phone size={18} />
+              </span>
+              <div className="min-w-0">
+                <div className="text-xs text-slate-500">Téléphone</div>
+                <div className="text-sm font-semibold text-slate-900 group-hover:text-sky-700">
+                  +237 691 554 641
+                </div>
+              </div>
+            </a>
 
-            <div className="flex items-center justify-center md:justify-start gap-3">
-              <Phone className="text-gray-400" size={18} />
-              <span className="text-sm">676 089 671</span>
-            </div>
+            <a
+              href="tel:+237676089671"
+              className="group flex items-center gap-3 rounded-2xl bg-white/70 border border-slate-200 px-4 py-3 hover:bg-white transition"
+            >
+              <span className="grid place-items-center h-9 w-9 rounded-xl bg-sky-50 text-sky-700 border border-sky-100">
+                <Phone size={18} />
+              </span>
+              <div className="min-w-0">
+                <div className="text-xs text-slate-500">Téléphone</div>
+                <div className="text-sm font-semibold text-slate-900 group-hover:text-sky-700">
+                  +237 676 089 671
+                </div>
+              </div>
+            </a>
 
-            {/* ✅ Ligne ville + icône */}
-            <div className="flex items-center justify-center md:justify-start gap-3">
-              <MapPin className="text-gray-400" size={18} />
-              <span className="text-sm">Yaoundé, Cameroun</span>
+            <div className="flex items-center gap-3 rounded-2xl bg-white/70 border border-slate-200 px-4 py-3">
+              <span className="grid place-items-center h-9 w-9 rounded-xl bg-sky-50 text-sky-700 border border-sky-100">
+                <MapPin size={18} />
+              </span>
+              <div className="min-w-0">
+                <div className="text-xs text-slate-500">Localisation</div>
+                <div className="text-sm font-semibold text-slate-900">
+                  Yaoundé, Cameroun
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* droite : formulaire */}
-        <div>
-          <h2
-            id="contact-section-title"
-            className="text-xl font-semibold text-gray-800 mb-6"
-          >
-            {t("form.description") || "Contactez-nous"}
-          </h2>
-
+        {/* DROITE - Formulaire */}
+        <div className="rounded-3xl bg-white/80 border border-slate-200 shadow-sm p-5 sm:p-6 lg:p-8">
           {ok && (
             <div
-              className="mb-4 rounded-md bg-green-50 p-3 text-green-700 text-sm"
+              className="mb-4 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-emerald-800 text-sm"
               role="status"
               aria-live="polite"
             >
@@ -138,7 +237,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
           )}
           {err && (
             <div
-              className="mb-4 rounded-md bg-red-50 p-3 text-red-700 text-sm"
+              className="mb-4 rounded-xl bg-red-50 border border-red-200 p-3 text-red-800 text-sm"
               role="alert"
             >
               {err}
@@ -146,98 +245,103 @@ const ContactSection: React.FC<ContactSectionProps> = ({ id }) => {
           )}
 
           <form className="space-y-4" onSubmit={onSubmit} noValidate>
-            <div>
-              <label
-                htmlFor={nameId}
-                className="block text-gray-700 mb-1 text-sm"
-              >
-                {t("name.input") || "Nom"}
-              </label>
+            <Field id={nameId} label={t("name.input") || "Nom"} icon={<User size={18} />}>
               <input
                 id={nameId}
                 type="text"
                 value={nom}
                 onChange={(e) => setNom(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                className={inputBase}
                 autoComplete="name"
+                placeholder="Votre nom"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label
-                htmlFor={emailId}
-                className="block text-gray-700 mb-1 text-sm"
-              >
-                {t("email.input") || "Email"}
-              </label>
+            <Field id={emailId} label={t("email.input") || "Email"} icon={<AtSign size={18} />}>
               <input
                 id={emailId}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                className={inputBase}
                 autoComplete="email"
+                placeholder="ex: exemple@mail.com"
               />
-            </div>
+            </Field>
 
-            <div>
-              <label
-                htmlFor={phoneId}
-                className="block text-gray-700 mb-1 text-sm"
-              >
-                {t("phone.input") || "Téléphone (optionnel)"}
-              </label>
+            <Field
+              id={phoneId}
+              label={t("phone.input") || "Téléphone (optionnel)"}
+              icon={<Phone size={18} />}
+            >
               <input
                 id={phoneId}
                 type="tel"
                 value={telephone}
                 onChange={(e) => setTelephone(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A9DC]"
+                className={inputBase}
                 autoComplete="tel"
+                placeholder="+237 ..."
               />
-            </div>
+            </Field>
 
-            <div>
-              <label
-                htmlFor={subjectId}
-                className="block text-gray-700 mb-1 text-sm"
-              >
-                {t("subject.input") || "Sujet"}
-              </label>
+            <Field id={subjectId} label={t("subject.input") || "Sujet"} icon={<PenLine size={18} />}>
               <input
                 id={subjectId}
                 type="text"
                 value={sujet}
                 onChange={(e) => setSujet(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                className={inputBase}
+                placeholder="Objet de votre message"
               />
-            </div>
+            </Field>
 
             <div>
-              <label
-                htmlFor={messageId}
-                className="block text-gray-700 mb-1 text-sm"
-              >
+              <label htmlFor={messageId} className="block text-[13px] font-medium text-slate-700 mb-1">
                 {t("message.input") || "Message"}
               </label>
-              <textarea
-                id={messageId}
-                rows={4}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#00A9DC] resize-none"
-              />
+
+              <div className="relative">
+                <div className="pointer-events-none absolute left-3 top-4 text-slate-400">
+                  <MessageSquare size={18} />
+                </div>
+
+                <textarea
+                  id={messageId}
+                  rows={7}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className={
+                    "w-full rounded-xl border border-slate-200 bg-white/90 pl-10 pr-3 py-3 text-[14px] text-slate-900 " +
+                    "placeholder:text-slate-400 shadow-sm outline-none transition resize-none min-h-[190px] " +
+                    "focus:border-sky-300 focus:ring-4 focus:ring-sky-200/60"
+                  }
+                  placeholder="Dites-nous ce dont vous avez besoin…"
+                />
+              </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="bg-[#00A9DC] hover:bg-sky-600 text-white font-medium px-6 py-2 rounded-full shadow transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {submitting
-                ? t("form.button") || "Envoi…"
-                : t("form.button") || "Envoyer"}
-            </button>
+            <div className="pt-2 flex items-center gap-3">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="
+                  inline-flex items-center justify-center
+                  rounded-xl px-6 py-3
+                  bg-sky-600 text-white font-semibold
+                  shadow-[0_12px_30px_rgba(2,132,199,0.25)]
+                  hover:bg-sky-700 transition
+                  disabled:opacity-60 disabled:cursor-not-allowed
+                  w-full sm:w-auto
+                "
+              >
+                {submitting ? (t("form.button") || "Envoi…") : (t("form.button") || "Envoyer")}
+              </button>
+
+              <div className="hidden sm:block text-xs text-slate-500">
+                Réponse rapide • Support 24/7
+              </div>
+            </div>
           </form>
         </div>
       </div>

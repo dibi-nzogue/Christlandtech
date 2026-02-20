@@ -77,7 +77,16 @@ from django.contrib.auth.hashers import check_password, make_password
 
 
 
-
+def _children_qs(cat: Categories):
+    """
+    Retourne les enfants d'une catégorie en utilisant le bon related_name.
+    Ici: related_name='enfants'
+    """
+    rel = getattr(cat, "enfants", None)
+    if rel is not None:
+        return rel.all()
+    # fallback ultra sûr
+    return Categories.objects.filter(parent=cat)
 
 def _to_bool(raw, default=False):
     """
@@ -124,7 +133,7 @@ def _descendants_ids(cat: Categories) -> list[int]:
     while todo:
         c = todo.pop()
         ids.append(c.id)
-        todo.extend(list(c.enfants.all()))
+        todo.extend(list(_children_qs(c)))
     return ids
 
 def _product_main_image_url(request, prod: Produits) -> str | None:
@@ -3453,9 +3462,6 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
             qs = qs.filter(is_deleted=False)
         return get_object_or_404(qs, pk=pk)
 
-    def patch(self, request, pk: int):
-        return self.put(request, pk)
-
     def get(self, request, pk: int):
         c = self.get_object()
         return Response(
@@ -3652,7 +3658,12 @@ class DashboardCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
             },
             status=status.HTTP_200_OK,
         )
-
+    def patch(self, request, pk: int):
+        c = self.get_object()
+        serializer = CategoryDashboardSerializer(c, data=request.data, partial=True, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=200)
     def delete(self, request, pk: int):
         c = self.get_object()
 
@@ -3784,17 +3795,12 @@ class DashboardCategoriesSelectView(APIView):
         ]
         return Response(data)
 class DashboardCategoriesTreeView(APIView):
-    """
-    GET /christland/api/dashboard/categories/tree/
-    -> arbre de catégories (FR brut)
-    """
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         qs = Categories.objects.filter(is_deleted=False).order_by("nom")
 
-        # 1) dict {id: item}
         by_id: dict[int, dict] = {}
         for c in qs:
             by_id[c.id] = {
@@ -3805,17 +3811,11 @@ class DashboardCategoriesTreeView(APIView):
                 "children": [],
             }
 
-        # 2) attacher chaque catégorie à son parent
         roots: list[dict] = []
         for c in qs:
             item = by_id[c.id]
-
-            if c.parent_id:
-                parent_item = by_id.get(c.parent_id)
-                if parent_item:
-                    parent_item["children"].append(item)
-                else:
-                    roots.append(item)
+            if c.parent_id and c.parent_id in by_id:
+                by_id[c.parent_id]["children"].append(item)
             else:
                 roots.append(item)
 

@@ -19,11 +19,16 @@ const Accueil: React.FC = () => {
   return (
     <>
       <Navbar />
+<div className="space-y-10 md:space-y-14 lg:space-y-20">
+  <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
+    <HeroCarousel />
+  </section>
 
-      <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10 pt-8 md:pt-28 lg:pt-32">
-        <HeroCarousel />
-      </section>
-      <CategoriesCarousel />
+  <section className="mx-auto w-full max-w-screen-2xl px-6 sm:px-8 lg:px-10">
+    <CategoriesCarousel />
+  </section>
+</div>
+
       <Sponsor />
       <Nouveautes />
       <ServiceSection />

@@ -279,10 +279,11 @@ const CategoryEditForm: React.FC = () => {
       slug: formData.slug?.trim() || undefined,
       description: formData.description,
       parent: isRootCategory ? null : formData.parent,
-      image_url: formData.image_url || null,
       est_actif: !!formData.est_actif,
     };
-
+    if (formData.image_url?.trim()) {
+      payload.image_url = formData.image_url.trim();
+    }
     try {
       setSubmitting(true);
       await updateDashboardCategory(categoryId, payload);

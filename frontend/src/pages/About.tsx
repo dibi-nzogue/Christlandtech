@@ -6,7 +6,7 @@ import ScrollToTopButton from "../components/ScrollToTopButton";
 
 import HeroAbout from "../components/HeroAbout";
 import ContactSection from "../components/ContactSection";
-import BoardManage from "../components/BoardManage";
+import OrgChart from "../components/OrgChart ";
 import StatsSection from "../components/StatsSection";
 
 
@@ -18,7 +18,7 @@ const About: React.FC = () => {
       <Navbar />
 
       <HeroAbout />
-      <BoardManage />
+      <OrgChart />
       <StatsSection />
       <ContactSection id="contact" />
 
