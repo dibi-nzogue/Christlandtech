@@ -196,11 +196,12 @@ const Footer: React.FC = () => {
                 </button>
 
                 <span>{t("footer.legal.shipping")}</span>
+                <span>{t("footer.copyright")}</span>
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 text-xs lg:text-sm text-white/65">
-                <span>{t("footer.copyright")}</span>
-                <span className="hidden sm:inline text-white/30">|</span>
+                
+                {/* <span className="hidden sm:inline text-white/30">|</span> */}
                 <a
                   href="https://basogol-hive.tech"
                   target="_blank"
