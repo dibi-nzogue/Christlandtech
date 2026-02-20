@@ -19,14 +19,14 @@ type CategoryNode = ApiCategory & { children?: CategoryNode[] };
 type TabType = "produits" | "articles" | "categories";
 
 // Onglet initial en fonction de ?tab=...
-const params = new URLSearchParams(window.location.search);
-const tabParam = params.get("tab");
-const initialTab: TabType =
-  tabParam === "articles"
-    ? "articles"
-    : tabParam === "categories"
-    ? "categories"
-    : "produits";
+// const params = new URLSearchParams(window.location.search);
+// const tabParam = params.get("tab");
+// const initialTab: TabType =
+//   tabParam === "articles"
+//     ? "articles"
+//     : tabParam === "categories"
+//     ? "categories"
+//     : "produits";
 
 const PAGE_SIZE = 24;
 
@@ -44,7 +44,25 @@ const removeCategoryFromTree = (
 };
 
 const ProductTable = () => {
-  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+  // const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const getTabFromUrl = (): TabType => {
+    const sp = new URLSearchParams(location.search);
+    const tab = sp.get("tab");
+    if (tab === "articles") return "articles";
+    if (tab === "categories") return "categories";
+    return "produits";
+  };
+
+  const [activeTab, setActiveTab] = useState<TabType>(() => getTabFromUrl());
+
+  // Sync onglet avec URL (tu l’as déjà mais on le garde propre)
+  useEffect(() => {
+    setActiveTab(getTabFromUrl());
+  }, [location.search]);
   const [page, setPage] = useState(1);
 
   const [products, setProducts] = useState<ApiProduct[]>([]);
@@ -60,10 +78,10 @@ const ProductTable = () => {
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const navigate = useNavigate();
+
 
   // lecture du terme recherché depuis l'URL
-  const location = useLocation();
+
   const searchParams = new URLSearchParams(location.search);
   const q = (searchParams.get("q") || "").trim();
 
@@ -82,7 +100,7 @@ const ProductTable = () => {
   // ================================
   const [selectMode, setSelectMode] = useState(false);
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
-
+console.log("DASHBOARD URL:", location.pathname + location.search, "STATE:", location.state);
   // ✅ Mode suppression : "single" ou "bulk"
   const [deleteMode, setDeleteMode] = useState<"single" | "bulk">("single");
   const [bulkIds, setBulkIds] = useState<number[]>([]);
@@ -214,6 +232,26 @@ const ProductTable = () => {
     }
   };
 
+
+useEffect(() => {
+  const st = location.state as any;
+
+  if (st?.tab) {
+    setActiveTab(st.tab);
+
+    const sp = new URLSearchParams(location.search);
+    sp.set("tab", st.tab);
+
+    navigate(
+      { pathname: location.pathname, search: `?${sp.toString()}` },
+      { replace: true, state: { ...st, tab: undefined } }
+    );
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
+
+
   // Sync onglet avec URL
   useEffect(() => {
     const sp = new URLSearchParams(location.search);
@@ -243,39 +281,48 @@ const ProductTable = () => {
   }, [activeTab, page, searchMode]);
 
   // Mode RECHERCHE (q)
-  useEffect(() => {
-    if (!searchMode) return;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [prodsData, artsData] = await Promise.all([
-          getDashboardProducts({ page, page_size: PAGE_SIZE, q }),
-          getDashboardArticles({ page, page_size: PAGE_SIZE, q }),
-        ]);
+  // Mode RECHERCHE (q)
+useEffect(() => {
+  const sp = new URLSearchParams(location.search);
+  const tab = sp.get("tab");
 
-        const prodsRows = Array.isArray(prodsData)
-          ? prodsData
-          : prodsData?.results ?? [];
-        const artsRows = artsData?.results ?? [];
+  // ✅ Si on est sur l’onglet catégories, on ne fait PAS la recherche produits/articles
+  // et surtout on ne force PAS activeTab = "produits"
+  if (tab === "categories") return;
 
-        setProducts(prodsRows);
-        setArticles(artsRows);
+  if (!searchMode) return;
 
-        if (prodsRows.length > 0) {
-          setActiveTab("produits");
-          setCount((prodsData as any)?.count ?? prodsRows.length ?? 0);
-        } else {
-          setActiveTab("articles");
-          setCount(artsData?.count ?? artsRows.length ?? 0);
-        }
-      } catch (e: any) {
-        setError(e.message || "Erreur de recherche");
-      } finally {
-        setLoading(false);
+  (async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [prodsData, artsData] = await Promise.all([
+        getDashboardProducts({ page, page_size: PAGE_SIZE, q }),
+        getDashboardArticles({ page, page_size: PAGE_SIZE, q }),
+      ]);
+
+      const prodsRows = Array.isArray(prodsData)
+        ? prodsData
+        : prodsData?.results ?? [];
+      const artsRows = artsData?.results ?? [];
+
+      setProducts(prodsRows);
+      setArticles(artsRows);
+
+      if (prodsRows.length > 0) {
+        setActiveTab("produits");
+        setCount((prodsData as any)?.count ?? prodsRows.length ?? 0);
+      } else {
+        setActiveTab("articles");
+        setCount(artsData?.count ?? artsRows.length ?? 0);
       }
-    })();
-  }, [q, page, searchMode]);
+    } catch (e: any) {
+      setError(e.message || "Erreur de recherche");
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, [q, page, searchMode, location.search]);
 
   useEffect(() => {
     setPage(1);
@@ -688,7 +735,7 @@ const ProductTable = () => {
                           <Plus
                             className="text-[#00A9DC] cursor-pointer"
                             size={18}
-                            onClick={() => navigate(`/dashboard/Categories/${parent.id}/edit`)}
+                            onClick={() => navigate(`/dashboard/Categories/${parent.id}/edit?from=categories`)}
                           />
                         </td>
 

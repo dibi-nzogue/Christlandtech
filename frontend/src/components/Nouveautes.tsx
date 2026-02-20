@@ -1,7 +1,6 @@
-
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles, Tag, ShieldCheck, PackageCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import type { Variants } from "framer-motion";
@@ -63,14 +62,9 @@ export default function Nouveautes() {
   });
 
   useEffect(() => {
-    const handleProductCreated = () => {
-      refetch();
-    };
-
+    const handleProductCreated = () => refetch();
     window.addEventListener("product:created", handleProductCreated);
-    return () => {
-      window.removeEventListener("product:created", handleProductCreated);
-    };
+    return () => window.removeEventListener("product:created", handleProductCreated);
   }, [refetch]);
 
   /* Onglets */
@@ -78,7 +72,7 @@ export default function Nouveautes() {
   const tabs = useMemo(() => {
     if (!latest?.length) return [ALL_KEY];
     const unique = Array.from(
-      new Set(latest.map((p) => p.category?.nom).filter((c): c is string => !!c))
+      new Set(latest.map((p: any) => p.category?.nom).filter((c: any): c is string => !!c))
     );
     return [ALL_KEY, ...unique];
   }, [latest]);
@@ -88,20 +82,18 @@ export default function Nouveautes() {
     if (!latest) return [];
     if (activeTab === ALL_KEY) return latest;
     return latest.filter(
-      (p) => p.category?.nom === activeTab || p.categorie?.nom === activeTab
+      (p: any) => p.category?.nom === activeTab || p.categorie?.nom === activeTab
     );
   }, [latest, activeTab]);
 
   const visibleSlides = useVisibleSlides();
   const count = filtered?.length ?? 0;
 
-const isMobile = visibleSlides === 1;
-const slidesToShow = isMobile ? 1 : visibleSlides;
+  const isMobile = visibleSlides === 1;
+  const slidesToShow = isMobile ? 1 : visibleSlides;
 
-const showArrows = slidesToShow >= 2 && count > slidesToShow;
-const autoPlayMobile = isMobile && activeTab  && count > 1;
-
-
+  const showArrows = slidesToShow >= 2 && count > slidesToShow;
+  const autoPlayMobile = isMobile && !!activeTab && count > 1;
 
   // === Keen Slider ===
   const [sliderRef, sliderInstanceRef] = useKeenSlider<HTMLDivElement>(
@@ -114,65 +106,80 @@ const autoPlayMobile = isMobile && activeTab  && count > 1;
       },
     },
     autoPlayMobile
-  ? [
-      (slider) => {
-        let timeout: ReturnType<typeof setTimeout>;
-        let paused = false;
+      ? [
+          (slider) => {
+            let timeout: ReturnType<typeof setTimeout>;
+            let paused = false;
 
-        const clearNextTimeout = () => clearTimeout(timeout);
+            const clearNextTimeout = () => clearTimeout(timeout);
 
-        const nextTimeout = () => {
-          clearTimeout(timeout);
-          if (paused) return;
-          timeout = setTimeout(() => {
-            slider.next();
-          }, 2500);
-        };
+            const nextTimeout = () => {
+              clearTimeout(timeout);
+              if (paused) return;
+              timeout = setTimeout(() => slider.next(), 2500);
+            };
 
-        const pause = () => {
-          paused = true;
-          clearNextTimeout();
-        };
+            const pause = () => {
+              paused = true;
+              clearNextTimeout();
+            };
 
-        const resume = () => {
-          paused = false;
-          nextTimeout();
-        };
+            const resume = () => {
+              paused = false;
+              nextTimeout();
+            };
 
-        slider.on("created", () => {
-          // ✅ Mobile: pause quand on touche / swipe
-          slider.container.addEventListener("pointerdown", pause);
-          slider.container.addEventListener("pointerup", resume);
-          slider.container.addEventListener("touchstart", pause, { passive: true });
-          slider.container.addEventListener("touchend", resume);
+            const onVisibility = () => {
+              if (document.hidden) pause();
+              else resume();
+            };
 
-          // ✅ Pause si l’onglet devient invisible (bonne UX)
-          document.addEventListener("visibilitychange", () => {
-            if (document.hidden) pause();
-            else resume();
-          });
+            slider.on("created", () => {
+              slider.container.addEventListener("pointerdown", pause);
+              slider.container.addEventListener("pointerup", resume);
+              slider.container.addEventListener("touchstart", pause, { passive: true });
+              slider.container.addEventListener("touchend", resume);
+              document.addEventListener("visibilitychange", onVisibility);
+              nextTimeout();
+            });
 
-          nextTimeout();
-        });
+            slider.on("destroyed", () => {
+              document.removeEventListener("visibilitychange", onVisibility);
+            });
 
-        slider.on("dragStarted", pause);
-        slider.on("animationEnded", resume);
-        slider.on("updated", resume);
-      },
-    ]
-  : []
-
+            slider.on("dragStarted", pause);
+            slider.on("animationEnded", resume);
+            slider.on("updated", resume);
+          },
+        ]
+      : []
   );
 
   useEffect(() => {
-  sliderInstanceRef.current?.update();
-}, [activeTab, slidesToShow, count, sliderInstanceRef]);
-
-
+    sliderInstanceRef.current?.update();
+  }, [activeTab, slidesToShow, count, sliderInstanceRef]);
 
   const containerVariants: Variants = {
-    hidden: { opacity: 0, y: 80 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" } },
+    hidden: { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: "easeOut" } },
+  };
+
+  // Badge état
+  const StateBadge = ({ state }: { state?: string }) => {
+    if (!state) return null;
+    const s = String(state).toLowerCase();
+
+    let Icon = PackageCheck;
+    if (s.includes("neuf") || s.includes("new")) Icon = Sparkles;
+    if (s.includes("garantie") || s.includes("warranty")) Icon = ShieldCheck;
+    if (s.includes("promo") || s.includes("discount")) Icon = Tag;
+
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-gray-700 shadow-sm">
+        <Icon size={14} />
+        {state}
+      </span>
+    );
   };
 
   // Carte produit
@@ -185,126 +192,180 @@ const autoPlayMobile = isMobile && activeTab  && count > 1;
           })
         : null;
 
+    const categoryLabel = p.category?.nom || p.categorie?.nom || "";
+    const brandLabel = p.marque?.nom || "";
+
     return (
-      <motion.div
+      <motion.article
         key={p.id}
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, amount: 0.8 }}
+        viewport={{ once: true, amount: 0.35 }}
+        whileHover={{ y: -8 }}
+        whileTap={{ scale: 0.99 }}
+        transition={{ type: "spring", stiffness: 260, damping: 18 }}
         className="
-        h-[520px] sm:h-[540px] md:h-[560px]
-        bg-white shadow-md rounded-2xl p-4
-        flex flex-col justify-between
-        hover:shadow-lg transition-shadow
-      "
+          group relative h-[520px] sm:h-[540px] md:h-[560px]
+          rounded-3xl border border-gray-200/70
+          bg-white/80 backdrop-blur
+          shadow-[0_10px_30px_rgba(0,0,0,0.06)]
+          hover:shadow-[0_18px_55px_rgba(0,0,0,0.12)]
+          overflow-hidden
+        "
       >
-        <div className="space-y-2">
-          <div className="w-full rounded-2xl overflow-hidden">
-            <div className="h-[190px] sm:h-[220px] md:h-[250px]">
+        {/* halo */}
+        <div
+          className="
+            pointer-events-none absolute -inset-24 opacity-0 group-hover:opacity-100
+            transition-opacity duration-300
+            bg-[radial-gradient(circle_at_50%_20%,rgba(0,169,220,0.20),transparent_60%)]
+          "
+        />
+
+        {/* shine */}
+        <div
+          className="
+            pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100
+            transition-[opacity,transform]
+            bg-[linear-gradient(115deg,transparent_0%,rgba(255,255,255,0.45)_40%,transparent_70%)]
+            translate-x-[-35%] group-hover:translate-x-[35%]
+          "
+          style={{
+            transitionDuration: "250ms, 700ms",
+            transitionTimingFunction: "ease, ease",
+          }}
+        />
+
+        <div className="p-4 sm:p-5 flex h-full flex-col">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-gray-600 truncate max-w-[60%]">
+              {categoryLabel}
+            </span>
+            <StateBadge state={p.state} />
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-gray-200/70 bg-white overflow-hidden">
+            <div className="relative h-[190px] sm:h-[220px] md:h-[250px]">
               <img
                 src={p.image || FALLBACK_SVG}
                 alt={p.nom}
-                width={300}
-                height={300}
-                className="w-full h-full object-contain object-center block"
+                width={600}
+                height={600}
+                className="
+                  w-full h-full object-contain object-center block
+                  transition-transform duration-500
+                  group-hover:scale-[1.06]
+                "
                 loading="lazy"
                 onError={(e) => {
                   const img = e.currentTarget as HTMLImageElement;
                   if (img.src !== FALLBACK_SVG) img.src = FALLBACK_SVG;
                 }}
               />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
             </div>
           </div>
 
-          <h4 className="text-xs sm:text-sm text-gray-500 text-center">
-            {p.marque?.nom || ""}
+          <h4 className="mt-3 text-xs sm:text-sm text-gray-500 text-center">
+            {brandLabel}
           </h4>
 
-          <div className="px-1">
+          <div className="mt-1 px-1 flex-1">
             <p
-              className="font-semibold text-gray-800 text-sm sm:text-base text-center
-                       overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical] [WebkitLineClamp:2]"
+              className="
+                font-extrabold text-gray-900 text-sm sm:text-base text-center
+                overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical] [WebkitLineClamp:2]
+                group-hover:text-[#00A9DC] transition-colors
+              "
               title={p.nom}
             >
               {p.nom}
             </p>
+
             {p.specs && (
               <p
-                className="mt-1 text-xs sm:text-sm text-gray-600 text-center
-                         overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical] [WebkitLineClamp:3]"
+                className="
+                  mt-2 text-xs sm:text-sm text-gray-600 text-center
+                  overflow-hidden [display:-webkit-box] [WebkitBoxOrient:vertical] [WebkitLineClamp:3]
+                "
                 title={p.specs}
               >
                 {p.specs}
               </p>
             )}
           </div>
-        </div>
 
-        <div className="mt-2 flex items-center justify-center">
-          {priceDisplay ? (
-            <span className="font-bold text-gray-900 text-sm sm:text-base">
-              Fcfa {priceDisplay}
-            </span>
-          ) : (
-            <span className="text-gray-400 text-xs sm:text-sm">
-              Prix indisponible
-            </span>
-          )}
-        </div>
-
-        {p.state && (
-          <div className="mt-3 bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl text-xs sm:text-sm font-medium w-full text-center">
-            État&nbsp;: {p.state}
+          <div className="mt-3 flex items-center justify-center">
+            {priceDisplay ? (
+              <span className="inline-flex items-center gap-2 rounded-full bg-[#00A9DC] text-white px-4 py-2 text-sm sm:text-base font-extrabold">
+                Fcfa {priceDisplay}
+              </span>
+            ) : (
+              <span className="text-gray-400 text-xs sm:text-sm">
+                Prix indisponible
+              </span>
+            )}
           </div>
-        )}
-      </motion.div>
+
+          <div className="mt-4 flex items-center justify-center">
+            <span className="text-[11px] text-gray-500 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition duration-300">
+              Survolez pour zoom ✨
+            </span>
+          </div>
+        </div>
+      </motion.article>
     );
   };
 
   return (
-    <div className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-10 flex flex-col items-center py-10 bg-white">
+    // ✅ font-sans : police uniforme
+    // ✅ hide-scrollbar : enlève la scrollbar verticale visible
+    <div className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-10 flex flex-col items-center py-10 bg-white overflow-visible">
       <motion.h2
-        className="text-2xl sm:text-3xl font-bold mb-6 text-gray-900 text-center"
+        className="text-2xl sm:text-3xl font-extrabold mb-6 text-gray-900 text-center"
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.4 }}
+      >
+        {t("new")}
+      </motion.h2>
+
+      <motion.div
+        className="flex flex-wrap gap-2 md:gap-3 mb-6 justify-center"
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, amount: 0.5 }}
       >
-        {t("new")}
-      </motion.h2>
-
-      {/* Onglets */}
-      <motion.div
-        className="flex flex-wrap gap-2 md:gap-4 mb-6 justify-center"
-        variants={containerVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, amount: 0.6 }}
-      >
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-3 md:px-4 py-1.5 md:py-2 rounded-full text-sm md:text-base font-medium transition-all ${
-              activeTab === tab ? "bg-gray-200 text-black" : "text-gray-500 hover:text-black"
-            }`}
-          >
-            {tab === ALL_KEY ? t("see.all") : tab}
-          </button>
-        ))}
+        {tabs.map((tab) => {
+          const active = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={[
+                "px-4 py-2 rounded-full text-sm md:text-base font-semibold transition font-sans",
+                "border",
+                active
+                  ? "bg-[#00A9DC] text-white border-[#00A9DC] shadow-sm"
+                  : "bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-50",
+              ].join(" ")}
+            >
+              {tab === ALL_KEY ? t("see.all") : tab}
+            </button>
+          );
+        })}
       </motion.div>
 
       {error && !loading && <p className="text-red-600 mb-4">{error}</p>}
 
-      {/* Plus de loader ici : l’App gère l’état de chargement global */}
-
-      {/* Carrousel / grille une fois les données là */}
       {!loading && count > 0 && (
         count <= visibleSlides ? (
           <div className="w-full mb-10">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filtered!.map((p) => (
+              {filtered.map((p: any) => (
                 <div key={p.id} className="px-1 md:px-3 py-3">
                   {renderCard(p)}
                 </div>
@@ -313,44 +374,58 @@ const autoPlayMobile = isMobile && activeTab  && count > 1;
           </div>
         ) : (
           <div className="relative w-full mb-10">
-            {/* Flèches custom, pilotent Keen Slider */}
             {showArrows && (
               <>
                 <button
                   type="button"
                   onClick={() => sliderInstanceRef.current?.prev()}
                   aria-label="Previous"
-                  className="flex absolute top-1/2 -translate-y-1/2 left-2 sm:-left-4
-                             z-10 bg-white shadow-md rounded-full p-2 sm:p-3 md:p-3
-                             cursor-pointer hover:bg-gray-100 transition rotate-180"
+                  className="
+                    flex absolute top-1/2 -translate-y-1/2 left-2 sm:-left-4 z-10
+                    rounded-full p-2.5 sm:p-3
+                    bg-white/90 backdrop-blur border border-gray-200
+                    shadow-md hover:shadow-lg hover:bg-white transition
+                    rotate-180
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00A9DC]/60
+                  "
                 >
-                  <ArrowRight size={18} className="text-gray-700" />
+                  <ArrowRight size={18} className="text-gray-800" />
                 </button>
+
                 <button
                   type="button"
                   onClick={() => sliderInstanceRef.current?.next()}
                   aria-label="Next"
-                  className="flex absolute top-1/2 -translate-y-1/2 right-2 sm:-right-4
-                             z-10 bg-white shadow-md rounded-full p-2 sm:p-3 md:p-3
-                             cursor-pointer hover:bg-gray-100 transition"
+                  className="
+                    flex absolute top-1/2 -translate-y-1/2 right-2 sm:-right-4 z-10
+                    rounded-full p-2.5 sm:p-3
+                    bg-white/90 backdrop-blur border border-gray-200
+                    shadow-md hover:shadow-lg hover:bg-white transition
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00A9DC]/60
+                  "
                 >
-                  <ArrowRight size={18} className="text-gray-700" />
+                  <ArrowRight size={18} className="text-[#00A9DC]" />
                 </button>
               </>
             )}
 
-            <div
-              ref={sliderRef}
-              className={`keen-slider ${isMobile ? "max-w-[520px] mx-auto" : ""}`}
-            >
-              {filtered!.map((p) => (
-                <div
-                  key={p.id}
-                  className={`keen-slider__slide ${isMobile ? "px-0 py-3" : "px-1 md:px-3 py-3"}`}
-                >
-                  {renderCard(p)}
-                </div>
-              ))}
+            {/* ✅ hide-scrollbar ici aussi pour être sûr */}
+            <div className="overflow-x-hidden overflow-y-hidden">
+              <div
+                ref={sliderRef}
+               className={`keen-slider overflow-x-hidden overflow-y-hidden py-6 -my-6 ${isMobile ? "max-w-[520px] mx-auto" : ""}`}
+              >
+                {filtered.map((p: any) => (
+                  <div
+                    key={p.id}
+                    className={`keen-slider__slide ${
+                      isMobile ? "px-0 py-3" : "px-1 md:px-3 py-3"
+                    }`}
+                  >
+                    {renderCard(p)}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )
@@ -358,13 +433,21 @@ const autoPlayMobile = isMobile && activeTab  && count > 1;
 
       <motion.button
         onClick={() => navigate("/Produits")}
-        className="bg-[#00A9DC] text-white px-6 py-2 md:py-3 rounded-2xl font-semibold hover:bg-sky-600 transition-colors mt-5"
+        className="
+          mt-5 inline-flex items-center justify-center gap-2
+          rounded-2xl px-6 py-2.5 md:py-3
+          bg-[#00A9DC] text-white font-extrabold
+          hover:bg-sky-600 transition
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00A9DC]/60
+          font-sans
+        "
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, amount: 0.5 }}
+        viewport={{ once: true, amount: 0.4 }}
       >
         {t("pdt")}
+        <ArrowRight size={18} />
       </motion.button>
     </div>
   );

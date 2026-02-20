@@ -181,29 +181,38 @@ const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Légal */}
-          <div className="mt-5 border-t border-white/10 pt-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm lg:text-base text-white/80">
-                <span>Informations légales</span>
+        {/* Légal */}
+<div className="mt-5 border-t border-white/10 pt-4">
+  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm lg:text-base text-white/80">
+      <span>Informations légales</span>
 
-                <button
-                  type="button"
-                  onClick={() => setOpenPdf(true)}
-                  className="hover:text-[#00A9DC] transition-colors underline underline-offset-4"
-                >
-                  Politique de confidentialité
-                </button>
+      <button
+        type="button"
+        onClick={() => setOpenPdf(true)}
+        className="hover:text-[#00A9DC] transition-colors underline underline-offset-4"
+      >
+        Politique de confidentialité
+      </button>
 
-                <span>Livraison / Garantie &amp; SAV</span>
-              </div>
+      <span>Livraison / Garantie &amp; SAV</span>
+    </div>
 
-              <p className="text-xs lg:text-sm text-white/65">
-                Copyright © 2026 CHRISTLAND TECH. Tous droits réservés. Site conçu
-                et développé par Basogol-Hive Tech.
-              </p>
-            </div>
-          </div>
+    {/* ✅ Crédit propre */}
+    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 text-xs lg:text-sm text-white/65">
+      <span>Copyright © 2026 CHRISTLAND TECH. Tous droits réservés.</span>
+      <span className="hidden sm:inline text-white/30">|</span>
+      <a
+        href="https://basogol-hive.tech"
+        target="_blank"
+        rel="noreferrer"
+        className="hover:text-[#00A9DC] transition-colors underline underline-offset-4"
+      >
+        Développé par Basogol-Hive Tech
+      </a>
+    </div>
+  </div>
+</div>
         </div>
       </footer>
 

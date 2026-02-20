@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect } from "react";
 import { useKeenSlider } from "keen-slider/react";
 import "keen-slider/keen-slider.min.css";
@@ -32,13 +31,12 @@ const FALLBACK_SVG =
 const CategoriesCarousel: React.FC = () => {
   const { t } = useTranslation();
 
-  // 👉 On détecte un petit écran pour charger 2 images en priorité
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const check = () => {
       if (typeof window !== "undefined") {
-        setIsMobile(window.innerWidth < 640); // < 640px ⇒ mobile
+        setIsMobile(window.innerWidth < 640);
       }
     };
     check();
@@ -46,29 +44,27 @@ const CategoriesCarousel: React.FC = () => {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  
   const { data: cats, loading, error } = useTopCategories1();
   const items: ApiCategory[] = cats ?? [];
 
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+
   const [sliderRef, instanceRef] = useKeenSlider<HTMLDivElement>({
     loop: false,
-    slides: {
-      perView: 2,
-      spacing: 16,
-    },
+    slides: { perView: 2, spacing: 16 },
     breakpoints: {
-      "(max-width: 379px)": {
-        slides: { perView: 1, spacing: 12 },
-      },
-      "(min-width: 640px)": {
-        slides: { perView: 3, spacing: 16 },
-      },
-      "(min-width: 900px)": {
-        slides: { perView: 4, spacing: 18 },
-      },
-      "(min-width: 1200px)": {
-        slides: { perView: 5, spacing: 20 },
-      },
+      "(max-width: 379px)": { slides: { perView: 1, spacing: 12 } },
+      "(min-width: 640px)": { slides: { perView: 3, spacing: 16 } },
+      "(min-width: 900px)": { slides: { perView: 4, spacing: 18 } },
+      "(min-width: 1200px)": { slides: { perView: 5, spacing: 20 } },
+    },
+    created(slider) {
+      setLoaded(true);
+      setCurrentSlide(slider.track.details.rel);
+    },
+    slideChanged(slider) {
+      setCurrentSlide(slider.track.details.rel);
     },
   });
 
@@ -83,6 +79,11 @@ const CategoriesCarousel: React.FC = () => {
       transition: { delay: i * 0.12, duration: 0.45 },
     }),
   };
+
+  const canPrev = loaded ? currentSlide > 0 : false;
+  const canNext = loaded
+    ? currentSlide < (instanceRef.current?.track.details?.maxIdx ?? 0)
+    : false;
 
   return (
     <section
@@ -105,17 +106,27 @@ const CategoriesCarousel: React.FC = () => {
           >
             {t("categorie")}
           </h2>
+
           <div className="flex gap-2">
             <button
               onClick={() => instanceRef.current?.prev()}
-              className="p-2 rounded-full hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00A8E8]"
+              disabled={!canPrev}
+              className={[
+                "p-2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00A8E8]",
+                canPrev ? "hover:bg-gray-200" : "opacity-40 cursor-not-allowed",
+              ].join(" ")}
               aria-label="Afficher les catégories précédentes"
             >
               <FaArrowLeft aria-hidden="true" />
             </button>
+
             <button
               onClick={() => instanceRef.current?.next()}
-              className="p-2 rounded-full hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00A8E8]"
+              disabled={!canNext}
+              className={[
+                "p-2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00A8E8]",
+                canNext ? "hover:bg-gray-200" : "opacity-40 cursor-not-allowed",
+              ].join(" ")}
               aria-label="Afficher les catégories suivantes"
             >
               <FaArrowRight aria-hidden="true" />
@@ -136,71 +147,147 @@ const CategoriesCarousel: React.FC = () => {
         )}
 
         {!loading && items.length > 0 && (
-          <div className="pb-10">
-            <div
-              ref={sliderRef}
-              className="keen-slider"
-              aria-live="polite"
-              aria-roledescription="carrousel de catégories"
-            >
-              {items.map((cat, i) => {
-  const rawImage = cat.image_url || (cat as any).image || "";
-  const imgSrc = rawImage ? media(rawImage) : FALLBACK_SVG;
+          // ✅ IMPORTANT: on ajoute de l’espace vertical pour éviter la coupe
+          <div className="pb-10 pt-4">
+            {/* ✅ IMPORTANT: wrapper overflow-visible pour laisser respirer le hover */}
+            <div className="overflow-visible">
+              <div
+                ref={sliderRef}
+                // ✅ IMPORTANT: overflow-visible ici aussi
+                className="keen-slider overflow-visible"
+                aria-live="polite"
+                aria-roledescription="carrousel de catégories"
+              >
+                {items.map((cat, i) => {
+                  const rawImage = cat.image_url || (cat as any).image || "";
+                  const imgSrc = rawImage ? media(rawImage) : FALLBACK_SVG;
 
-  // 👉 combien d’images on charge en priorité
-  const eagerLimit = isMobile ? 2 : 1;
-  const shouldEagerLoad = i < eagerLimit;
+                  const eagerLimit = isMobile ? 2 : 1;
+                  const shouldEagerLoad = i < eagerLimit;
 
-                return (
-                  <div
-                    key={cat.id}
-                    className="keen-slider__slide px-2 sm:px-3"
-                    role="group"
-                    aria-label={`${cat.nom}`}
-                  >
-                    <motion.div
-                      custom={i}
-                      variants={cardVariants}
-                      initial="hidden"
-                      animate={isInView ? "visible" : "hidden"}
-                      className="relative flex flex-col items-center rounded-xl bg-gray-50 p-4 sm:p-5 shadow-md hover:shadow-lg min-h-[230px]"
+                  return (
+                    <div
+                      key={cat.id}
+                      // ✅ IMPORTANT: overflow-visible sur chaque slide
+                      className="keen-slider__slide px-2 sm:px-3 overflow-y-visible"
+                      role="group"
+                      aria-label={`${cat.nom}`}
                     >
-                      <div className="relative aspect-square w-24 md:w-28 lg:w-32 overflow-hidden rounded-lg ring-1 ring-gray-200 bg-white/70">
-                        <motion.img
-  src={imgSrc}
-  alt={cat.nom}
-  className="absolute inset-0 h-full w-full object-cover"
-  initial={{ scale: 0.94, opacity: 0 }}
-  animate={isInView ? { scale: 1, opacity: 1 } : undefined}
-  transition={{ duration: 0.45, delay: i * 0.06 }}
-  // ⚡ priorité de chargement
-  loading={shouldEagerLoad ? "eager" : "lazy"}
-  fetchPriority={shouldEagerLoad ? "high" : "auto"}
-  width={300}
-  height={300}
-  decoding="async"
-  onError={(e) => {
-    const img = e.currentTarget as HTMLImageElement;
-    if (img.src !== FALLBACK_SVG) {
-      img.src = FALLBACK_SVG;
-    }
-  }}
-/>
+                      <motion.div
+                        custom={i}
+                        variants={cardVariants}
+                        initial="hidden"
+                        animate={isInView ? "visible" : "hidden"}
+                        whileHover={{ y: -6 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 260,
+                          damping: 18,
+                        }}
+                        className="
+                          group relative flex flex-col items-center rounded-2xl
+                          bg-white/80 backdrop-blur
+                          p-4 sm:p-5 min-h-[230px]
+                          border border-gray-200/70
+                          shadow-[0_8px_22px_rgba(0,0,0,0.06)]
+                          hover:shadow-[0_16px_40px_rgba(0,0,0,0.12)]
+                          focus-within:ring-2 focus-within:ring-[#00A8E8]/70
+                          overflow-hidden
+                        "
+                      >
+                        {/* halo bleu */}
+                        <div
+                          className="
+                            pointer-events-none absolute -inset-24 opacity-0 group-hover:opacity-100
+                            transition-opacity duration-300
+                            bg-[radial-gradient(circle_at_50%_30%,rgba(0,168,232,0.22),transparent_60%)]
+                          "
+                        />
 
-                      </div>
+                        {/* shine */}
+                        <div
+                          className="
+                            pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100
+                            transition-[opacity,transform]
+                            bg-[linear-gradient(115deg,transparent_0%,rgba(255,255,255,0.45)_40%,transparent_70%)]
+                            translate-x-[-30%] group-hover:translate-x-[30%]
+                          "
+                          style={{
+                            transitionDuration: "300ms, 700ms",
+                            transitionTimingFunction: "ease, ease",
+                          }}
+                        />
 
-                      <div className="mt-3 w-full flex items-center justify-center h-[48px]">
-                        <p
-                          className="max-w-[11rem] mx-auto text-center text-[13px] sm:text-sm md:text-base leading-snug font-medium break-words overflow-hidden text-ellipsis"
-                          title={cat.nom}
+                        {/* Image */}
+                        <div
+                          className="
+                            relative aspect-square w-24 md:w-28 lg:w-32
+                            overflow-hidden rounded-xl
+                            ring-1 ring-gray-200
+                            group-hover:ring-[#00A8E8]/40
+                            transition
+                            bg-gray-50
+                          "
                         >
-                          {cat.nom}
-                        </p>
-                      </div>
-                    </motion.div>
-                  </div>
-                );
-              })}
+                          <motion.img
+                            src={imgSrc}
+                            alt={cat.nom}
+                            className="
+                              absolute inset-0 h-full w-full object-cover
+                              transition-transform duration-500
+                              group-hover:scale-[1.10]
+                            "
+                            initial={{ scale: 0.94, opacity: 0 }}
+                            animate={
+                              isInView ? { scale: 1, opacity: 1 } : undefined
+                            }
+                            transition={{
+                              duration: 0.45,
+                              delay: i * 0.06,
+                            }}
+                            loading={shouldEagerLoad ? "eager" : "lazy"}
+                            fetchPriority={shouldEagerLoad ? "high" : "auto"}
+                            width={300}
+                            height={300}
+                            decoding="async"
+                            onError={(e) => {
+                              const img = e.currentTarget as HTMLImageElement;
+                              if (img.src !== FALLBACK_SVG) img.src = FALLBACK_SVG;
+                            }}
+                          />
+
+                          {/* overlay */}
+                          <div
+                            className="
+                              absolute inset-0 bg-black/0 group-hover:bg-black/10
+                              transition-colors duration-300
+                            "
+                          />
+                        </div>
+
+                        {/* Titre */}
+                        <div className="mt-3 w-full flex items-center justify-center min-h-[48px]">
+                          <p
+                            className="
+                              max-w-[11rem] mx-auto text-center
+                              text-[13px] sm:text-sm md:text-base
+                              leading-snug font-semibold
+                              text-gray-900
+                              group-hover:text-[#00A8E8]
+                              transition-colors
+                              break-words
+                            "
+                            title={cat.nom}
+                          >
+                            {cat.nom}
+                          </p>
+                        </div>
+                      </motion.div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

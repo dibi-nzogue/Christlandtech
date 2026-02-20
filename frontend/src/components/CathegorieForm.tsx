@@ -248,13 +248,19 @@ const validateRequired = (): string | null => {
         kind: "success",
         msg: "Catégorie et sous-catégories créées avec succès.",
       });
-
-      setTimeout(() => {
-        navigate("/dashboard?tab=categories", {
-          replace: true,
-          state: { flash: "Catégorie créée ✅" },
-        });
-      }, 500);
+console.log("REDIRECT TO:", "/dashboard?tab=categories");
+setTimeout(() => {
+  navigate(
+    { pathname: "/dashboard", search: "?tab=categories" },
+    {
+      replace: true,
+      state: {
+        flash: "Catégorie créée ✅",
+        tab: "categories", // ✅ AJOUT
+      },
+    }
+  );
+}, 500);
     } catch (e: any) {
       setToast({
         kind: "error",

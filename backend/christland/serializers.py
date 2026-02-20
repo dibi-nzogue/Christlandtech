@@ -318,11 +318,18 @@ class CategoryDashboardSerializer(serializers.ModelSerializer):
         )
 
     def get_children(self, obj):
-        rel = getattr(obj, "enfants", None)
-        qs = rel.all() if rel is not None else Categories.objects.filter(parent=obj)
+        # ✅ lié à : parent = ForeignKey('self', related_name='enfants', ...)
+        if hasattr(obj, "enfants"):
+            qs = obj.enfants.all()
+        else:
+            # fallback sécurité
+            qs = Categories.objects.filter(parent=obj)
 
+        # ✅ soft delete + ordering
         qs = qs.filter(is_deleted=False).order_by("position", "id")
+
         return [{"id": c.id, "nom": c.nom, "slug": c.slug} for c in qs]
+    
 class CategoryEditSerializer(serializers.ModelSerializer):
     # champ côté front
     image = serializers.CharField(required=False, allow_null=True, allow_blank=True)

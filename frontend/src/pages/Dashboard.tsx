@@ -18,11 +18,16 @@ const Dashboard: React.FC = () => {
     return s ?? null;
   });
 
-  React.useEffect(() => {
-    if ((location.state as any)?.flash) {
-      navigate(location.pathname, { replace: true, state: null });
-    }
-  }, [location.pathname, location.state, navigate]);
+React.useEffect(() => {
+  const st: any = location.state;
+
+  if (st?.flash) {
+    navigate(
+      { pathname: location.pathname, search: location.search }, // ✅ garde ?tab=categories
+      { replace: true, state: null } // ✅ enlève juste le state
+    );
+  }
+}, [location.state, location.pathname, location.search, navigate]);
 
   // Stats
   const { data: stats, loading: statsLoading, error: statsError } = useDashboardStats();

@@ -606,9 +606,6 @@ couleur:
   const variants = [mainVariant, ...extraVariantsPayload];
 
 
-
-
-
   // 2) Payload final
     const payload: ProductPayload = {
     nom: formData.nom.trim(),

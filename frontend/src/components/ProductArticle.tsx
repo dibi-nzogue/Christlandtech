@@ -158,10 +158,12 @@ const ProductArticle: React.FC = () => {
       await updateDashboardArticle(Number(id), payload);
       setToast({ kind: "success", msg: "Article mis à jour ✅" });
 
-      setTimeout(
-        () => navigate("/dashboard", { replace: true }),
-        800
-      );
+      setTimeout(() => {
+  navigate("/dashboard?tab=articles", {
+    replace: true,
+    state: { flash: "Article mis à jour ✅" },
+  });
+}, 800);
     } catch (e: any) {
       setToast({
         kind: "error",

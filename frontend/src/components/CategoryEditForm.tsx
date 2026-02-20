@@ -306,13 +306,13 @@ const CategoryEditForm: React.FC = () => {
         kind: "success",
         msg: "Catégorie mise à jour avec succès.",
       });
-
+console.log("REDIRECT TO:", "/dashboard?tab=categories");
       setTimeout(() => {
-        navigate("/dashboard?tab=categories", {
-          replace: true,
-          state: { flash: "Catégorie mise à jour ✅" },
-        });
-      }, 600);
+      navigate(
+        { pathname: "/dashboard", search: "?tab=categories" },
+        { replace: true, state: { flash: "Catégorie mise à jour ✅" } }
+      );
+    }, 600);
     } catch (e: any) {
       setToast({
         kind: "error",
