@@ -3,7 +3,6 @@ import { useState } from "react";
 import {
   Home,
   BarChart2,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -12,12 +11,11 @@ import {
 import logo from "../assets/images/logo1.webp";
 import { useLocation, useNavigate } from "react-router-dom";
 import { auth } from "../auth";
-
 const GA_URL =
   "https://analytics.google.com/analytics/web/?authuser=0#/p377242813";
 
-const GOS_URL =
-  "https://search.google.com/search-console?resource_id=sc-domain%3Achristland.tech";
+// const GOS_URL =
+//   "https://search.google.com/search-console?resource_id=sc-domain%3Achristland.tech";
 
 
 
@@ -78,7 +76,7 @@ const Sidebar: React.FC = () => {
           <BarChart2 size={22} aria-hidden="true" />
         </button>
 
-        <button
+        {/* <button
           type="button"
           title="Google Console"
           aria-label="Google Console"
@@ -88,7 +86,7 @@ const Sidebar: React.FC = () => {
           className={itemCls(false)}
         >
           <Settings size={22} aria-hidden="true" />
-        </button>
+        </button> */}
 
         <button
           type="button"
