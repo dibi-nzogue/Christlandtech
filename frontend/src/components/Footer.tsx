@@ -61,15 +61,6 @@ const Footer: React.FC = () => {
                   }}
                 />
               </div>
-
-              <div className="leading-5 whitespace-nowrap">
-                <span className="font-semibold tracking-wide text-[13px] sm:text-sm md:text-lg lg:text-xl">
-                  CHRISTLAND
-                </span>{" "}
-                <span className="font-extrabold text-[#00A8E8] text-[13px] sm:text-sm md:text-lg lg:text-xl">
-                  TECH
-                </span>
-              </div>
             </Link>
 
             <nav
