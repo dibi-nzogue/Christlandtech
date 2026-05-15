@@ -7,17 +7,17 @@ import { useTranslation } from "react-i18next";
 // ✅ Slide 1 — Desk
 import heroDeskLg from "../assets/images/Plan de travail 8001_4500...jpg";
 import heroDeskMd from "../assets/images/Plan de travail 2048_1536..jpg";
-import heroDeskMobile from "../assets/images/Mobile 1080x1920..jpg";
+import heroDeskMobile from "../assets/images/Mobile3.png";
 
 // ✅ Slide 2 — IT
 import heroItLg from "../assets/images/Plan de travail 8001_4500.jpg";
 import heroItMd from "../assets/images/Plan de travail 2048_1536...jpg";
-import heroItMobile from "../assets/images/Mobile 1080x1920...jpg";
+import heroItMobile from "../assets/images/Mobile2.png";
 
 // ✅ Slide 3 — Tech
 import heroTechLg from "../assets/images/Plan de travail 8001_4500..jpg";
 import heroTechMd from "../assets/images/Plan de travail 2048_1536.jpg";
-import heroTechMobile from "../assets/images/Mobile 1080x1920.jpg";
+import heroTechMobile from "../assets/images/Mobile1.png";
 
 type SlideConfig = {
   title: string;
