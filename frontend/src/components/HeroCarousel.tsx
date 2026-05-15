@@ -148,8 +148,15 @@ const HeroCarousel: React.FC = () => {
                 </picture>
 
                 <div className="absolute inset-0 bg-black/20" />
-
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-5 sm:px-8 md:px-12">
+                <div
+                  className={`
+                    absolute left-0 right-0 flex flex-col items-center text-center px-5 sm:px-8 md:px-12
+                    ${index === 2
+                      ? "top-[54%] -translate-y-1/2 sm:top-1/2"
+                      : "top-1/2 -translate-y-1/2"
+                    }
+                  `}
+                >
                   <motion.h2
                     initial={{ opacity: 0, y: 24 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
