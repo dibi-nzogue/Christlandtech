@@ -17,7 +17,7 @@ import heroItMobile from "../assets/images/Mobile2.png";
 // ✅ Slide 3 — Tech
 import heroTechLg from "../assets/images/Plan de travail 8001_4500..jpg";
 import heroTechMd from "../assets/images/Plan de travail 2048_1536.jpg";
-import heroTechMobile from "../assets/images/Mobile1.png";
+import heroTechMobile from "../assets/images/photo_2026-05-15_14-29-03.jpg";
 
 type SlideConfig = {
   title: string;
